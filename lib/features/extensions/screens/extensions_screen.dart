@@ -813,7 +813,6 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
 // ---------------------------------------------------------------------------
 // Plugin tile
 // ---------------------------------------------------------------------------
-
 class _PluginTile extends ConsumerStatefulWidget {
   final ExtensionPlugin plugin;
   final bool isDebugSection;
@@ -931,21 +930,6 @@ class _PluginTileState extends ConsumerState<_PluginTile> {
     );
 
     return ListTile(
-      focusColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-      onTap: () async {
-        if (isInstalled) {
-          await Navigator.of(context).push<void>(
-            MaterialPageRoute<void>(
-              builder: (context) =>
-                  PluginSettingsScreen(plugin: installedPlugin),
-            ),
-          );
-        } else if (!isInstalling) {
-          await ref
-              .read(extensionsControllerProvider.notifier)
-              .installPlugin(widget.plugin);
-        }
-      },
       leading: Container(
         width: 44,
         height: 44,
@@ -998,9 +982,7 @@ class _PluginTileState extends ConsumerState<_PluginTile> {
                     },
                   ),
 
-                // Show the button only when the extension exposes
-                // settings, domains, or providers. While getSettings()
-                // is resolving, no empty settings button is displayed.
+                // Settings button
                 if (isInstalled)
                   FutureBuilder<List<PluginSettingDefinition>>(
                     future: _settingsFor(installedPlugin),
@@ -1019,7 +1001,6 @@ class _PluginTileState extends ConsumerState<_PluginTile> {
                       final hasStaticProviders =
                           installedPlugin.providers?.isNotEmpty ?? false;
 
-                      // Rebuild when dynamic providers finish loading.
                       final loadedProviders = ref.watch(
                         extensionManagerProvider,
                       );
@@ -1197,6 +1178,8 @@ class _FocusableCardState extends State<_FocusableCard> {
     final theme = Theme.of(context);
 
     return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
       onFocusChange: (focused) => setState(() => _isFocused = focused),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
