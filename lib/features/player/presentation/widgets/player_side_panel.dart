@@ -371,7 +371,7 @@ class _PlayerSourcesPanelState extends ConsumerState<PlayerSourcesPanel>
         return;
       }
       final ctx = _anchorNode.context;
-      if (ctx != null) {
+      if (ctx != null && ctx.mounted) {
         _anchorNode.requestFocus();
         Scrollable.ensureVisible(
           ctx,
@@ -379,7 +379,7 @@ class _PlayerSourcesPanelState extends ConsumerState<PlayerSourcesPanel>
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
         );
-      } else {
+      } else if (mounted) {
         _rootNode.requestFocus();
       }
     });
@@ -919,7 +919,7 @@ class _PlayerEpisodesPanelState extends ConsumerState<PlayerEpisodesPanel> {
         return;
       }
       final ctx = _anchorNode.context;
-      if (ctx != null) {
+      if (ctx != null && ctx.mounted) {
         _anchorNode.requestFocus();
         Scrollable.ensureVisible(
           ctx,
