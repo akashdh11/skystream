@@ -11,7 +11,9 @@ import '../../../shared/widgets/loading_indicator.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
 
 class ExtensionsScreen extends ConsumerStatefulWidget {
-  const ExtensionsScreen({super.key});
+  final bool isEmbedded;
+
+  const ExtensionsScreen({super.key, this.isEmbedded = false});
 
   @override
   ConsumerState<ExtensionsScreen> createState() => _ExtensionsScreenState();
@@ -50,6 +52,68 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     });
 
     final state = ref.watch(extensionsControllerProvider);
+
+    if (widget.isEmbedded) {
+      return switch (state) {
+        ExtensionsLoading(repositories: []) =>
+          const Center(child: AppLoadingIndicator()),
+        _ => DefaultTabController(
+            key: const ValueKey('installed_extensions_tab_controller'),
+            length: 2,
+            child: Builder(
+              builder: (tabContext) => Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: LayoutConstants.dashboardContentPadding,
+                    ),
+                    alignment: Alignment.centerLeft,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 800),
+                      child: TabBar(
+                        indicatorSize: TabBarIndicatorSize.label,
+                        indicatorWeight: 3,
+                        labelStyle: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        unselectedLabelStyle: const TextStyle(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 15,
+                        ),
+                        labelColor: Theme.of(tabContext).colorScheme.primary,
+                        unselectedLabelColor:
+                            Theme.of(tabContext).colorScheme.onSurfaceVariant,
+                        indicatorColor: Theme.of(tabContext).colorScheme.primary,
+                        dividerColor: Theme.of(tabContext)
+                            .dividerColor
+                            .withValues(alpha: 0.2),
+                        tabs: [
+                          Tab(text: l10n.installed),
+                          Tab(text: l10n.repositories),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 800),
+                        child: TabBarView(
+                          children: [
+                            _buildInstalledTab(tabContext, ref, state),
+                            _buildRepositoriesTab(tabContext, ref, state),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      };
+    }
 
     return switch (state) {
       ExtensionsLoading(repositories: []) => Scaffold(

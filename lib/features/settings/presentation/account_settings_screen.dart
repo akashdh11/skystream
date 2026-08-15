@@ -21,7 +21,9 @@ import '../../../core/storage/settings_repository.dart';
 import '../../../core/services/notification_service.dart';
 
 class AccountSettingsScreen extends ConsumerStatefulWidget {
-  const AccountSettingsScreen({super.key});
+  final bool isEmbedded;
+
+  const AccountSettingsScreen({super.key, this.isEmbedded = false});
 
   @override
   ConsumerState<AccountSettingsScreen> createState() =>
@@ -80,14 +82,12 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
         const PlayerSettings();
     final settingsRepo = ref.watch(settingsRepositoryProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l10n.accounts)),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: LayoutConstants.spacingLg),
-            children: [
+    final content = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: LayoutConstants.spacingLg),
+          children: [
               const SizedBox(height: LayoutConstants.spacingXs),
               SettingsGroup(
                 title: l10n.accounts,
@@ -499,7 +499,15 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
             ],
           ),
         ),
-      ),
+      );
+
+    if (widget.isEmbedded) {
+      return content;
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.accounts)),
+      body: content,
     );
   }
 }

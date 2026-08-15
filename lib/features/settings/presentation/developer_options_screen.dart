@@ -17,7 +17,9 @@ import '../../../core/services/notification_service.dart';
 import 'package:flutter/foundation.dart';
 
 class DeveloperOptionsScreen extends ConsumerStatefulWidget {
-  const DeveloperOptionsScreen({super.key});
+  final bool isEmbedded;
+
+  const DeveloperOptionsScreen({super.key, this.isEmbedded = false});
 
   @override
   ConsumerState<DeveloperOptionsScreen> createState() =>
@@ -39,11 +41,12 @@ class _DeveloperOptionsScreenState
     final deviceAsync = ref.watch(deviceProfileProvider);
 
     final l10n = AppLocalizations.of(context)!;
-    final scaffold = Scaffold(
-      appBar: AppBar(title: Text(l10n.developerOptions)),
-      body: ListView(
-        padding: const EdgeInsets.all(8),
-        children: [
+    final content = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: ListView(
+          padding: const EdgeInsets.all(8),
+          children: [
           SettingsGroup(
             title: l10n.debugTools,
             children: [
@@ -108,9 +111,17 @@ class _DeveloperOptionsScreenState
           ),
         ],
       ),
-    );
+    ),
+  );
 
-    return scaffold;
+    if (widget.isEmbedded) {
+      return content;
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.developerOptions)),
+      body: content,
+    );
   }
 
   Future<void> _toggleAssetLoading(BuildContext context, bool newValue) async {
