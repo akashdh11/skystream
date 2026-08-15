@@ -652,6 +652,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 100),
       itemCount: suggestionState.suggestions.length,
       itemBuilder: (context, index) {
         final suggestion = suggestionState.suggestions[index];

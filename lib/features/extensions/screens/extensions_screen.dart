@@ -191,7 +191,7 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
 
     return ListView(
       padding:
-          const EdgeInsets.only(bottom: 24, top: LayoutConstants.spacingMd),
+          const EdgeInsets.only(bottom: 100, top: LayoutConstants.spacingMd),
       addAutomaticKeepAlives: false,
       children: [
         if (hasDebug) _buildDebugSection(context, debugPlugins),
@@ -265,7 +265,7 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
 
     return ListView.builder(
       padding:
-          const EdgeInsets.only(bottom: 24, top: LayoutConstants.spacingMd),
+          const EdgeInsets.only(bottom: 100, top: LayoutConstants.spacingMd),
       addAutomaticKeepAlives: false,
       itemCount: state.repositories.length + 1,
       itemBuilder: (context, index) {
