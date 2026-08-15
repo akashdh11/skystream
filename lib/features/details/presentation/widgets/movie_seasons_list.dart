@@ -355,6 +355,8 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                             .read(notificationServiceProvider)
                             .showInfo(
                               AppLocalizations.of(context)!.selectSourceToPlay,
+                              title: 'Source Required',
+                              icon: Icons.layers_outlined,
                             );
                       },
                       borderRadius: BorderRadius.circular(8),
@@ -604,6 +606,8 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                             .read(notificationServiceProvider)
                             .showInfo(
                               AppLocalizations.of(context)!.selectSourceToPlay,
+                              title: 'Source Required',
+                              icon: Icons.layers_outlined,
                             );
                       },
                       borderRadius: BorderRadius.circular(8),

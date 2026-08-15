@@ -224,6 +224,8 @@ class _ContinueWatchingCardState extends ConsumerState<ContinueWatchingCard> {
                           AppLocalizations.of(
                             context,
                           )!.removedFromHistory(item.title),
+                          title: 'Watch History',
+                          icon: Icons.history_rounded,
                         );
                   },
                 ),

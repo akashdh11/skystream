@@ -18,6 +18,7 @@ import '../../tracking/data/trakt_service.dart';
 import '../../tracking/data/mal_service.dart';
 import '../../tracking/data/anilist_service.dart';
 import '../../../core/storage/settings_repository.dart';
+import '../../../core/services/notification_service.dart';
 
 class AccountSettingsScreen extends ConsumerStatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -189,14 +190,13 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                                       },
                                     );
                                 if (success && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
+                                  ref
+                                      .read(notificationServiceProvider)
+                                      .showSuccess(
                                         'Successfully connected to Simkl!',
-                                      ),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
+                                        title: 'Simkl',
+                                        icon: Icons.sync_rounded,
+                                      );
                                 }
                                 if (isDialogShowing &&
                                     dialogContext != null &&
@@ -267,14 +267,13 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                                       },
                                     );
                                 if (success && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
+                                  ref
+                                      .read(notificationServiceProvider)
+                                      .showSuccess(
                                         'Successfully connected to Trakt!',
-                                      ),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
+                                        title: 'Trakt',
+                                        icon: Icons.sync_rounded,
+                                      );
                                 }
                                 if (isDialogShowing &&
                                     dialogContext != null &&
@@ -341,27 +340,21 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                                           codeVerifier,
                                         );
                                     if (success && context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
+                                      ref
+                                          .read(notificationServiceProvider)
+                                          .showSuccess(
                                             'Successfully connected to MyAnimeList!',
-                                          ),
-                                          backgroundColor: Colors.green,
-                                        ),
-                                      );
+                                            title: 'MyAnimeList',
+                                            icon: Icons.sync_rounded,
+                                          );
                                     } else if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
+                                      ref
+                                          .read(notificationServiceProvider)
+                                          .showError(
                                             'Failed to connect to MyAnimeList',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
+                                            title: 'MyAnimeList',
+                                            icon: Icons.sync_problem_rounded,
+                                          );
                                     }
                                   }
                                   if (context.mounted) {
@@ -425,27 +418,21 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                                     final success = await anilistService
                                         .saveTokenFromRedirect(redirectUrl);
                                     if (success && context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
+                                      ref
+                                          .read(notificationServiceProvider)
+                                          .showSuccess(
                                             'Successfully connected to AniList!',
-                                          ),
-                                          backgroundColor: Colors.green,
-                                        ),
-                                      );
+                                            title: 'AniList',
+                                            icon: Icons.sync_rounded,
+                                          );
                                     } else if (context.mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
+                                      ref
+                                          .read(notificationServiceProvider)
+                                          .showError(
                                             'Failed to connect to AniList',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
+                                            title: 'AniList',
+                                            icon: Icons.sync_problem_rounded,
+                                          );
                                     }
                                   }
                                   if (context.mounted) {

@@ -89,7 +89,7 @@ dependencies:
   connectivity_plus: ^7.1.1
   html_unescape: ^2.0.0
   html: ^0.15.6
-  background_downloader: ^9.5.4
+  background_downloader: ^9.5.8
   flutter_hooks: ^0.21.3+1
   pointycastle: any
   talker: ^5.1.16

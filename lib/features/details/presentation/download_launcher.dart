@@ -13,6 +13,7 @@ import '../../../core/router/app_router.dart';
 import '../../../shared/widgets/loading_dialog.dart';
 import '../../../shared/widgets/custom_widgets.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../core/services/notification_service.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
 
 part 'download_launcher.g.dart';
@@ -76,9 +77,11 @@ class DownloadLauncher {
     } catch (e) {
       if (!context.mounted) return;
       if (!isCanceled) Navigator.of(context).pop(); // Dismiss if still there
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(l10n.errorPrefix(e.toString()))));
+      _ref.read(notificationServiceProvider).showError(
+        l10n.errorPrefix(e.toString()),
+        title: 'Download Error',
+        icon: Icons.error_outline_rounded,
+      );
     }
   }
 
@@ -292,13 +295,11 @@ class DownloadLauncher {
                     headers: stream.headers,
                   );
 
-                  if (!started && finalContext.mounted) {
-                    ScaffoldMessenger.of(finalContext).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Failed to start download. Check storage permissions.',
-                        ),
-                      ),
+                  if (!started) {
+                    _ref.read(notificationServiceProvider).showError(
+                      'Failed to start download. Check storage permissions.',
+                      title: 'Download Error',
+                      icon: Icons.folder_off_rounded,
                     );
                   }
                 },

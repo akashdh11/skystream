@@ -109,7 +109,11 @@ class _ContinueWatchingSectionState
                               Navigator.pop(context);
                               ref
                                   .read(notificationServiceProvider)
-                                  .showSuccess(l10n.watchHistoryCleared);
+                                  .showSuccess(
+                                    l10n.watchHistoryCleared,
+                                    title: 'Watch History',
+                                    icon: Icons.delete_sweep_rounded,
+                                  );
                             },
                             child: Text(
                               l10n.clearAll,

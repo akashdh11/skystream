@@ -62,6 +62,8 @@ class SyncedProgressCard extends ConsumerWidget {
                             AppLocalizations.of(
                               context,
                             )!.removedFromHistory(item.title),
+                            title: 'Watch Progress',
+                            icon: Icons.history_rounded,
                           );
                     }
                     if (context.mounted) Navigator.pop(context);
@@ -269,6 +271,8 @@ class SyncedProgressCard extends ConsumerWidget {
                             AppLocalizations.of(
                               context,
                             )!.removedFromHistory(item.title),
+                            title: 'Watch Progress',
+                            icon: Icons.history_rounded,
                           );
                     }
                   },

@@ -98,6 +98,8 @@ class _DeveloperOptionsScreenState
                         .read(notificationServiceProvider)
                         .showInfo(
                           'Log tracking requires a debug build to work',
+                          title: 'Developer Options',
+                          icon: Icons.developer_mode_rounded,
                         );
                   }
                 },
@@ -115,7 +117,11 @@ class _DeveloperOptionsScreenState
     if (!kDebugMode) {
       ref
           .read(notificationServiceProvider)
-          .showError(AppLocalizations.of(context)!.debugOnlyFeature);
+          .showError(
+            AppLocalizations.of(context)!.debugOnlyFeature,
+            title: 'Developer Options',
+            icon: Icons.developer_mode_rounded,
+          );
       return;
     }
 

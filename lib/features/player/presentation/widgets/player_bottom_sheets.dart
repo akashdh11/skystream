@@ -851,7 +851,6 @@ class PlayerBottomSheets {
   }
 
   static void _showSubtitleSearch(BuildContext context) {
-    final parentContext = context;
     final TextEditingController queryController = TextEditingController();
 
     final scrollController = ScrollController();
@@ -1150,18 +1149,13 @@ class PlayerBottomSheets {
                                         // The user is already in the player, we'll suggest they go to main settings
                                         // or we can try to show the specific dialogs here if they were available.
                                         // For now, let's provide a clear toast or action.
-                                        if (parentContext.mounted) {
-                                          ScaffoldMessenger.of(
-                                            parentContext,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Go to App Settings > Player > Subtitle Accounts to configure.',
-                                              ),
-                                              duration: Duration(seconds: 4),
-                                            ),
-                                          );
-                                        }
+                                        ref
+                                            .read(notificationServiceProvider)
+                                            .showInfo(
+                                              'Go to App Settings > Player > Subtitle Accounts to configure.',
+                                              title: 'Subtitles',
+                                              icon: Icons.subtitles_rounded,
+                                            );
                                       },
                                       icon: const Icon(
                                         Icons.settings_outlined,
@@ -1215,7 +1209,11 @@ class PlayerBottomSheets {
                               onTap: () async {
                                 ref
                                     .read(notificationServiceProvider)
-                                    .showInfo(l10n.downloadingApplyingSubtitle);
+                                    .showInfo(
+                                      l10n.downloadingApplyingSubtitle,
+                                      title: 'Subtitles',
+                                      icon: Icons.subtitles_rounded,
+                                    );
 
                                 final path = await ref
                                     .read(subtitleSearchProvider.notifier)
@@ -1236,6 +1234,8 @@ class PlayerBottomSheets {
                                         .read(notificationServiceProvider)
                                         .showError(
                                           l10n.failedToDownloadSubtitle,
+                                          title: 'Subtitles',
+                                          icon: Icons.subtitles_off_rounded,
                                         );
                                   }
                                 }

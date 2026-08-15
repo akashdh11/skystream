@@ -332,7 +332,11 @@ class SkyStreamPlayerControlsState
           .read(playerControllerProvider.notifier)
           .consumeRevertMessage();
       if (msg != null && mounted) {
-        ref.read(notificationServiceProvider).showInfo(msg);
+        ref.read(notificationServiceProvider).showInfo(
+          msg,
+          title: 'Playback',
+          icon: Icons.sync_problem_rounded,
+        );
       }
     });
   }
