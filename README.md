@@ -234,11 +234,11 @@ SkyStream is a streaming client and does not host any content. All media is stre
 
 ## Star History
 
-<a href="https://www.star-history.com/#akashdh11/skystream&Date">
+<a href="https://star-history.dera.page/#akashdh11/skystream&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=akashdh11/skystream&type=date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=akashdh11/skystream&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=akashdh11/skystream&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=akashdh11/skystream&type=date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=akashdh11/skystream&type=Date" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=akashdh11/skystream&type=Date" />
  </picture>
 </a>
 
