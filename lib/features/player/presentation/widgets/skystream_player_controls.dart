@@ -1534,10 +1534,11 @@ class SkyStreamPlayerControlsState
         excluding: !chromeVisible,
         child: IgnorePointer(
           ignoring: !chromeVisible,
-          child: AnimatedOpacity(
-            opacity: chromeVisible ? 1.0 : 0.0,
-            duration: _animDuration,
-            child: Column(
+          child: RepaintBoundary(
+            child: AnimatedOpacity(
+              opacity: chromeVisible ? 1.0 : 0.0,
+              duration: _animDuration,
+              child: Column(
               children: [
                 _absorbGestures(
                   PlayerTopBar(
@@ -1606,8 +1607,9 @@ class SkyStreamPlayerControlsState
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   /// Absorbs taps and drags over the chrome bars so interacting with the
   /// top/bottom bars doesn't bubble up to the screen-wide gesture handler

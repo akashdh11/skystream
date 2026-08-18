@@ -77,6 +77,28 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   bool _customFontLoaded = false;
   String? _lastLoadedFontPath;
+  SubtitleViewConfiguration? _cachedSubtitleConfig;
+  String? _cachedSubtitleKey;
+
+  SubtitleViewConfiguration _getOrCreateSubtitleConfiguration(
+    PlayerSettings settings,
+  ) {
+    final key =
+        '${settings.subTypefaceFilePath}_${settings.subTypeface}_'
+        '${settings.subFixedTextSize}_${settings.subtitleSize}_'
+        '${settings.subForegroundColor}_${settings.subtitleColor}_'
+        '${settings.subEdgeColor}_${settings.subEdgeSize}_'
+        '${settings.subEdgeType}_${settings.subBackgroundColor}_'
+        '${settings.subtitleBackgroundColor}_${settings.subBackgroundOpacity}_'
+        '${settings.subBold}_${settings.subItalic}_${settings.subAlignment}_$_customFontLoaded';
+
+    if (_cachedSubtitleConfig != null && _cachedSubtitleKey == key) {
+      return _cachedSubtitleConfig!;
+    }
+    _cachedSubtitleKey = key;
+    _cachedSubtitleConfig = _buildSubtitleConfiguration(settings);
+    return _cachedSubtitleConfig!;
+  }
 
   Future<void> _loadCustomFontIfNeeded(PlayerSettings settings) async {
     final path = settings.subTypefaceFilePath;
@@ -705,7 +727,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           child: IgnorePointer(
                             child: SubtitleView(
                               controller: _videoController,
-                              configuration: _buildSubtitleConfiguration(
+                              configuration: _getOrCreateSubtitleConfiguration(
                                 subtitleSettings,
                               ),
                             ),
