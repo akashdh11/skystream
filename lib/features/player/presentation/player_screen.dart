@@ -607,88 +607,88 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       );
     }
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: _controlsVisible,
-      builder: (context, controlsVisible, _) {
-        return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, result) async {
-            if (didPop) return;
-            // Single guarded path (shared with the root key handler): close the
-            // sources panel, else hide TV controls. Only exit when nothing is
-            // left to dismiss. The de-dupe inside prevents the dual Back
-            // delivery (KeyEvent + route-pop) from skipping a step into exit.
-            if (_consumeBack()) return;
-            await _handleBack();
-          },
-          child: Scaffold(
-            body: Focus(
-              focusNode: _rootFocusNode,
-              autofocus: true,
-              onKeyEvent: _handleKey,
-              // Map the TV remote OK key (select) to ActivateIntent so the
-              // focused control activates natively (Enter/Space/gameButtonA are
-              // already mapped by WidgetsApp). When no control is focused this
-              // bubbles up to the root handler instead.
-              child: Shortcuts(
-                shortcuts: const <ShortcutActivator, Intent>{
-                  SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
-                },
-                child: Stack(
-                  children: [
-                    RepaintBoundary(
-                      child: ValueListenableBuilder<BoxFit>(
-                        valueListenable: _videoFit,
-                        builder: (_, fit, child) => Center(
-                          // Phase 8: Switch engine based on stream type
-                          child: Consumer(
-                            builder: (context, ref, _) {
-                              final useExoPlayer = ref.watch(
-                                playerControllerProvider.select(
-                                  (s) => s.useExoPlayer,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        // Single guarded path (shared with the root key handler): close the
+        // sources panel, else hide TV controls. Only exit when nothing is
+        // left to dismiss. The de-dupe inside prevents the dual Back
+        // delivery (KeyEvent + route-pop) from skipping a step into exit.
+        if (_consumeBack()) return;
+        await _handleBack();
+      },
+      child: Scaffold(
+        body: Focus(
+          focusNode: _rootFocusNode,
+          autofocus: true,
+          onKeyEvent: _handleKey,
+          // Map the TV remote OK key (select) to ActivateIntent so the
+          // focused control activates natively (Enter/Space/gameButtonA are
+          // already mapped by WidgetsApp). When no control is focused this
+          // bubbles up to the root handler instead.
+          child: Shortcuts(
+            shortcuts: const <ShortcutActivator, Intent>{
+              SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+            },
+            child: Stack(
+              children: [
+                RepaintBoundary(
+                  child: ValueListenableBuilder<BoxFit>(
+                    valueListenable: _videoFit,
+                    builder: (_, fit, child) => Center(
+                      // Phase 8: Switch engine based on stream type
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final useExoPlayer = ref.watch(
+                            playerControllerProvider.select(
+                              (s) => s.useExoPlayer,
+                            ),
+                          );
+                          if (useExoPlayer) {
+                            return vv.VideoView(
+                              controller: _videoViewController,
+                              videoFit: fit,
+                            );
+                          }
+                          return Video(
+                            controller: _videoController,
+                            fit: fit,
+                            subtitleViewConfiguration:
+                                const SubtitleViewConfiguration(
+                                  visible: false,
+                                  style: TextStyle(
+                                    color: Colors.transparent,
+                                  ),
                                 ),
-                              );
-                              if (useExoPlayer) {
-                                return vv.VideoView(
-                                  controller: _videoViewController,
-                                  videoFit: fit,
-                                );
-                              }
-                              return Video(
-                                controller: _videoController,
-                                fit: fit,
-                                subtitleViewConfiguration:
-                                    const SubtitleViewConfiguration(
-                                      visible: false,
-                                      style: TextStyle(
-                                        color: Colors.transparent,
-                                      ),
-                                    ),
-                                controls: (state) => const SizedBox.shrink(),
-                              );
-                            },
-                          ),
-                        ),
+                            controls: (state) => const SizedBox.shrink(),
+                          );
+                        },
                       ),
                     ),
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final useExoPlayer = ref.watch(
-                          playerControllerProvider.select(
-                            (s) => s.useExoPlayer,
-                          ),
-                        );
-                        if (useExoPlayer) {
-                          return const SizedBox.shrink();
-                        }
+                  ),
+                ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final useExoPlayer = ref.watch(
+                      playerControllerProvider.select(
+                        (s) => s.useExoPlayer,
+                      ),
+                    );
+                    if (useExoPlayer) {
+                      return const SizedBox.shrink();
+                    }
 
-                        final subtitleSettings =
-                            ref.watch(playerSettingsProvider).asData?.value ??
-                            const PlayerSettings();
+                    final subtitleSettings =
+                        ref.watch(playerSettingsProvider).asData?.value ??
+                        const PlayerSettings();
 
-                        final baseHiddenOffset = _isTv ? 32.0 : 20.0;
-                        final baseVisibleOffset = _isTv ? 96.0 : 84.0;
+                    final baseHiddenOffset = _isTv ? 32.0 : 20.0;
+                    final baseVisibleOffset = _isTv ? 96.0 : 84.0;
 
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: _controlsVisible,
+                      builder: (context, controlsVisible, _) {
                         final bottomOffset = (controlsVisible
                                 ? baseVisibleOffset
                                 : baseHiddenOffset) +
@@ -712,39 +712,39 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           ),
                         );
                       },
-                    ),
-                    Positioned.fill(
-                      child: RepaintBoundary(
-                        child: SkyStreamPlayerControls(
-                          key: _controlsKeyFinal,
-                          isLoading: isLoading,
-                          player: _player,
-                          videoViewController: _videoViewController,
-                          title: widget.item.title,
-                          subtitle: ref
-                              .read(playerControllerProvider)
-                              .streamSubtitle,
-                          backdropUrl: widget.item.backdropImageUrl,
-                          logoUrl: widget.item.logoUrl,
-                          onResize: _updateResizeMode,
-                          onBackPointer: _handleBack,
-                          onRequestRootFocus: () =>
-                              _rootFocusNode.requestFocus(),
-                          onVisibilityChanged: (v) {
-                            if (mounted) {
-                              _controlsVisible.value = v;
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              ),
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: SkyStreamPlayerControls(
+                      key: _controlsKeyFinal,
+                      isLoading: isLoading,
+                      player: _player,
+                      videoViewController: _videoViewController,
+                      title: widget.item.title,
+                      subtitle: ref
+                          .read(playerControllerProvider)
+                          .streamSubtitle,
+                      backdropUrl: widget.item.backdropImageUrl,
+                      logoUrl: widget.item.logoUrl,
+                      onResize: _updateResizeMode,
+                      onBackPointer: _handleBack,
+                      onRequestRootFocus: () =>
+                          _rootFocusNode.requestFocus(),
+                      onVisibilityChanged: (v) {
+                        if (mounted) {
+                          _controlsVisible.value = v;
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 

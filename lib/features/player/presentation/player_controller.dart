@@ -4008,8 +4008,9 @@ class PlayerController extends Notifier<PlayerState> {
       }
 
       // 0. Hardware decoding preference
-      // Use auto-safe on Windows: 'auto' enables D3D11VA which can crash during
-      // DASH manifest negotiation before codec parameters are fully known.
+      // Use auto-copy on Windows: 'auto-copy' / 'd3d11va-copy' copies decoded
+      // frames to a staging surface, completely preventing DXGI KeyedMutex
+      // deadlocks and TDR crashes when the Flutter UI is restored after idle.
       // RC1: once a decode/codec failure has forced software decoding for this
       // session (weak TV decoder etc.), always use 'no' regardless of setting.
       final settings = ref.read(playerSettingsProvider).asData?.value;
@@ -4018,7 +4019,7 @@ class PlayerController extends Notifier<PlayerState> {
       } else if (settings?.hardwareDecoding ?? true) {
         await native.setProperty(
           'hwdec',
-          Platform.isWindows ? 'auto-safe' : 'auto',
+          Platform.isWindows ? 'auto-copy' : 'auto',
         );
       } else {
         await native.setProperty('hwdec', 'no');
@@ -4091,7 +4092,10 @@ class PlayerController extends Notifier<PlayerState> {
         // Playback
         await native.setProperty('framedrop', 'decoder');
         await native.setProperty('hr-seek-framedrop', 'yes');
-        await native.setProperty('hwdec', 'auto-safe');
+        await native.setProperty(
+          'hwdec',
+          Platform.isWindows ? 'auto-copy' : 'auto-safe',
+        );
 
         // H.264 resilience: wait for clean keyframe after reconnect
         await native.setProperty('vd-lavc-skiploopfilter', 'nonkey');
@@ -4153,8 +4157,8 @@ class PlayerController extends Notifier<PlayerState> {
       }
 
       // Adaptive demuxer cache based on device profile.
-      // DASH streams on desktop are capped lower to prevent OOM from aggressive
-      // segment pre-fetch combined with high-bitrate representations.
+      // DASH streams on desktop and Windows playback are capped appropriately to prevent
+      // memory fragmentation and GPU staging texture starvation over long playback sessions.
       final profile = ref.read(deviceProfileProvider).asData?.value;
       final isDashStream = _isDashStreamUrl(stream.url);
       String cacheSize = "512MiB"; // Default
@@ -4162,7 +4166,9 @@ class PlayerController extends Notifier<PlayerState> {
         if (profile.isTv) {
           cacheSize = "128MiB"; // Less RAM on TVs
         } else if (profile.isDesktopOS || profile.isTablet) {
-          cacheSize = isDashStream ? "256MiB" : "1GiB";
+          cacheSize = isDashStream
+              ? "256MiB"
+              : (Platform.isWindows ? "256MiB" : "1GiB");
         }
       }
 
@@ -4171,7 +4177,7 @@ class PlayerController extends Notifier<PlayerState> {
       final backCacheSize = profile?.isTv == true
           ? '64MiB'
           : (profile?.isDesktopOS == true || profile?.isTablet == true)
-          ? '256MiB'
+          ? (Platform.isWindows ? '128MiB' : '256MiB')
           : '128MiB';
       await native.setProperty('demuxer-max-back-bytes', backCacheSize);
 

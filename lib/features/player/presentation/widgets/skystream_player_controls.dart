@@ -96,6 +96,23 @@ class SkyStreamPlayerControlsState
 
   bool _showTorrentInfo = false; // Changed from true
   Timer? _hideTimer;
+  DateTime? _lastHoverTime;
+
+  void _handleThrottledHover() {
+    if (_panelOpen) return;
+    final now = DateTime.now();
+    if (_lastHoverTime != null &&
+        now.difference(_lastHoverTime!).inMilliseconds < 80) {
+      return;
+    }
+    _lastHoverTime = now;
+
+    if (!_isVisible && mounted) {
+      setState(() => _isVisible = true);
+      widget.onVisibilityChanged?.call(true);
+    }
+    _startHideTimer();
+  }
 
   // Metadata scrim (Netflix-style info panel on pause, TV/desktop only)
   final GlobalKey<PlayerMetadataScrimState> _metadataScrimKey = GlobalKey();
@@ -992,23 +1009,8 @@ class SkyStreamPlayerControlsState
       cursor: (_isVisible || _panelOpen)
           ? SystemMouseCursors.basic
           : SystemMouseCursors.none,
-      onEnter: (_) {
-        // Always show cursor when mouse enters the player area
-        if (_panelOpen) return; // panel owns the screen
-        if (!_isVisible) {
-          setState(() => _isVisible = true);
-          widget.onVisibilityChanged?.call(true);
-        }
-        _startHideTimer();
-      },
-      onHover: (_) {
-        if (_panelOpen) return; // panel owns the screen
-        if (!_isVisible && mounted) {
-          setState(() => _isVisible = true);
-          widget.onVisibilityChanged?.call(true);
-        }
-        _startHideTimer();
-      },
+      onEnter: (_) => _handleThrottledHover(),
+      onHover: (_) => _handleThrottledHover(),
       onExit: (_) {
         // Mouse left the player area (e.g. moved to another window).
         // Start the hide timer so controls auto-hide after the timeout.
