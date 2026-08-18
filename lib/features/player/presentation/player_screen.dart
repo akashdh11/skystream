@@ -204,7 +204,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
+    // Desktop platforms (Windows, macOS, Linux) do not have mobile OS background
+    // restrictions or socket freezes when minimized/unfocused; users expect playback
+    // to continue in the background on desktop.
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      return;
+    }
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.inactive) {
+      _playerController.setAppBackgrounded(true);
       final ctrl = ref.read(playerControllerProvider);
       _wasPlayingBeforeBackground = ctrl.useExoPlayer
           ? _videoViewController.playbackState.value ==
@@ -228,6 +238,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         unawaited(_playerController.setPlaybackSpeed(previousSpeed));
       }
     } else if (state == AppLifecycleState.resumed) {
+      _playerController.setAppBackgrounded(false);
       // Wakelock: re-acquire whenever the engine is currently playing on
       // resume — not just when WE auto-paused on background. External
       // play sources (media-session play from a notification, Bluetooth
