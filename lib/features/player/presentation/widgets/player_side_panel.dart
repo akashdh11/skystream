@@ -958,13 +958,14 @@ class _PlayerEpisodesPanelState extends ConsumerState<PlayerEpisodesPanel> {
     final isSeries =
         widget.item.contentType == MultimediaContentType.series ||
         widget.item.contentType == MultimediaContentType.anime;
-    final episodes = (isSeries &&
+    final episodes =
+        (isSeries &&
             isMixed &&
             currentEpisode != null &&
             currentEpisode.dubStatus != DubStatus.none)
         ? allEpisodes
-            .where((e) => e.dubStatus == currentEpisode.dubStatus)
-            .toList()
+              .where((e) => e.dubStatus == currentEpisode.dubStatus)
+              .toList()
         : allEpisodes;
     final historyRepo = ref.read(historyRepositoryProvider);
 

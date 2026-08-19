@@ -55,115 +55,119 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
 
     if (widget.isEmbedded) {
       return switch (state) {
-        ExtensionsLoading(repositories: []) =>
-          const Center(child: AppLoadingIndicator()),
+        ExtensionsLoading(repositories: []) => const Center(
+          child: AppLoadingIndicator(),
+        ),
         _ => DefaultTabController(
-            key: const ValueKey('installed_extensions_tab_controller'),
-            length: 2,
-            child: Builder(
-              builder: (tabContext) => Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: LayoutConstants.dashboardContentPadding,
+          key: const ValueKey('installed_extensions_tab_controller'),
+          length: 2,
+          child: Builder(
+            builder: (tabContext) => Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: LayoutConstants.dashboardContentPadding,
+                  ),
+                  alignment: Alignment.centerLeft,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: TabBar(
+                      indicatorSize: TabBarIndicatorSize.label,
+                      indicatorWeight: 3,
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 15,
+                      ),
+                      labelColor: Theme.of(tabContext).colorScheme.primary,
+                      unselectedLabelColor: Theme.of(
+                        tabContext,
+                      ).colorScheme.onSurfaceVariant,
+                      indicatorColor: Theme.of(tabContext).colorScheme.primary,
+                      dividerColor: Theme.of(
+                        tabContext,
+                      ).dividerColor.withValues(alpha: 0.2),
+                      tabs: [
+                        Tab(text: l10n.installed),
+                        Tab(text: l10n.repositories),
+                      ],
                     ),
-                    alignment: Alignment.centerLeft,
+                  ),
+                ),
+                Expanded(
+                  child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 800),
-                      child: TabBar(
-                        indicatorSize: TabBarIndicatorSize.label,
-                        indicatorWeight: 3,
-                        labelStyle: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                        unselectedLabelStyle: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 15,
-                        ),
-                        labelColor: Theme.of(tabContext).colorScheme.primary,
-                        unselectedLabelColor:
-                            Theme.of(tabContext).colorScheme.onSurfaceVariant,
-                        indicatorColor: Theme.of(tabContext).colorScheme.primary,
-                        dividerColor: Theme.of(tabContext)
-                            .dividerColor
-                            .withValues(alpha: 0.2),
-                        tabs: [
-                          Tab(text: l10n.installed),
-                          Tab(text: l10n.repositories),
+                      child: TabBarView(
+                        children: [
+                          _buildInstalledTab(tabContext, ref, state),
+                          _buildRepositoriesTab(tabContext, ref, state),
                         ],
                       ),
                     ),
                   ),
-                  Expanded(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 800),
-                        child: TabBarView(
-                          children: [
-                            _buildInstalledTab(tabContext, ref, state),
-                            _buildRepositoriesTab(tabContext, ref, state),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
+        ),
       };
     }
 
     return switch (state) {
       ExtensionsLoading(repositories: []) => Scaffold(
-          appBar: AppBar(title: Text(l10n.extensions)),
-          body: const Center(child: AppLoadingIndicator()),
-        ),
+        appBar: AppBar(title: Text(l10n.extensions)),
+        body: const Center(child: AppLoadingIndicator()),
+      ),
       _ => DefaultTabController(
-          key: const ValueKey('installed_extensions_tab_controller'),
-          length: 2,
-          child: Builder(
-            builder: (tabContext) => Scaffold(
-              appBar: AppBar(
-                title: Text(l10n.extensions),
-                bottom: TabBar(
-                  indicatorSize: TabBarIndicatorSize.label,
-                  indicatorWeight: 3,
-                  labelStyle: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                  unselectedLabelStyle: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 15,
-                  ),
-                  labelColor: Theme.of(tabContext).colorScheme.primary,
-                  unselectedLabelColor:
-                      Theme.of(tabContext).colorScheme.onSurfaceVariant,
-                  indicatorColor: Theme.of(tabContext).colorScheme.primary,
-                  dividerColor:
-                      Theme.of(tabContext).dividerColor.withValues(alpha: 0.2),
-                  tabs: [
-                    Tab(text: l10n.installed),
-                    Tab(text: l10n.repositories),
-                  ],
+        key: const ValueKey('installed_extensions_tab_controller'),
+        length: 2,
+        child: Builder(
+          builder: (tabContext) => Scaffold(
+            appBar: AppBar(
+              title: Text(l10n.extensions),
+              bottom: TabBar(
+                indicatorSize: TabBarIndicatorSize.label,
+                indicatorWeight: 3,
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
                 ),
+                unselectedLabelStyle: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                  fontSize: 15,
+                ),
+                labelColor: Theme.of(tabContext).colorScheme.primary,
+                unselectedLabelColor: Theme.of(
+                  tabContext,
+                ).colorScheme.onSurfaceVariant,
+                indicatorColor: Theme.of(tabContext).colorScheme.primary,
+                dividerColor: Theme.of(
+                  tabContext,
+                ).dividerColor.withValues(alpha: 0.2),
+                tabs: [
+                  Tab(text: l10n.installed),
+                  Tab(text: l10n.repositories),
+                ],
               ),
-              body: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 800),
-                  child: TabBarView(
-                    children: [
-                      _buildInstalledTab(tabContext, ref, state),
-                      _buildRepositoriesTab(tabContext, ref, state),
-                    ],
-                  ),
+            ),
+            body: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: TabBarView(
+                  children: [
+                    _buildInstalledTab(tabContext, ref, state),
+                    _buildRepositoriesTab(tabContext, ref, state),
+                  ],
                 ),
               ),
             ),
           ),
         ),
+      ),
     };
   }
 
@@ -173,8 +177,9 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     ExtensionsState state,
   ) {
     final l10n = AppLocalizations.of(context)!;
-    final debugPlugins =
-        state.installedPlugins.where((p) => p.isDebug).toList();
+    final debugPlugins = state.installedPlugins
+        .where((p) => p.isDebug)
+        .toList();
     final hasDebug = debugPlugins.isNotEmpty;
 
     final allAvailablePackageNames = state.availablePlugins.values
@@ -183,10 +188,12 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
         .toSet();
 
     final installedPlugins = state.installedPlugins
-        .where((p) =>
-            !p.isDebug &&
-            (state.availablePlugins.isEmpty ||
-                allAvailablePackageNames.contains(p.packageName)))
+        .where(
+          (p) =>
+              !p.isDebug &&
+              (state.availablePlugins.isEmpty ||
+                  allAvailablePackageNames.contains(p.packageName)),
+        )
         .toList();
 
     final installedOnlyPlugins = state.installedPlugins
@@ -220,17 +227,16 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
                   Text(
                     l10n.noExtensionsInstalled,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: LayoutConstants.spacingSm),
                   Text(
                     l10n.browseRepositoriesToInstall,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: LayoutConstants.spacingLg),
@@ -254,8 +260,10 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     }
 
     return ListView(
-      padding:
-          const EdgeInsets.only(bottom: 100, top: LayoutConstants.spacingMd),
+      padding: const EdgeInsets.only(
+        bottom: 100,
+        top: LayoutConstants.spacingMd,
+      ),
       addAutomaticKeepAlives: false,
       children: [
         if (hasDebug) _buildDebugSection(context, debugPlugins),
@@ -300,17 +308,16 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
                   Text(
                     l10n.noReposFound,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: LayoutConstants.spacingSm),
                   Text(
                     l10n.addRepoDescription,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color:
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: LayoutConstants.spacingLg),
@@ -328,22 +335,17 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     }
 
     return ListView.builder(
-      padding:
-          const EdgeInsets.only(bottom: 100, top: LayoutConstants.spacingMd),
+      padding: const EdgeInsets.only(
+        bottom: 100,
+        top: LayoutConstants.spacingMd,
+      ),
       addAutomaticKeepAlives: false,
       itemCount: state.repositories.length + 1,
       itemBuilder: (context, index) {
         if (index < state.repositories.length) {
           final repo = state.repositories[index];
           final plugins = state.availablePlugins[repo.url] ?? [];
-          return _buildRepositoryCard(
-            context,
-            ref,
-            state,
-            repo,
-            plugins,
-            l10n,
-          );
+          return _buildRepositoryCard(context, ref, state, repo, plugins, l10n);
         }
 
         // Add Repository Button (Always at the bottom of Repos tab)
@@ -518,7 +520,9 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
         horizontal: LayoutConstants.spacingMd,
         vertical: LayoutConstants.spacingXs,
       ),
-      borderColor: Theme.of(context).colorScheme.tertiary.withValues(alpha: 0.5),
+      borderColor: Theme.of(
+        context,
+      ).colorScheme.tertiary.withValues(alpha: 0.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -553,7 +557,6 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
       ),
     );
   }
-
 
   Widget _buildRepositoryCard(
     BuildContext context,
@@ -935,10 +938,9 @@ class _PluginTileState extends ConsumerState<_PluginTile> {
         height: 44,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Theme.of(context)
-              .colorScheme
-              .primaryContainer
-              .withValues(alpha: 0.5),
+          color: Theme.of(
+            context,
+          ).colorScheme.primaryContainer.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(
@@ -949,9 +951,9 @@ class _PluginTileState extends ConsumerState<_PluginTile> {
       ),
       title: Text(
         widget.plugin.name,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         overflow: TextOverflow.ellipsis,
       ),
       subtitle: _buildSubtitle(context, isInstalled, installedPlugin),
@@ -1160,11 +1162,7 @@ class _FocusableCard extends StatefulWidget {
   final EdgeInsetsGeometry? margin;
   final Color? borderColor;
 
-  const _FocusableCard({
-    required this.child,
-    this.margin,
-    this.borderColor,
-  });
+  const _FocusableCard({required this.child, this.margin, this.borderColor});
 
   @override
   State<_FocusableCard> createState() => _FocusableCardState();
@@ -1183,7 +1181,8 @@ class _FocusableCardState extends State<_FocusableCard> {
       onFocusChange: (focused) => setState(() => _isFocused = focused),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        margin: widget.margin ?? const EdgeInsets.all(LayoutConstants.spacingMd),
+        margin:
+            widget.margin ?? const EdgeInsets.all(LayoutConstants.spacingMd),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
@@ -1191,7 +1190,7 @@ class _FocusableCardState extends State<_FocusableCard> {
             color: _isFocused
                 ? theme.colorScheme.primary
                 : (widget.borderColor ??
-                    theme.dividerColor.withValues(alpha: 0.5)),
+                      theme.dividerColor.withValues(alpha: 0.5)),
             width: _isFocused ? 2.0 : 1.0,
           ),
           boxShadow: _isFocused
@@ -1205,10 +1204,7 @@ class _FocusableCardState extends State<_FocusableCard> {
               : null,
         ),
         clipBehavior: Clip.antiAlias,
-        child: Material(
-          color: Colors.transparent,
-          child: widget.child,
-        ),
+        child: Material(color: Colors.transparent, child: widget.child),
       ),
     );
   }

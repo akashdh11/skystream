@@ -565,12 +565,6 @@ class PlayerController extends Notifier<PlayerState> {
   // source equally.
   bool _forceSoftwareDecode = false;
 
-  // Bug 4 — provider stream URLs are usually short-lived signed links. After
-  // a long pause the token expires; on resume the fetch 403/410s. We
-  // re-resolve the SAME source once (fresh URL, same position) before falling
-  // back to a different source. Reset on every confirmed playback frame so
-  // each playback session gets one re-resolve attempt.
-  bool _staleUrlReResolveAttempted = false;
   bool _suppressNextEpisodeDetection = false;
   bool _isNextEpisodeOverlayForced = false;
   bool _userDismissedOverlay = false;
@@ -785,11 +779,6 @@ class PlayerController extends Notifier<PlayerState> {
   void _confirmPlaybackStarted() {
     _hasConfirmedPlaybackFrame = true;
     _manualSelectionPending = false; // source played — no longer pending
-    // A frame confirmed → this playback session is healthy. Re-arm the
-    // one-shot stale-URL re-resolve so the NEXT expiry (e.g. after another
-    // long pause) is also handled rather than falling straight to a
-    // different source.
-    _staleUrlReResolveAttempted = false;
     // Do NOT reset _suppressNextEpisodeDetection here. At the moment position
     // first exceeds zero, _player.state.duration may still hold the previous
     // episode's value (mpv resets it asynchronously). Resetting here would
@@ -851,7 +840,6 @@ class PlayerController extends Notifier<PlayerState> {
     _revertMessage = null;
     // New item — reset session-scoped recovery flags.
     _forceSoftwareDecode = false;
-    _staleUrlReResolveAttempted = false;
     _isAppBackgrounded = false;
     _midPlaybackRetryCount = 0;
     _isReconnectingCurrentStream = false;
@@ -1216,7 +1204,9 @@ class PlayerController extends Notifier<PlayerState> {
         if (kDebugMode) debugPrint("VideoView Player Error: $error");
         if (_isAppBackgrounded) {
           if (kDebugMode) {
-            debugPrint("VideoView: Ignoring transient error while backgrounded.");
+            debugPrint(
+              "VideoView: Ignoring transient error while backgrounded.",
+            );
           }
           return;
         }
@@ -1323,7 +1313,6 @@ class PlayerController extends Notifier<PlayerState> {
           _videoViewController!.playbackState.value ==
               VideoControllerPlaybackState.playing) {
         _midPlaybackRetryCount = 0;
-        _staleUrlReResolveAttempted = false;
         _isReconnectingCurrentStream = false;
         _midPlaybackRetryTimer?.cancel();
       }
@@ -1727,9 +1716,7 @@ class PlayerController extends Notifier<PlayerState> {
   void _setupConnectivityListener() {
     _connectivitySub?.cancel();
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
-      final isConnected = results.any(
-        (r) => r != ConnectivityResult.none,
-      );
+      final isConnected = results.any((r) => r != ConnectivityResult.none);
       if (isConnected) {
         // If we were stalled / reconnecting during active playback, kick reconnection immediately
         if (_isReconnectingCurrentStream ||
@@ -1952,7 +1939,6 @@ class PlayerController extends Notifier<PlayerState> {
           _lastPositionUpdateTime = now;
           if (_midPlaybackRetryCount > 0) {
             _midPlaybackRetryCount = 0;
-            _staleUrlReResolveAttempted = false;
             _isReconnectingCurrentStream = false;
             _midPlaybackRetryTimer?.cancel();
           }
@@ -2280,8 +2266,9 @@ class PlayerController extends Notifier<PlayerState> {
 
     final ep = currentEp ?? _episode ?? _resolveCurrentEpisode();
     if (isMixed && ep != null && ep.dubStatus != DubStatus.none) {
-      final filtered =
-          episodes.where((e) => e.dubStatus == ep.dubStatus).toList();
+      final filtered = episodes
+          .where((e) => e.dubStatus == ep.dubStatus)
+          .toList();
       if (filtered.isNotEmpty) return filtered;
     }
     return episodes;
@@ -2297,12 +2284,9 @@ class PlayerController extends Notifier<PlayerState> {
     int currentIndex = -1;
     if (currentEp != null) {
       currentIndex = episodes.indexWhere((e) => e.url == currentEp.url);
-      if (currentIndex == -1 &&
-          currentEp.season > 0 &&
-          currentEp.episode > 0) {
+      if (currentIndex == -1 && currentEp.season > 0 && currentEp.episode > 0) {
         currentIndex = episodes.indexWhere(
-          (e) =>
-              e.season == currentEp.season && e.episode == currentEp.episode,
+          (e) => e.season == currentEp.season && e.episode == currentEp.episode,
         );
       }
     }
@@ -4783,8 +4767,11 @@ class PlayerController extends Notifier<PlayerState> {
 
       // Colors are in MPV hex format (e.g. #AARRGGBB)
       String colorToMpvHex(int color, [double opacity = 1.0]) {
-        final alpha =
-            (opacity * 255).round().clamp(0, 255).toRadixString(16).padLeft(2, '0');
+        final alpha = (opacity * 255)
+            .round()
+            .clamp(0, 255)
+            .toRadixString(16)
+            .padLeft(2, '0');
         final rgb = color.toRadixString(16).padLeft(8, '0').substring(2);
         return '#$alpha$rgb';
       }
@@ -4825,7 +4812,10 @@ class PlayerController extends Notifier<PlayerState> {
       } else if (settings.subTypeface != null &&
           settings.subTypeface! >= 0 &&
           settings.subTypeface! < builtInFonts.length) {
-        await native.setProperty('sub-font', builtInFonts[settings.subTypeface!]);
+        await native.setProperty(
+          'sub-font',
+          builtInFonts[settings.subTypeface!],
+        );
       } else {
         await native.setProperty('sub-font', 'sans-serif');
       }

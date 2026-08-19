@@ -77,11 +77,13 @@ class DownloadLauncher {
     } catch (e) {
       if (!context.mounted) return;
       if (!isCanceled) Navigator.of(context).pop(); // Dismiss if still there
-      _ref.read(notificationServiceProvider).showError(
-        l10n.errorPrefix(e.toString()),
-        title: 'Download Error',
-        icon: Icons.error_outline_rounded,
-      );
+      _ref
+          .read(notificationServiceProvider)
+          .showError(
+            l10n.errorPrefix(e.toString()),
+            title: 'Download Error',
+            icon: Icons.error_outline_rounded,
+          );
     }
   }
 
@@ -296,11 +298,13 @@ class DownloadLauncher {
                   );
 
                   if (!started) {
-                    _ref.read(notificationServiceProvider).showError(
-                      'Failed to start download. Check storage permissions.',
-                      title: 'Download Error',
-                      icon: Icons.folder_off_rounded,
-                    );
+                    _ref
+                        .read(notificationServiceProvider)
+                        .showError(
+                          'Failed to start download. Check storage permissions.',
+                          title: 'Download Error',
+                          icon: Icons.folder_off_rounded,
+                        );
                   }
                 },
                 child: Text(l10n.downloadNow),

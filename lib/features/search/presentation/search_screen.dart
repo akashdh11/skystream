@@ -607,9 +607,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               // only repaints the list — not the entire scaffold.
               return RepaintBoundary(
                 child: ListView.builder(
-                  padding: const EdgeInsets.only(
-                    bottom: 100,
-                  ),
+                  padding: const EdgeInsets.only(bottom: 100),
                   itemCount: state.results.length,
                   itemBuilder: (context, index) {
                     final pResult = state.results[index];

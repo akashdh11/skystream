@@ -349,11 +349,9 @@ class SkyStreamPlayerControlsState
           .read(playerControllerProvider.notifier)
           .consumeRevertMessage();
       if (msg != null && mounted) {
-        ref.read(notificationServiceProvider).showInfo(
-          msg,
-          title: 'Playback',
-          icon: Icons.sync_problem_rounded,
-        );
+        ref
+            .read(notificationServiceProvider)
+            .showInfo(msg, title: 'Playback', icon: Icons.sync_problem_rounded);
       }
     });
   }
@@ -1539,77 +1537,77 @@ class SkyStreamPlayerControlsState
               opacity: chromeVisible ? 1.0 : 0.0,
               duration: _animDuration,
               child: Column(
-              children: [
-                _absorbGestures(
-                  PlayerTopBar(
-                    title: title,
-                    subtitle: subtitle,
-                    onBack: widget.onBackPointer ?? () => context.pop(),
-                    isTv: _isTv,
-                    backFocusNode: _backFocusNode,
-                  ),
-                ),
-                // Center zone stays empty: the touch play/pause is rendered as
-                // a screen-centered overlay in the root Stack (build()) so it
-                // lines up with the OSD / seek animations, instead of being
-                // centered within this shorter middle band.
-                const Expanded(child: SizedBox.expand()),
-                _absorbGestures(
-                  PlayerBottomBar(
-                    isTv: _isTv,
-                    isTouch: isTouch,
-                    progressBar: PlayerProgressBar(
-                      player: widget.player,
-                      videoViewController: widget.videoViewController,
-                      onSeekStart: _cancelHideTimer,
+                children: [
+                  _absorbGestures(
+                    PlayerTopBar(
+                      title: title,
+                      subtitle: subtitle,
+                      onBack: widget.onBackPointer ?? () => context.pop(),
                       isTv: _isTv,
-                      focusNode: _scrubFocusNode,
-                      onArrowUp: () {
-                        final resumePromptPosition = ref.read(
-                          playerControllerProvider.select(
-                            (s) => s.resumePromptPosition,
-                          ),
-                        );
-                        final resumePromptPercentage = ref.read(
-                          playerControllerProvider.select(
-                            (s) => s.resumePromptPercentage,
-                          ),
-                        );
-                        final showNextEpOverlay = ref.read(
-                          playerControllerProvider.select(
-                            (s) => s.showNextEpisodeOverlay,
-                          ),
-                        );
-                        final nextEpTitle = ref.read(
-                          playerControllerProvider.select(
-                            (s) => s.nextEpisodeTitle,
-                          ),
-                        );
-
-                        if (resumePromptPosition != null ||
-                            resumePromptPercentage != null) {
-                          _resumeFocusNode.requestFocus();
-                        } else if (showNextEpOverlay && nextEpTitle != null) {
-                          _nextEpFocusNode.requestFocus();
-                        } else if (_isSkipActive) {
-                          _skipFocusNode.requestFocus();
-                        } else {
-                          _backFocusNode.requestFocus();
-                        }
-                      },
+                      backFocusNode: _backFocusNode,
                     ),
-                    leading: leading,
-                    actions: actions,
                   ),
-                ),
-              ],
+                  // Center zone stays empty: the touch play/pause is rendered as
+                  // a screen-centered overlay in the root Stack (build()) so it
+                  // lines up with the OSD / seek animations, instead of being
+                  // centered within this shorter middle band.
+                  const Expanded(child: SizedBox.expand()),
+                  _absorbGestures(
+                    PlayerBottomBar(
+                      isTv: _isTv,
+                      isTouch: isTouch,
+                      progressBar: PlayerProgressBar(
+                        player: widget.player,
+                        videoViewController: widget.videoViewController,
+                        onSeekStart: _cancelHideTimer,
+                        isTv: _isTv,
+                        focusNode: _scrubFocusNode,
+                        onArrowUp: () {
+                          final resumePromptPosition = ref.read(
+                            playerControllerProvider.select(
+                              (s) => s.resumePromptPosition,
+                            ),
+                          );
+                          final resumePromptPercentage = ref.read(
+                            playerControllerProvider.select(
+                              (s) => s.resumePromptPercentage,
+                            ),
+                          );
+                          final showNextEpOverlay = ref.read(
+                            playerControllerProvider.select(
+                              (s) => s.showNextEpisodeOverlay,
+                            ),
+                          );
+                          final nextEpTitle = ref.read(
+                            playerControllerProvider.select(
+                              (s) => s.nextEpisodeTitle,
+                            ),
+                          );
+
+                          if (resumePromptPosition != null ||
+                              resumePromptPercentage != null) {
+                            _resumeFocusNode.requestFocus();
+                          } else if (showNextEpOverlay && nextEpTitle != null) {
+                            _nextEpFocusNode.requestFocus();
+                          } else if (_isSkipActive) {
+                            _skipFocusNode.requestFocus();
+                          } else {
+                            _backFocusNode.requestFocus();
+                          }
+                        },
+                      ),
+                      leading: leading,
+                      actions: actions,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   /// Absorbs taps and drags over the chrome bars so interacting with the
   /// top/bottom bars doesn't bubble up to the screen-wide gesture handler

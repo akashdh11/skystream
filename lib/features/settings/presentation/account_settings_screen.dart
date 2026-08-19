@@ -88,418 +88,411 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.only(bottom: LayoutConstants.spacingLg),
           children: [
-              const SizedBox(height: LayoutConstants.spacingXs),
-              SettingsGroup(
-                title: l10n.accounts,
-                children: [
-                  SettingsTile(
-                    icon: Icons.subtitles_rounded,
-                    title: l10n.openSubtitles,
-                    subtitle: playerSettings.osUsername.isNotEmpty
-                        ? l10n.loggedInAs(playerSettings.osUsername)
-                        : l10n.notLoggedIn,
-                    onTap: () => showOpenSubtitlesAuthDialog(
-                      context,
-                      ref,
-                      playerSettings,
-                    ),
-                  ),
-                  SettingsTile(
-                    icon: Icons.vpn_key_rounded,
-                    title: l10n.subDl,
-                    subtitle: playerSettings.subdlApiKey.isNotEmpty
-                        ? l10n.apiKeyConfigured
-                        : l10n.keyNotSet,
-                    onTap: () =>
-                        showSubDlAuthDialog(context, ref, playerSettings),
-                  ),
-                  SettingsTile(
-                    icon: Icons.vpn_key_rounded,
-                    title: l10n.subSource,
-                    subtitle: playerSettings.subsourceApiKey.isNotEmpty
-                        ? l10n.apiKeyConfigured
-                        : l10n.keyNotSet,
-                    onTap: () =>
-                        showSubSourceAuthDialog(context, ref, playerSettings),
-                  ),
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final trackingAuthAsync = ref.watch(trackingAuthProvider);
-                      return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SettingsTile(
-                            focusNode: _simklFocusNode,
-                            icon: Icons.sync_rounded,
-                            title: 'Simkl',
-                            subtitle: trackingAuthAsync.when(
-                              data: (state) => state['simkl'] == true
-                                  ? 'Connected'
-                                  : l10n.notLoggedIn,
-                              loading: () => l10n.loading,
-                              error: (_, _) => l10n.unknown,
-                            ),
-                            onTap: () async {
-                              final state = trackingAuthAsync.value ?? {};
-                              if (state['simkl'] == true) {
-                                final confirm = await _confirmDisconnect(
-                                  context,
-                                  'Simkl',
-                                );
-                                if (confirm) {
-                                  await ref.read(simklServiceProvider).logout();
-                                  ref.invalidate(trackingAuthProvider);
-                                  if (context.mounted) {
-                                    FocusScope.of(context).requestFocus();
-                                  }
-                                }
-                              } else {
-                                bool isCancelled = false;
-                                bool isDialogShowing = false;
-                                BuildContext? dialogContext;
-                                final success = await ref
-                                    .read(simklServiceProvider)
-                                    .login(
-                                      isCancelled: () => isCancelled,
-                                      onDeviceCodeGenerated: (url, code) async {
-                                        if (context.mounted) {
-                                          isDialogShowing = true;
-                                          unawaited(
-                                            showDialog<void>(
-                                              context: context,
-                                              barrierDismissible: true,
-                                              builder: (ctx) {
-                                                dialogContext = ctx;
-                                                return TrackingAuthDialog(
-                                                  providerName: 'Simkl',
-                                                  verificationUrl: url,
-                                                  userCode: code,
-                                                );
-                                              },
-                                            ).then((_) {
-                                              isCancelled = true;
-                                              isDialogShowing = false;
-                                              if (context.mounted) {
-                                                FocusScope.of(
-                                                  context,
-                                                ).requestFocus();
-                                              }
-                                            }),
-                                          );
-                                        }
-                                      },
-                                    );
-                                if (success && context.mounted) {
-                                  ref
-                                      .read(notificationServiceProvider)
-                                      .showSuccess(
-                                        'Successfully connected to Simkl!',
-                                        title: 'Simkl',
-                                        icon: Icons.sync_rounded,
-                                      );
-                                }
-                                if (isDialogShowing &&
-                                    dialogContext != null &&
-                                    dialogContext!.mounted) {
-                                  Navigator.of(dialogContext!).pop();
-                                }
-                              }
-                              ref.invalidate(trackingAuthProvider);
-                            },
+            const SizedBox(height: LayoutConstants.spacingXs),
+            SettingsGroup(
+              title: l10n.accounts,
+              children: [
+                SettingsTile(
+                  icon: Icons.subtitles_rounded,
+                  title: l10n.openSubtitles,
+                  subtitle: playerSettings.osUsername.isNotEmpty
+                      ? l10n.loggedInAs(playerSettings.osUsername)
+                      : l10n.notLoggedIn,
+                  onTap: () =>
+                      showOpenSubtitlesAuthDialog(context, ref, playerSettings),
+                ),
+                SettingsTile(
+                  icon: Icons.vpn_key_rounded,
+                  title: l10n.subDl,
+                  subtitle: playerSettings.subdlApiKey.isNotEmpty
+                      ? l10n.apiKeyConfigured
+                      : l10n.keyNotSet,
+                  onTap: () =>
+                      showSubDlAuthDialog(context, ref, playerSettings),
+                ),
+                SettingsTile(
+                  icon: Icons.vpn_key_rounded,
+                  title: l10n.subSource,
+                  subtitle: playerSettings.subsourceApiKey.isNotEmpty
+                      ? l10n.apiKeyConfigured
+                      : l10n.keyNotSet,
+                  onTap: () =>
+                      showSubSourceAuthDialog(context, ref, playerSettings),
+                ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final trackingAuthAsync = ref.watch(trackingAuthProvider);
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SettingsTile(
+                          focusNode: _simklFocusNode,
+                          icon: Icons.sync_rounded,
+                          title: 'Simkl',
+                          subtitle: trackingAuthAsync.when(
+                            data: (state) => state['simkl'] == true
+                                ? 'Connected'
+                                : l10n.notLoggedIn,
+                            loading: () => l10n.loading,
+                            error: (_, _) => l10n.unknown,
                           ),
-                          SettingsTile(
-                            focusNode: _traktFocusNode,
-                            icon: Icons.sync_rounded,
-                            title: 'Trakt',
-                            subtitle: trackingAuthAsync.when(
-                              data: (state) => state['trakt'] == true
-                                  ? 'Connected'
-                                  : l10n.notLoggedIn,
-                              loading: () => l10n.loading,
-                              error: (_, _) => l10n.unknown,
-                            ),
-                            onTap: () async {
-                              final state = trackingAuthAsync.value ?? {};
-                              if (state['trakt'] == true) {
-                                final confirm = await _confirmDisconnect(
-                                  context,
-                                  'Trakt',
-                                );
-                                if (confirm) {
-                                  await ref.read(traktServiceProvider).logout();
-                                  ref.invalidate(trackingAuthProvider);
-                                  if (context.mounted) {
-                                    _traktFocusNode.requestFocus();
-                                  }
-                                }
-                              } else {
-                                bool isCancelled = false;
-                                bool isDialogShowing = false;
-                                BuildContext? dialogContext;
-                                final success = await ref
-                                    .read(traktServiceProvider)
-                                    .login(
-                                      isCancelled: () => isCancelled,
-                                      onDeviceCodeGenerated: (url, code) async {
-                                        if (context.mounted) {
-                                          isDialogShowing = true;
-                                          unawaited(
-                                            showDialog<void>(
-                                              context: context,
-                                              barrierDismissible: true,
-                                              builder: (ctx) {
-                                                dialogContext = ctx;
-                                                return TrackingAuthDialog(
-                                                  providerName: 'Trakt',
-                                                  verificationUrl: url,
-                                                  userCode: code,
-                                                );
-                                              },
-                                            ).then((_) {
-                                              isCancelled = true;
-                                              isDialogShowing = false;
-                                              if (context.mounted) {
-                                                _traktFocusNode.requestFocus();
-                                              }
-                                            }),
-                                          );
-                                        }
-                                      },
-                                    );
-                                if (success && context.mounted) {
-                                  ref
-                                      .read(notificationServiceProvider)
-                                      .showSuccess(
-                                        'Successfully connected to Trakt!',
-                                        title: 'Trakt',
-                                        icon: Icons.sync_rounded,
-                                      );
-                                }
-                                if (isDialogShowing &&
-                                    dialogContext != null &&
-                                    dialogContext!.mounted) {
-                                  Navigator.of(dialogContext!).pop();
-                                }
-                              }
-                              ref.invalidate(trackingAuthProvider);
-                            },
-                          ),
-                          SettingsTile(
-                            focusNode: _malFocusNode,
-                            icon: Icons.sync_rounded,
-                            title: 'MyAnimeList',
-                            subtitle: trackingAuthAsync.when(
-                              data: (state) => state['mal'] == true
-                                  ? 'Connected'
-                                  : l10n.notLoggedIn,
-                              loading: () => l10n.loading,
-                              error: (_, _) => l10n.unknown,
-                            ),
-                            onTap: () async {
-                              final state = trackingAuthAsync.value ?? {};
-                              if (state['mal'] == true) {
-                                final confirm = await _confirmDisconnect(
-                                  context,
-                                  'MyAnimeList',
-                                );
-                                if (confirm) {
-                                  await ref.read(malServiceProvider).logout();
-                                  ref.invalidate(trackingAuthProvider);
-                                  if (context.mounted) {
-                                    _malFocusNode.requestFocus();
-                                  }
-                                }
-                              } else {
-                                final malService = ref.read(malServiceProvider);
-                                // Generate PKCE verifier before opening webview
-                                final codeVerifier = malService
-                                    .generateCodeVerifier();
-
-                                final authUrl =
-                                    'https://myanimelist.net/v1/oauth2/authorize'
-                                    '?response_type=code'
-                                    '&client_id=${SyncConfig.malClientId}'
-                                    '&code_challenge=$codeVerifier'
-                                    '&code_challenge_method=plain'
-                                    '&redirect_uri=${Uri.encodeComponent('http://localhost')}';
-
+                          onTap: () async {
+                            final state = trackingAuthAsync.value ?? {};
+                            if (state['simkl'] == true) {
+                              final confirm = await _confirmDisconnect(
+                                context,
+                                'Simkl',
+                              );
+                              if (confirm) {
+                                await ref.read(simklServiceProvider).logout();
+                                ref.invalidate(trackingAuthProvider);
                                 if (context.mounted) {
-                                  final redirectUrl = await showDialog<String>(
-                                    context: context,
-                                    builder: (context) => WebViewAuthDialog(
-                                      providerName: 'MyAnimeList',
-                                      initialUrl: authUrl,
-                                      redirectUrlPrefix: 'http://localhost',
-                                    ),
-                                  );
-
-                                  if (redirectUrl != null && context.mounted) {
-                                    final success = await malService
-                                        .exchangeCodeForToken(
-                                          redirectUrl,
-                                          codeVerifier,
+                                  FocusScope.of(context).requestFocus();
+                                }
+                              }
+                            } else {
+                              bool isCancelled = false;
+                              bool isDialogShowing = false;
+                              BuildContext? dialogContext;
+                              final success = await ref
+                                  .read(simklServiceProvider)
+                                  .login(
+                                    isCancelled: () => isCancelled,
+                                    onDeviceCodeGenerated: (url, code) async {
+                                      if (context.mounted) {
+                                        isDialogShowing = true;
+                                        unawaited(
+                                          showDialog<void>(
+                                            context: context,
+                                            barrierDismissible: true,
+                                            builder: (ctx) {
+                                              dialogContext = ctx;
+                                              return TrackingAuthDialog(
+                                                providerName: 'Simkl',
+                                                verificationUrl: url,
+                                                userCode: code,
+                                              );
+                                            },
+                                          ).then((_) {
+                                            isCancelled = true;
+                                            isDialogShowing = false;
+                                            if (context.mounted) {
+                                              FocusScope.of(
+                                                context,
+                                              ).requestFocus();
+                                            }
+                                          }),
                                         );
-                                    if (success && context.mounted) {
-                                      ref
-                                          .read(notificationServiceProvider)
-                                          .showSuccess(
-                                            'Successfully connected to MyAnimeList!',
-                                            title: 'MyAnimeList',
-                                            icon: Icons.sync_rounded,
-                                          );
-                                    } else if (context.mounted) {
-                                      ref
-                                          .read(notificationServiceProvider)
-                                          .showError(
-                                            'Failed to connect to MyAnimeList',
-                                            title: 'MyAnimeList',
-                                            icon: Icons.sync_problem_rounded,
-                                          );
-                                    }
-                                  }
-                                  if (context.mounted) {
-                                    _malFocusNode.requestFocus();
-                                  }
-                                }
-                              }
-                              ref.invalidate(trackingAuthProvider);
-                            },
-                          ),
-                          SettingsTile(
-                            focusNode: _anilistFocusNode,
-                            icon: Icons.sync_rounded,
-                            title: 'AniList',
-                            subtitle: trackingAuthAsync.when(
-                              data: (state) => state['anilist'] == true
-                                  ? 'Connected'
-                                  : l10n.notLoggedIn,
-                              loading: () => l10n.loading,
-                              error: (_, _) => l10n.unknown,
-                            ),
-                            isLast: true,
-                            onTap: () async {
-                              final state = trackingAuthAsync.value ?? {};
-                              if (state['anilist'] == true) {
-                                final confirm = await _confirmDisconnect(
-                                  context,
-                                  'AniList',
-                                );
-                                if (confirm) {
-                                  await ref
-                                      .read(aniListServiceProvider)
-                                      .logout();
-                                  ref.invalidate(trackingAuthProvider);
-                                  if (context.mounted) {
-                                    _anilistFocusNode.requestFocus();
-                                  }
-                                }
-                              } else {
-                                final anilistService = ref.read(
-                                  aniListServiceProvider,
-                                );
-
-                                const authUrl =
-                                    'https://anilist.co/api/v2/oauth/authorize'
-                                    '?client_id=${SyncConfig.anilistClientId}'
-                                    '&response_type=token';
-
-                                if (context.mounted) {
-                                  final redirectUrl = await showDialog<String>(
-                                    context: context,
-                                    builder: (context) =>
-                                        const WebViewAuthDialog(
-                                          providerName: 'AniList',
-                                          initialUrl: authUrl,
-                                          redirectUrlPrefix: 'http://localhost',
-                                        ),
+                                      }
+                                    },
                                   );
-
-                                  if (redirectUrl != null && context.mounted) {
-                                    final success = await anilistService
-                                        .saveTokenFromRedirect(redirectUrl);
-                                    if (success && context.mounted) {
-                                      ref
-                                          .read(notificationServiceProvider)
-                                          .showSuccess(
-                                            'Successfully connected to AniList!',
-                                            title: 'AniList',
-                                            icon: Icons.sync_rounded,
-                                          );
-                                    } else if (context.mounted) {
-                                      ref
-                                          .read(notificationServiceProvider)
-                                          .showError(
-                                            'Failed to connect to AniList',
-                                            title: 'AniList',
-                                            icon: Icons.sync_problem_rounded,
-                                          );
-                                    }
-                                  }
-                                  if (context.mounted) {
-                                    _anilistFocusNode.requestFocus();
-                                  }
+                              if (success && context.mounted) {
+                                ref
+                                    .read(notificationServiceProvider)
+                                    .showSuccess(
+                                      'Successfully connected to Simkl!',
+                                      title: 'Simkl',
+                                      icon: Icons.sync_rounded,
+                                    );
+                              }
+                              if (isDialogShowing &&
+                                  dialogContext != null &&
+                                  dialogContext!.mounted) {
+                                Navigator.of(dialogContext!).pop();
+                              }
+                            }
+                            ref.invalidate(trackingAuthProvider);
+                          },
+                        ),
+                        SettingsTile(
+                          focusNode: _traktFocusNode,
+                          icon: Icons.sync_rounded,
+                          title: 'Trakt',
+                          subtitle: trackingAuthAsync.when(
+                            data: (state) => state['trakt'] == true
+                                ? 'Connected'
+                                : l10n.notLoggedIn,
+                            loading: () => l10n.loading,
+                            error: (_, _) => l10n.unknown,
+                          ),
+                          onTap: () async {
+                            final state = trackingAuthAsync.value ?? {};
+                            if (state['trakt'] == true) {
+                              final confirm = await _confirmDisconnect(
+                                context,
+                                'Trakt',
+                              );
+                              if (confirm) {
+                                await ref.read(traktServiceProvider).logout();
+                                ref.invalidate(trackingAuthProvider);
+                                if (context.mounted) {
+                                  _traktFocusNode.requestFocus();
                                 }
                               }
-                              ref.invalidate(trackingAuthProvider);
-                            },
+                            } else {
+                              bool isCancelled = false;
+                              bool isDialogShowing = false;
+                              BuildContext? dialogContext;
+                              final success = await ref
+                                  .read(traktServiceProvider)
+                                  .login(
+                                    isCancelled: () => isCancelled,
+                                    onDeviceCodeGenerated: (url, code) async {
+                                      if (context.mounted) {
+                                        isDialogShowing = true;
+                                        unawaited(
+                                          showDialog<void>(
+                                            context: context,
+                                            barrierDismissible: true,
+                                            builder: (ctx) {
+                                              dialogContext = ctx;
+                                              return TrackingAuthDialog(
+                                                providerName: 'Trakt',
+                                                verificationUrl: url,
+                                                userCode: code,
+                                              );
+                                            },
+                                          ).then((_) {
+                                            isCancelled = true;
+                                            isDialogShowing = false;
+                                            if (context.mounted) {
+                                              _traktFocusNode.requestFocus();
+                                            }
+                                          }),
+                                        );
+                                      }
+                                    },
+                                  );
+                              if (success && context.mounted) {
+                                ref
+                                    .read(notificationServiceProvider)
+                                    .showSuccess(
+                                      'Successfully connected to Trakt!',
+                                      title: 'Trakt',
+                                      icon: Icons.sync_rounded,
+                                    );
+                              }
+                              if (isDialogShowing &&
+                                  dialogContext != null &&
+                                  dialogContext!.mounted) {
+                                Navigator.of(dialogContext!).pop();
+                              }
+                            }
+                            ref.invalidate(trackingAuthProvider);
+                          },
+                        ),
+                        SettingsTile(
+                          focusNode: _malFocusNode,
+                          icon: Icons.sync_rounded,
+                          title: 'MyAnimeList',
+                          subtitle: trackingAuthAsync.when(
+                            data: (state) => state['mal'] == true
+                                ? 'Connected'
+                                : l10n.notLoggedIn,
+                            loading: () => l10n.loading,
+                            error: (_, _) => l10n.unknown,
                           ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: LayoutConstants.spacingLg),
-              SettingsGroup(
-                title: 'Integrations',
-                children: [
-                  SettingsTile(
-                    icon: Icons.fast_forward_rounded,
-                    title: 'AnimeSkip',
-                    isBeta: true,
-                    subtitle:
-                        'Automatically fetch skip segments for Anime (requires AniList authentication)',
-                    trailing: Switch(
-                      value: settingsRepo.isAnimeSkipIntegrationEnabled(),
-                      onChanged: (val) {
-                        settingsRepo.setAnimeSkipIntegrationEnabled(val);
-                        // Trigger a rebuild
-                        ref.invalidate(settingsRepositoryProvider);
-                      },
-                    ),
-                    onTap: () {
-                      final current = settingsRepo
-                          .isAnimeSkipIntegrationEnabled();
-                      settingsRepo.setAnimeSkipIntegrationEnabled(!current);
+                          onTap: () async {
+                            final state = trackingAuthAsync.value ?? {};
+                            if (state['mal'] == true) {
+                              final confirm = await _confirmDisconnect(
+                                context,
+                                'MyAnimeList',
+                              );
+                              if (confirm) {
+                                await ref.read(malServiceProvider).logout();
+                                ref.invalidate(trackingAuthProvider);
+                                if (context.mounted) {
+                                  _malFocusNode.requestFocus();
+                                }
+                              }
+                            } else {
+                              final malService = ref.read(malServiceProvider);
+                              // Generate PKCE verifier before opening webview
+                              final codeVerifier = malService
+                                  .generateCodeVerifier();
+
+                              final authUrl =
+                                  'https://myanimelist.net/v1/oauth2/authorize'
+                                  '?response_type=code'
+                                  '&client_id=${SyncConfig.malClientId}'
+                                  '&code_challenge=$codeVerifier'
+                                  '&code_challenge_method=plain'
+                                  '&redirect_uri=${Uri.encodeComponent('http://localhost')}';
+
+                              if (context.mounted) {
+                                final redirectUrl = await showDialog<String>(
+                                  context: context,
+                                  builder: (context) => WebViewAuthDialog(
+                                    providerName: 'MyAnimeList',
+                                    initialUrl: authUrl,
+                                    redirectUrlPrefix: 'http://localhost',
+                                  ),
+                                );
+
+                                if (redirectUrl != null && context.mounted) {
+                                  final success = await malService
+                                      .exchangeCodeForToken(
+                                        redirectUrl,
+                                        codeVerifier,
+                                      );
+                                  if (success && context.mounted) {
+                                    ref
+                                        .read(notificationServiceProvider)
+                                        .showSuccess(
+                                          'Successfully connected to MyAnimeList!',
+                                          title: 'MyAnimeList',
+                                          icon: Icons.sync_rounded,
+                                        );
+                                  } else if (context.mounted) {
+                                    ref
+                                        .read(notificationServiceProvider)
+                                        .showError(
+                                          'Failed to connect to MyAnimeList',
+                                          title: 'MyAnimeList',
+                                          icon: Icons.sync_problem_rounded,
+                                        );
+                                  }
+                                }
+                                if (context.mounted) {
+                                  _malFocusNode.requestFocus();
+                                }
+                              }
+                            }
+                            ref.invalidate(trackingAuthProvider);
+                          },
+                        ),
+                        SettingsTile(
+                          focusNode: _anilistFocusNode,
+                          icon: Icons.sync_rounded,
+                          title: 'AniList',
+                          subtitle: trackingAuthAsync.when(
+                            data: (state) => state['anilist'] == true
+                                ? 'Connected'
+                                : l10n.notLoggedIn,
+                            loading: () => l10n.loading,
+                            error: (_, _) => l10n.unknown,
+                          ),
+                          isLast: true,
+                          onTap: () async {
+                            final state = trackingAuthAsync.value ?? {};
+                            if (state['anilist'] == true) {
+                              final confirm = await _confirmDisconnect(
+                                context,
+                                'AniList',
+                              );
+                              if (confirm) {
+                                await ref.read(aniListServiceProvider).logout();
+                                ref.invalidate(trackingAuthProvider);
+                                if (context.mounted) {
+                                  _anilistFocusNode.requestFocus();
+                                }
+                              }
+                            } else {
+                              final anilistService = ref.read(
+                                aniListServiceProvider,
+                              );
+
+                              const authUrl =
+                                  'https://anilist.co/api/v2/oauth/authorize'
+                                  '?client_id=${SyncConfig.anilistClientId}'
+                                  '&response_type=token';
+
+                              if (context.mounted) {
+                                final redirectUrl = await showDialog<String>(
+                                  context: context,
+                                  builder: (context) => const WebViewAuthDialog(
+                                    providerName: 'AniList',
+                                    initialUrl: authUrl,
+                                    redirectUrlPrefix: 'http://localhost',
+                                  ),
+                                );
+
+                                if (redirectUrl != null && context.mounted) {
+                                  final success = await anilistService
+                                      .saveTokenFromRedirect(redirectUrl);
+                                  if (success && context.mounted) {
+                                    ref
+                                        .read(notificationServiceProvider)
+                                        .showSuccess(
+                                          'Successfully connected to AniList!',
+                                          title: 'AniList',
+                                          icon: Icons.sync_rounded,
+                                        );
+                                  } else if (context.mounted) {
+                                    ref
+                                        .read(notificationServiceProvider)
+                                        .showError(
+                                          'Failed to connect to AniList',
+                                          title: 'AniList',
+                                          icon: Icons.sync_problem_rounded,
+                                        );
+                                  }
+                                }
+                                if (context.mounted) {
+                                  _anilistFocusNode.requestFocus();
+                                }
+                              }
+                            }
+                            ref.invalidate(trackingAuthProvider);
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: LayoutConstants.spacingLg),
+            SettingsGroup(
+              title: 'Integrations',
+              children: [
+                SettingsTile(
+                  icon: Icons.fast_forward_rounded,
+                  title: 'AnimeSkip',
+                  isBeta: true,
+                  subtitle:
+                      'Automatically fetch skip segments for Anime (requires AniList authentication)',
+                  trailing: Switch(
+                    value: settingsRepo.isAnimeSkipIntegrationEnabled(),
+                    onChanged: (val) {
+                      settingsRepo.setAnimeSkipIntegrationEnabled(val);
+                      // Trigger a rebuild
                       ref.invalidate(settingsRepositoryProvider);
                     },
                   ),
-                  SettingsTile(
-                    icon: Icons.fast_forward_rounded,
-                    title: 'IntroDB',
-                    isBeta: true,
-                    subtitle: 'Automatically fetch skip segments for TV Shows',
-                    isLast: true,
-                    trailing: Switch(
-                      value: settingsRepo.isIntroDbIntegrationEnabled(),
-                      onChanged: (val) {
-                        settingsRepo.setIntroDbIntegrationEnabled(val);
-                        ref.invalidate(settingsRepositoryProvider);
-                      },
-                    ),
-                    onTap: () {
-                      final current = settingsRepo
-                          .isIntroDbIntegrationEnabled();
-                      settingsRepo.setIntroDbIntegrationEnabled(!current);
+                  onTap: () {
+                    final current = settingsRepo
+                        .isAnimeSkipIntegrationEnabled();
+                    settingsRepo.setAnimeSkipIntegrationEnabled(!current);
+                    ref.invalidate(settingsRepositoryProvider);
+                  },
+                ),
+                SettingsTile(
+                  icon: Icons.fast_forward_rounded,
+                  title: 'IntroDB',
+                  isBeta: true,
+                  subtitle: 'Automatically fetch skip segments for TV Shows',
+                  isLast: true,
+                  trailing: Switch(
+                    value: settingsRepo.isIntroDbIntegrationEnabled(),
+                    onChanged: (val) {
+                      settingsRepo.setIntroDbIntegrationEnabled(val);
                       ref.invalidate(settingsRepositoryProvider);
                     },
                   ),
-                ],
-              ),
-            ],
-          ),
+                  onTap: () {
+                    final current = settingsRepo.isIntroDbIntegrationEnabled();
+                    settingsRepo.setIntroDbIntegrationEnabled(!current);
+                    ref.invalidate(settingsRepositoryProvider);
+                  },
+                ),
+              ],
+            ),
+          ],
         ),
-      );
+      ),
+    );
 
     if (widget.isEmbedded) {
       return content;

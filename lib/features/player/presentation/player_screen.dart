@@ -690,9 +690,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                             subtitleViewConfiguration:
                                 const SubtitleViewConfiguration(
                                   visible: false,
-                                  style: TextStyle(
-                                    color: Colors.transparent,
-                                  ),
+                                  style: TextStyle(color: Colors.transparent),
                                 ),
                             controls: (state) => const SizedBox.shrink(),
                           );
@@ -704,9 +702,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                 Consumer(
                   builder: (context, ref, _) {
                     final useExoPlayer = ref.watch(
-                      playerControllerProvider.select(
-                        (s) => s.useExoPlayer,
-                      ),
+                      playerControllerProvider.select((s) => s.useExoPlayer),
                     );
                     if (useExoPlayer) {
                       return const SizedBox.shrink();
@@ -722,7 +718,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                     return ValueListenableBuilder<bool>(
                       valueListenable: _controlsVisible,
                       builder: (context, controlsVisible, _) {
-                        final bottomOffset = (controlsVisible
+                        final bottomOffset =
+                            (controlsVisible
                                 ? baseVisibleOffset
                                 : baseHiddenOffset) +
                             subtitleSettings.subElevation.toDouble() +
@@ -763,8 +760,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                       logoUrl: widget.item.logoUrl,
                       onResize: _updateResizeMode,
                       onBackPointer: _handleBack,
-                      onRequestRootFocus: () =>
-                          _rootFocusNode.requestFocus(),
+                      onRequestRootFocus: () => _rootFocusNode.requestFocus(),
                       onVisibilityChanged: (v) {
                         if (mounted) {
                           _controlsVisible.value = v;
@@ -879,8 +875,8 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     final bgOpacity = settings.subBackgroundOpacity;
     final Color? backgroundColor =
         (bgColorValue != 0x00000000 && bgOpacity > 0.0)
-            ? Color(bgColorValue).withValues(alpha: bgOpacity)
-            : null;
+        ? Color(bgColorValue).withValues(alpha: bgOpacity)
+        : null;
 
     var baseStyle = TextStyle(
       fontSize: fontSize,

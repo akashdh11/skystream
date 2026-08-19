@@ -853,11 +853,13 @@ void showClearCacheDialog(BuildContext context, WidgetRef ref) {
             Navigator.pop<void>(dialogContext);
             await ref.read(settingsRepositoryProvider).clearImageVideoCache();
             ref.invalidate(cacheSizeProvider);
-            ref.read(notificationServiceProvider).showSuccess(
-              l10n.cacheCleared,
-              title: 'Storage',
-              icon: Icons.cleaning_services_rounded,
-            );
+            ref
+                .read(notificationServiceProvider)
+                .showSuccess(
+                  l10n.cacheCleared,
+                  title: 'Storage',
+                  icon: Icons.cleaning_services_rounded,
+                );
           },
           style: TextButton.styleFrom(
             foregroundColor: Theme.of(dialogContext).colorScheme.error,

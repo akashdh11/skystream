@@ -34,7 +34,8 @@ class _M3ToastOverlayState extends ConsumerState<M3ToastOverlay> {
   Widget build(BuildContext context) {
     final notificationService = ref.watch(notificationServiceProvider);
     final profile = ref.watch(deviceProfileProvider).asData?.value;
-    final isDesktopOrTv = (profile?.isDesktopOS ?? false) ||
+    final isDesktopOrTv =
+        (profile?.isDesktopOS ?? false) ||
         (profile?.isTv ?? false) ||
         MediaQuery.sizeOf(context).width >= 720;
 
@@ -162,15 +163,13 @@ class _M3ToastCardState extends State<_M3ToastCard>
       ),
     );
 
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.25),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _entranceController,
-        curve: ToastCurves.expressiveDefaultSpatial,
-      ),
-    );
+    _slideAnimation =
+        Tween<Offset>(begin: const Offset(0, 0.25), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _entranceController,
+            curve: ToastCurves.expressiveDefaultSpatial,
+          ),
+        );
 
     _iconScaleAnimation = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(
@@ -270,7 +269,9 @@ class _M3ToastCardState extends State<_M3ToastCard>
                     border: Border.all(color: borderColor, width: 1),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.15),
+                        color: Colors.black.withValues(
+                          alpha: isDark ? 0.35 : 0.15,
+                        ),
                         blurRadius: 16,
                         spreadRadius: 0,
                         offset: const Offset(0, 6),
@@ -293,12 +294,9 @@ class _M3ToastCardState extends State<_M3ToastCard>
                             // Primary Icon / Leading Widget with fast snappy bounce
                             ScaleTransition(
                               scale: _iconScaleAnimation,
-                              child: widget.item.leading ??
-                                  Icon(
-                                    iconData,
-                                    size: 22,
-                                    color: primaryColor,
-                                  ),
+                              child:
+                                  widget.item.leading ??
+                                  Icon(iconData, size: 22, color: primaryColor),
                             ),
                             const SizedBox(width: 12),
 
@@ -331,7 +329,9 @@ class _M3ToastCardState extends State<_M3ToastCard>
                                       style: TextStyle(
                                         color: isDark
                                             ? const Color(0xFFCAC4D0)
-                                            : theme.colorScheme.onSurfaceVariant,
+                                            : theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w400,
                                         height: 1.2,

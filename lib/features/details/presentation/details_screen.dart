@@ -47,12 +47,14 @@ class _DetailsScreenState extends ConsumerState<DetailsScreen> {
       return;
     }
 
-    ref.read(notificationServiceProvider).showSuccess(
-      'Copied to clipboard',
-      title: title,
-      icon: Icons.content_copy_rounded,
-      duration: const Duration(milliseconds: 2200),
-    );
+    ref
+        .read(notificationServiceProvider)
+        .showSuccess(
+          'Copied to clipboard',
+          title: title,
+          icon: Icons.content_copy_rounded,
+          duration: const Duration(milliseconds: 2200),
+        );
   }
 
   @override

@@ -9,12 +9,7 @@ NotificationService notificationService(Ref ref) {
   return NotificationService();
 }
 
-enum ToastType {
-  info,
-  success,
-  error,
-  extension,
-}
+enum ToastType { info, success, error, extension }
 
 class ToastItem {
   final String id;

@@ -114,7 +114,9 @@ class ExploreHeaderBar extends ConsumerWidget {
                           height: 14,
                           child: CustomPaint(
                             painter: AnimeLogoPainter(
-                              color: Theme.of(context).brightness == Brightness.dark
+                              color:
+                                  Theme.of(context).brightness ==
+                                      Brightness.dark
                                   ? Colors.white
                                   : Colors.black,
                             ),

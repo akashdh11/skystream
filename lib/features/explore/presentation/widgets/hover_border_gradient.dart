@@ -42,10 +42,7 @@ class TmdbLogoPainter extends CustomPainter {
   final Color color;
   final Color textColor;
 
-  TmdbLogoPainter({
-    required this.color,
-    this.textColor = Colors.black,
-  });
+  TmdbLogoPainter({required this.color, this.textColor = Colors.black});
 
   @override
   void paint(Canvas canvas, Size size) {

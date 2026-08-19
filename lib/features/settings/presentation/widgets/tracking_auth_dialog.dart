@@ -40,11 +40,13 @@ class _TrackingAuthDialogState extends ConsumerState<TrackingAuthDialog> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        ref.read(notificationServiceProvider).showError(
-          'Could not launch ${widget.verificationUrl}',
-          title: widget.providerName,
-          icon: Icons.open_in_browser_rounded,
-        );
+        ref
+            .read(notificationServiceProvider)
+            .showError(
+              'Could not launch ${widget.verificationUrl}',
+              title: widget.providerName,
+              icon: Icons.open_in_browser_rounded,
+            );
       }
     }
   }

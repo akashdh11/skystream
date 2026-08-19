@@ -89,36 +89,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = Theme.of(context);
 
     final categories = [
-      (
-        SettingsCategory.general,
-        l10n.general,
-        Icons.tune_rounded,
-      ),
-      (
-        SettingsCategory.player,
-        l10n.player,
-        Icons.smart_display_rounded,
-      ),
-      (
-        SettingsCategory.accounts,
-        l10n.accounts,
-        Icons.account_circle_rounded,
-      ),
-      (
-        SettingsCategory.extensions,
-        l10n.extensions,
-        Icons.extension_rounded,
-      ),
+      (SettingsCategory.general, l10n.general, Icons.tune_rounded),
+      (SettingsCategory.player, l10n.player, Icons.smart_display_rounded),
+      (SettingsCategory.accounts, l10n.accounts, Icons.account_circle_rounded),
+      (SettingsCategory.extensions, l10n.extensions, Icons.extension_rounded),
       (
         SettingsCategory.developer,
         l10n.developerOptions,
         Icons.developer_mode_rounded,
       ),
-      (
-        SettingsCategory.about,
-        l10n.about,
-        Icons.info_outline_rounded,
-      ),
+      (SettingsCategory.about, l10n.about, Icons.info_outline_rounded),
     ];
 
     final platform = theme.platform;
@@ -142,7 +122,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Material(
                   color: isSelected
-                      ? theme.colorScheme.primaryContainer.withValues(alpha: 0.35)
+                      ? theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.35,
+                        )
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
                   clipBehavior: Clip.antiAlias,
@@ -235,7 +217,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.only(bottom: 100),
               children: [
                 const SizedBox(height: LayoutConstants.spacingXs),
-                _buildGeneralSettingsGroup(context, l10n, themeMode, generalSettings),
+                _buildGeneralSettingsGroup(
+                  context,
+                  l10n,
+                  themeMode,
+                  generalSettings,
+                ),
                 const SizedBox(height: LayoutConstants.spacingLg),
                 _buildNetworkSettingsGroup(context, l10n, generalSettings),
                 const SizedBox(height: LayoutConstants.spacingLg),
@@ -253,7 +240,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.only(bottom: 100),
               children: [
                 const SizedBox(height: LayoutConstants.spacingXs),
-                _buildPlayerSettingsGroup(context, l10n, playerSettings, isTouchDevice),
+                _buildPlayerSettingsGroup(
+                  context,
+                  l10n,
+                  playerSettings,
+                  isTouchDevice,
+                ),
               ],
             ),
           ),
@@ -307,9 +299,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           padding: const EdgeInsets.only(bottom: 100),
           children: [
             const SizedBox(height: LayoutConstants.spacingXs),
-            _buildGeneralSettingsGroup(context, l10n, themeMode, generalSettings),
+            _buildGeneralSettingsGroup(
+              context,
+              l10n,
+              themeMode,
+              generalSettings,
+            ),
             const SizedBox(height: LayoutConstants.spacingLg),
-            _buildPlayerSettingsGroup(context, l10n, playerSettings, isTouchDevice),
+            _buildPlayerSettingsGroup(
+              context,
+              l10n,
+              playerSettings,
+              isTouchDevice,
+            ),
             const SizedBox(height: LayoutConstants.spacingLg),
             SettingsGroup(
               title: l10n.accounts,
@@ -403,10 +405,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsTile(
           icon: Icons.home_rounded,
           title: l10n.defaultHomeScreen,
-          subtitle: getHomeScreenLabel(
-            generalSettings.defaultHomeScreen,
-            l10n,
-          ),
+          subtitle: getHomeScreenLabel(generalSettings.defaultHomeScreen, l10n),
           onTap: () => showDefaultHomeScreenDialog(
             context,
             ref,
@@ -416,10 +415,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsTile(
           icon: Icons.title_rounded,
           title: l10n.titlePosition,
-          subtitle: getTitlePositionLabel(
-            generalSettings.titlePosition,
-            l10n,
-          ),
+          subtitle: getTitlePositionLabel(generalSettings.titlePosition, l10n),
           onTap: () => showTitlePositionDialog(
             context,
             ref,
@@ -431,11 +427,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           title: l10n.language,
           subtitle: l10n.languageName,
           isLast: true,
-          onTap: () => showLanguageDialog(
-            context,
-            ref,
-            ref.read(localeProvider),
-          ),
+          onTap: () =>
+              showLanguageDialog(context, ref, ref.read(localeProvider)),
         ),
       ],
     );
@@ -453,10 +446,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsTile(
           icon: Icons.smart_display_rounded,
           title: l10n.defaultPlayer,
-          subtitle: getPlayerDisplayName(
-            playerSettings.preferredPlayer,
-            l10n,
-          ),
+          subtitle: getPlayerDisplayName(playerSettings.preferredPlayer, l10n),
           onTap: () => showDefaultPlayerDialog(
             context,
             ref,
@@ -522,23 +512,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsTile(
           icon: Icons.av_timer_rounded,
           title: l10n.seekDuration,
-          subtitle: formatSeekDuration(
-            playerSettings.seekDuration,
-            l10n,
-          ),
-          onTap: () => showDurationDialog(
-            context,
-            ref,
-            playerSettings.seekDuration,
-          ),
+          subtitle: formatSeekDuration(playerSettings.seekDuration, l10n),
+          onTap: () =>
+              showDurationDialog(context, ref, playerSettings.seekDuration),
         ),
         SettingsTile(
           icon: Icons.timer_outlined,
           title: l10n.bufferDepth,
-          subtitle: formatReadahead(
-            playerSettings.readaheadSeconds,
-            l10n,
-          ),
+          subtitle: formatReadahead(playerSettings.readaheadSeconds, l10n),
           onTap: () => showReadaheadDialog(
             context,
             ref,
@@ -548,15 +529,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsTile(
           icon: Icons.aspect_ratio_rounded,
           title: l10n.defaultResizeMode,
-          subtitle: getResizeModeLabel(
-            playerSettings.defaultResizeMode,
-            l10n,
-          ),
-          onTap: () => showResizeDialog(
-            context,
-            ref,
-            playerSettings.defaultResizeMode,
-          ),
+          subtitle: getResizeModeLabel(playerSettings.defaultResizeMode, l10n),
+          onTap: () =>
+              showResizeDialog(context, ref, playerSettings.defaultResizeMode),
         ),
         SettingsTile(
           icon: Icons.high_quality_rounded,
@@ -577,27 +552,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsTile(
           icon: Icons.wifi_rounded,
           title: l10n.wifiQualityPreference,
-          subtitle: qualityPreferenceLabel(
-            playerSettings.wifiQuality,
-            l10n,
-          ),
+          subtitle: qualityPreferenceLabel(playerSettings.wifiQuality, l10n),
           onTap: () => showQualityDialog(
             context,
             ref,
             title: l10n.wifiQualityPreference,
             current: playerSettings.wifiQuality,
-            onChanged: ref
-                .read(playerSettingsProvider.notifier)
-                .setWifiQuality,
+            onChanged: ref.read(playerSettingsProvider.notifier).setWifiQuality,
           ),
         ),
         SettingsTile(
           icon: Icons.signal_cellular_alt_rounded,
           title: l10n.mobileQualityPreference,
-          subtitle: qualityPreferenceLabel(
-            playerSettings.mobileQuality,
-            l10n,
-          ),
+          subtitle: qualityPreferenceLabel(playerSettings.mobileQuality, l10n),
           onTap: () => showQualityDialog(
             context,
             ref,
@@ -611,9 +578,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         SettingsTile(
           icon: Icons.filter_list_rounded,
           title: 'Quality Filter Mode',
-          subtitle: _qualityFilterModeLabel(
-            playerSettings.qualityFilterMode,
-          ),
+          subtitle: _qualityFilterModeLabel(playerSettings.qualityFilterMode),
           onTap: () => showQualityFilterModeDialog(
             context,
             ref,
@@ -690,9 +655,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () {
                 ref
                     .read(generalSettingsProvider.notifier)
-                    .setGithubProxyEnabled(
-                      !generalSettings.githubProxyEnabled,
-                    );
+                    .setGithubProxyEnabled(!generalSettings.githubProxyEnabled);
               },
               isLast: true,
             ),
@@ -713,7 +676,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SettingsTile(
             icon: Icons.cleaning_services_rounded,
             title: l10n.clearCache,
-            subtitle: ref.watch(cacheSizeProvider).when(
+            subtitle: ref
+                .watch(cacheSizeProvider)
+                .when(
                   data: (bytes) =>
                       '${l10n.clearCacheSubtitle} • ${_formatBytes(bytes)}',
                   loading: () => l10n.calculating,
@@ -806,7 +771,8 @@ String _formatBytes(int bytes) {
     size /= 1024;
     unitIndex++;
   }
-  final value =
-      unitIndex == 0 ? size.toStringAsFixed(0) : size.toStringAsFixed(1);
+  final value = unitIndex == 0
+      ? size.toStringAsFixed(0)
+      : size.toStringAsFixed(1);
   return '$value ${units[unitIndex]}';
 }
