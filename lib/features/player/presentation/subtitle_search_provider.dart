@@ -65,6 +65,7 @@ const Map<String, String> subtitleLanguages = {
   'German': 'de',
   'Greek': 'el',
   'Spanish': 'es',
+  'Finnish': 'fi',
   'French': 'fr',
   'Hebrew': 'he',
   'Croatian': 'hr',
