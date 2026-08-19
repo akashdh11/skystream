@@ -544,6 +544,8 @@ class DetailsController extends _$DetailsController {
       final hasDub = episodes.any((e) => e.dubStatus == DubStatus.dubbed);
       if (hasSub && hasDub) {
         selectedDubStatus = DubStatus.subbed;
+      } else {
+        selectedDubStatus = DubStatus.none;
       }
     }
 
