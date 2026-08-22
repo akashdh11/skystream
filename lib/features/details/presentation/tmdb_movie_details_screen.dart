@@ -108,16 +108,15 @@ class _TmdbMovieDetailsScreenState
     _scrollOffset.value = offset;
   }
 
-  @override
   /// Movies open the sources sheet straight away; a series asks which episode
   /// first. The button used to be rendered only `if (isMovie)`, so every
   /// series poster looked like it had no plugin playback at all.
-  void _openPluginSources(dynamic data, bool isMovie) {
+  void _openPluginSources(TmdbDetails data, bool isMovie) {
     if (isMovie) {
       PluginSourcesSheet.open(context, data);
       return;
     }
-    final seasons = (data.seasons as List?) ?? const <dynamic>[];
+    final seasons = data.seasons;
     EpisodePickerSheet.open(
       context,
       movieId: widget.movieId,
