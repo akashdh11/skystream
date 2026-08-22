@@ -27,12 +27,12 @@ class AggregatedStream {
   /// only signal available for sorting best-first.
   static final _resRegex = RegExp(r'(\d{3,4})\s*[pi]\b', caseSensitive: false);
   static final _kRegex = RegExp(r'\b(4k|uhd|2160)\b', caseSensitive: false);
-  static final _2kRegex = RegExp(r'\b(2k|1440)\b', caseSensitive: false);
+  static final _twoKRegex = RegExp(r'\b(2k|1440)\b', caseSensitive: false);
 
   int get qualityScore {
     final label = '${stream.source} ${stream.url}';
     if (_kRegex.hasMatch(label)) return 2160;
-    if (_2kRegex.hasMatch(label)) return 1440;
+    if (_twoKRegex.hasMatch(label)) return 1440;
     final match = _resRegex.firstMatch(label);
     if (match != null) return int.tryParse(match.group(1)!) ?? 0;
     return 0;

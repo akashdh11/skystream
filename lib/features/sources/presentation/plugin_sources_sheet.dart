@@ -296,8 +296,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
       _probes.clear();
       _probing.clear();
     });
-    _pluginSub?.cancel();
-    _nuvioSub?.cancel();
+    await _pluginSub?.cancel();
+    await _nuvioSub?.cancel();
     _startPlugins();
     _startNuvio();
   }

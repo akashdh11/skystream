@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/addons/data/addon_stream_service.dart';
 import '../../../core/addons/models/addon_meta.dart';
-import '../../../core/domain/entity/multimedia_item.dart';
 import 'addon_providers.dart';
 import 'addon_sources_sheet.dart';
 

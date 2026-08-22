@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -25,7 +24,7 @@ class AddonStreamConverter {
     AddonStreamSource? selected,
   }) {
     final ordered = <AddonStreamSource>[
-      if (selected != null) selected,
+      ?selected,
       ...sources.where((s) => s.dedupeKey != selected?.dedupeKey),
     ];
 

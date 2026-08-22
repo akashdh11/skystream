@@ -105,7 +105,7 @@ class _AddonCatalogScreenState extends ConsumerState<AddonCatalogScreen> {
     try {
       final extra = <String, String>{
         if (_skip > 0) 'skip': '$_skip',
-        if (_genre != null) 'genre': _genre!,
+        'genre': ?_genre,
       };
       final page = await ref
           .read(addonClientProvider)

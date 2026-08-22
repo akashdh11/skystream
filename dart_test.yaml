@@ -1,0 +1,9 @@
+# Tests tagged `live` reach out to third-party Stremio add-on hosts over the
+# network. They are excluded from the default run so `flutter test` stays
+# hermetic and does not fail when someone else's server is down.
+#
+#   flutter test                                 -> skips them
+#   flutter test --run-skipped --tags live       -> runs them
+tags:
+  live:
+    skip: "Hits live third-party add-on hosts; run with --run-skipped --tags live"
