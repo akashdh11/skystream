@@ -23,20 +23,6 @@ import 'widgets/hotstar_player_style.dart';
 import 'player_controller.dart';
 import 'player_gesture_handler.dart';
 
-TextStyle _getSubtitleTextStyle(String? fontFamily, TextStyle baseStyle) {
-  if (fontFamily == null) return baseStyle;
-  switch (fontFamily.toLowerCase()) {
-    case 'open sans':
-      return GoogleFonts.openSans(textStyle: baseStyle);
-    case 'poppins':
-      return GoogleFonts.poppins(textStyle: baseStyle);
-    case 'ubuntu':
-      return GoogleFonts.ubuntu(textStyle: baseStyle);
-    default:
-      return baseStyle.copyWith(fontFamily: fontFamily);
-  }
-}
-
 class PlayerScreen extends ConsumerStatefulWidget {
   final MultimediaItem item;
   final String videoUrl;
@@ -90,6 +76,54 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
   bool _spaceHeldForSpeed = false;
   double? _speedBeforeSpaceHold;
   Timer? _spaceHoldTimer;
+
+  bool _customFontLoaded = false;
+  String? _lastLoadedFontPath;
+  SubtitleViewConfiguration? _cachedSubtitleConfig;
+  String? _cachedSubtitleKey;
+
+  SubtitleViewConfiguration _getOrCreateSubtitleConfiguration(
+    PlayerSettings settings,
+  ) {
+    final key =
+        '${settings.subTypefaceFilePath}_${settings.subTypeface}_'
+        '${settings.subFixedTextSize}_${settings.subtitleSize}_'
+        '${settings.subForegroundColor}_${settings.subtitleColor}_'
+        '${settings.subEdgeColor}_${settings.subEdgeSize}_'
+        '${settings.subEdgeType}_${settings.subBackgroundColor}_'
+        '${settings.subtitleBackgroundColor}_${settings.subBackgroundOpacity}_'
+        '${settings.subBold}_${settings.subItalic}_${settings.subAlignment}_$_customFontLoaded';
+
+    if (_cachedSubtitleConfig != null && _cachedSubtitleKey == key) {
+      return _cachedSubtitleConfig!;
+    }
+    _cachedSubtitleKey = key;
+    _cachedSubtitleConfig = _buildSubtitleConfiguration(settings);
+    return _cachedSubtitleConfig!;
+  }
+
+  Future<void> _loadCustomFontIfNeeded(PlayerSettings settings) async {
+    final path = settings.subTypefaceFilePath;
+    if (path != null && path.isNotEmpty && path != _lastLoadedFontPath) {
+      _lastLoadedFontPath = path;
+      try {
+        final file = File(path);
+        if (await file.exists()) {
+          final bytes = await file.readAsBytes();
+          final fontLoader = FontLoader('CustomSubtitleFont');
+          fontLoader.addFont(Future.value(ByteData.sublistView(bytes)));
+          await fontLoader.load();
+          if (mounted) {
+            setState(() {
+              _customFontLoaded = true;
+            });
+          }
+        }
+      } catch (e) {
+        debugPrint("Failed to load custom font in player: $e");
+      }
+    }
+  }
 
   late final PlayerController _playerController;
   ProviderSubscription<AsyncValue<PlayerSettings>>? _settingsSub;
@@ -152,6 +186,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         } else if (settings.defaultResizeMode == "Stretch") {
           _videoFit.value = BoxFit.fill;
         }
+        _loadCustomFontIfNeeded(settings);
       },
       fireImmediately: true,
     );
@@ -172,7 +207,17 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused) {
+    // Desktop platforms (Windows, macOS, Linux) do not have mobile OS background
+    // restrictions or socket freezes when minimized/unfocused; users expect playback
+    // to continue in the background on desktop.
+    if (!Platform.isAndroid && !Platform.isIOS) {
+      return;
+    }
+
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.inactive) {
+      _playerController.setAppBackgrounded(true);
       final ctrl = ref.read(playerControllerProvider);
       _wasPlayingBeforeBackground = ctrl.useExoPlayer
           ? _videoViewController.playbackState.value ==
@@ -196,6 +241,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         unawaited(_playerController.setPlaybackSpeed(previousSpeed));
       }
     } else if (state == AppLifecycleState.resumed) {
+      _playerController.setAppBackgrounded(false);
       // Wakelock: re-acquire whenever the engine is currently playing on
       // resume — not just when WE auto-paused on background. External
       // play sources (media-session play from a notification, Bluetooth
@@ -597,435 +643,282 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       );
     }
 
-    return ValueListenableBuilder<bool>(
-      valueListenable: _controlsVisible,
-      builder: (context, controlsVisible, _) {
-        return PopScope(
-          canPop: false,
-          onPopInvokedWithResult: (didPop, result) async {
-            if (didPop) return;
-            // Single guarded path (shared with the root key handler): close the
-            // sources panel, else hide TV controls. Only exit when nothing is
-            // left to dismiss. The de-dupe inside prevents the dual Back
-            // delivery (KeyEvent + route-pop) from skipping a step into exit.
-            if (_consumeBack()) return;
-            await _handleBack();
-          },
-          child: Scaffold(
-            body: Focus(
-              focusNode: _rootFocusNode,
-              autofocus: true,
-              onKeyEvent: _handleKey,
-              // Map the TV remote OK key (select) to ActivateIntent so the
-              // focused control activates natively (Enter/Space/gameButtonA are
-              // already mapped by WidgetsApp). When no control is focused this
-              // bubbles up to the root handler instead.
-              child: Shortcuts(
-                shortcuts: const <ShortcutActivator, Intent>{
-                  SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
-                },
-                child: Stack(
-                  children: [
-                    RepaintBoundary(
-                      child: ValueListenableBuilder<BoxFit>(
-                        valueListenable: _videoFit,
-                        builder: (_, fit, child) => Center(
-                          // Phase 8: Switch engine based on stream type
-                          child: Consumer(
-                            builder: (context, ref, _) {
-                              final useExoPlayer = ref.watch(
-                                playerControllerProvider.select(
-                                  (s) => s.useExoPlayer,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        // Single guarded path (shared with the root key handler): close the
+        // sources panel, else hide TV controls. Only exit when nothing is
+        // left to dismiss. The de-dupe inside prevents the dual Back
+        // delivery (KeyEvent + route-pop) from skipping a step into exit.
+        if (_consumeBack()) return;
+        await _handleBack();
+      },
+      child: Scaffold(
+        body: Focus(
+          focusNode: _rootFocusNode,
+          autofocus: true,
+          onKeyEvent: _handleKey,
+          // Map the TV remote OK key (select) to ActivateIntent so the
+          // focused control activates natively (Enter/Space/gameButtonA are
+          // already mapped by WidgetsApp). When no control is focused this
+          // bubbles up to the root handler instead.
+          child: Shortcuts(
+            shortcuts: const <ShortcutActivator, Intent>{
+              SingleActivator(LogicalKeyboardKey.select): ActivateIntent(),
+            },
+            child: Stack(
+              children: [
+                RepaintBoundary(
+                  child: ValueListenableBuilder<BoxFit>(
+                    valueListenable: _videoFit,
+                    builder: (_, fit, child) => Center(
+                      // Phase 8: Switch engine based on stream type
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final useExoPlayer = ref.watch(
+                            playerControllerProvider.select(
+                              (s) => s.useExoPlayer,
+                            ),
+                          );
+                          if (useExoPlayer) {
+                            return vv.VideoView(
+                              controller: _videoViewController,
+                              videoFit: fit,
+                            );
+                          }
+                          return Video(
+                            controller: _videoController,
+                            fit: fit,
+                            subtitleViewConfiguration:
+                                const SubtitleViewConfiguration(
+                                  visible: false,
+                                  style: TextStyle(color: Colors.transparent),
                                 ),
-                              );
-                              if (useExoPlayer) {
-                                return vv.VideoView(
-                                  controller: _videoViewController,
-                                  videoFit: fit,
-                                );
-                              }
-                              return Video(
-                                controller: _videoController,
-                                fit: fit,
-                                subtitleViewConfiguration:
-                                    const SubtitleViewConfiguration(
-                                      visible: false,
-                                      style: TextStyle(
-                                        color: Colors.transparent,
-                                      ),
-                                    ),
-                                controls: (state) => const SizedBox.shrink(),
-                              );
-                            },
-                          ),
-                        ),
+                            controls: (state) => const SizedBox.shrink(),
+                          );
+                        },
                       ),
                     ),
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final useExoPlayer = ref.watch(
-                          playerControllerProvider.select(
-                            (s) => s.useExoPlayer,
-                          ),
-                        );
-                        if (useExoPlayer) {
-                          return const SizedBox.shrink();
-                        }
+                  ),
+                ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final useExoPlayer = ref.watch(
+                      playerControllerProvider.select((s) => s.useExoPlayer),
+                    );
+                    if (useExoPlayer) {
+                      return const SizedBox.shrink();
+                    }
 
-                        final subtitleSettings = ref
-                            .watch(playerSettingsProvider)
-                            .asData
-                            ?.value;
+                    final subtitleSettings =
+                        ref.watch(playerSettingsProvider).asData?.value ??
+                        const PlayerSettings();
 
-                        return Positioned(
-                          bottom:
-                              (controlsVisible
-                                  ? HotstarPlayerStyle.bottomChromeHeight
-                                  : 20.0) +
-                              ((100 -
-                                      (subtitleSettings?.subtitlePosition ??
-                                          100.0)) *
-                                  (MediaQuery.sizeOf(context).height * 0.008)),
+                    final baseHiddenOffset = _isTv ? 32.0 : 20.0;
+                    final baseVisibleOffset = _isTv ? 96.0 : 84.0;
+
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: _controlsVisible,
+                      builder: (context, controlsVisible, _) {
+                        final bottomOffset =
+                            (controlsVisible
+                                ? baseVisibleOffset
+                                : baseHiddenOffset) +
+                            subtitleSettings.subElevation.toDouble() +
+                            ((100 - subtitleSettings.subtitlePosition) *
+                                (MediaQuery.sizeOf(context).height * 0.008));
+
+                        return AnimatedPositioned(
+                          duration: HotstarPlayerStyle.controlFadeDuration,
+                          curve: Curves.easeOutCubic,
+                          bottom: bottomOffset,
                           left: 20,
                           right: 20,
-                          child: SubtitleView(
-                            controller: _videoController,
-                            configuration: SubtitleViewConfiguration(
-                              style: TextStyle(
-                                fontSize:
-                                    subtitleSettings?.subtitleSize ?? 22.0,
-                                color: Color(
-                                  subtitleSettings?.subtitleColor ?? 0xFFFFFFFF,
-                                ),
-                                backgroundColor:
-                                    Color(
-                                      subtitleSettings
-                                              ?.subtitleBackgroundColor ??
-                                          0x00000000,
-                                    ).withValues(
-                                      alpha:
-                                          subtitleSettings
-                                              ?.subtitleBackgroundOpacity ??
-                                          0.0,
-                                    ),
-                                shadows: const [
-                                  Shadow(
-                                    offset: Offset(0, 1),
-                                    blurRadius: 2,
-                                    color: Colors.black,
-                                  ),
-                                ],
+                          child: IgnorePointer(
+                            child: SubtitleView(
+                              controller: _videoController,
+                              configuration: _getOrCreateSubtitleConfiguration(
+                                subtitleSettings,
                               ),
-                              padding: EdgeInsets.zero,
                             ),
                           ),
                         );
                       },
-                    ),
-                    Positioned.fill(
-                      child: RepaintBoundary(
-                        child: SkyStreamPlayerControls(
-                          key: _controlsKeyFinal,
-                          isLoading: isLoading,
-                          player: _player,
-                          videoViewController: _videoViewController,
-                          title: widget.item.title,
-                          subtitle: ref
-                              .read(playerControllerProvider)
-                              .streamSubtitle,
-                          backdropUrl: widget.item.backdropImageUrl,
-                          logoUrl: widget.item.logoUrl,
-                          onResize: _updateResizeMode,
-                          onBackPointer: _handleBack,
-                          onRequestRootFocus: () =>
-                              _rootFocusNode.requestFocus(),
-                          onVisibilityChanged: (v) {
-                            if (mounted) {
-                              _controlsVisible.value = v;
-                            }
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              ),
+                Positioned.fill(
+                  child: RepaintBoundary(
+                    child: SkyStreamPlayerControls(
+                      key: _controlsKeyFinal,
+                      isLoading: isLoading,
+                      player: _player,
+                      videoViewController: _videoViewController,
+                      title: widget.item.title,
+                      subtitle: ref
+                          .read(playerControllerProvider)
+                          .streamSubtitle,
+                      backdropUrl: widget.item.backdropImageUrl,
+                      logoUrl: widget.item.logoUrl,
+                      onResize: _updateResizeMode,
+                      onBackPointer: _handleBack,
+                      onRequestRootFocus: () => _rootFocusNode.requestFocus(),
+                      onVisibilityChanged: (v) {
+                        if (mounted) {
+                          _controlsVisible.value = v;
+                        }
+                      },
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
-}
 
-class SkyStreamEmbeddedSubtitleView extends ConsumerStatefulWidget {
-  final Player player;
-  final bool controlsVisible;
+  SubtitleViewConfiguration _buildSubtitleConfiguration(
+    PlayerSettings settings,
+  ) {
+    // 1. Font family
+    String? fontFamily;
+    const List<String> builtInFonts = [
+      'Normal (system sans-serif)',
+      'Trebuchet MS',
+      'Netflix Sans',
+      'Google Sans',
+      'Open Sans',
+      'Futura',
+      'Consolas',
+      'Gotham',
+      'Lucida Grande',
+      'STIX General',
+      'Times New Roman',
+      'Verdana',
+      'Ubuntu',
+      'Comic Sans MS',
+      'Poppins',
+    ];
 
-  const SkyStreamEmbeddedSubtitleView({
-    super.key,
-    required this.player,
-    required this.controlsVisible,
-  });
+    if (settings.subTypefaceFilePath != null &&
+        settings.subTypefaceFilePath!.isNotEmpty &&
+        _customFontLoaded) {
+      fontFamily = 'CustomSubtitleFont';
+    } else if (settings.subTypeface != null &&
+        settings.subTypeface! > 0 &&
+        settings.subTypeface! < builtInFonts.length) {
+      fontFamily = builtInFonts[settings.subTypeface!];
+    }
 
-  @override
-  ConsumerState<SkyStreamEmbeddedSubtitleView> createState() =>
-      _SkyStreamEmbeddedSubtitleViewState();
-}
+    final fontSize = settings.subFixedTextSize ?? settings.subtitleSize;
+    final fgColor = Color(
+      settings.subForegroundColor != 0xFFFFFFFF
+          ? settings.subForegroundColor
+          : settings.subtitleColor,
+    );
 
-class _SkyStreamEmbeddedSubtitleViewState
-    extends ConsumerState<SkyStreamEmbeddedSubtitleView> {
-  bool _customFontLoaded = false;
+    final edgeColor = Color(settings.subEdgeColor);
+    final edgeSize = settings.subEdgeSize ?? 2.5;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadCustomFontIfNeeded();
-  }
+    List<Shadow>? shadows;
+    switch (settings.subEdgeType) {
+      case 0: // None
+        shadows = null;
+        break;
+      case 1: // Outline
+        shadows = [
+          Shadow(offset: const Offset(-1.5, -1.5), color: edgeColor),
+          Shadow(offset: const Offset(1.5, -1.5), color: edgeColor),
+          Shadow(offset: const Offset(1.5, 1.5), color: edgeColor),
+          Shadow(offset: const Offset(-1.5, 1.5), color: edgeColor),
+          Shadow(offset: const Offset(0, -1.5), color: edgeColor),
+          Shadow(offset: const Offset(0, 1.5), color: edgeColor),
+          Shadow(offset: const Offset(-1.5, 0), color: edgeColor),
+          Shadow(offset: const Offset(1.5, 0), color: edgeColor),
+        ];
+        break;
+      case 2: // Raised
+        shadows = [
+          Shadow(
+            offset: const Offset(-1, -1),
+            color: edgeColor.withValues(alpha: 0.5),
+          ),
+          Shadow(
+            offset: const Offset(1, 1),
+            color: Colors.white.withValues(alpha: 0.5),
+          ),
+        ];
+        break;
+      case 3: // Shadow / Drop Shadow
+        shadows = [
+          Shadow(
+            offset: Offset(edgeSize, edgeSize),
+            blurRadius: 2.0,
+            color: edgeColor,
+          ),
+        ];
+        break;
+      case 4: // Uniform Drop Shadow
+        shadows = [
+          Shadow(offset: const Offset(1, 1), color: edgeColor),
+          Shadow(
+            offset: const Offset(2, 2),
+            color: edgeColor.withValues(alpha: 0.5),
+          ),
+        ];
+        break;
+    }
 
-  @override
-  void didUpdateWidget(covariant SkyStreamEmbeddedSubtitleView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _loadCustomFontIfNeeded();
-  }
+    final bgColorValue = settings.subBackgroundColor != 0x00000000
+        ? settings.subBackgroundColor
+        : settings.subtitleBackgroundColor;
+    final bgOpacity = settings.subBackgroundOpacity;
+    final Color? backgroundColor =
+        (bgColorValue != 0x00000000 && bgOpacity > 0.0)
+        ? Color(bgColorValue).withValues(alpha: bgOpacity)
+        : null;
 
-  Future<void> _loadCustomFontIfNeeded() async {
-    final settings = ref.read(playerSettingsProvider).value;
-    if (settings == null) return;
+    var baseStyle = TextStyle(
+      fontSize: fontSize,
+      fontWeight: settings.subBold ? FontWeight.bold : FontWeight.normal,
+      fontStyle: settings.subItalic ? FontStyle.italic : FontStyle.normal,
+      color: fgColor,
+      backgroundColor: backgroundColor,
+      shadows: shadows,
+    );
 
-    final path = settings.subTypefaceFilePath;
-    if (path != null && path.isNotEmpty && !_customFontLoaded) {
-      try {
-        final file = File(path);
-        if (await file.exists()) {
-          final bytes = await file.readAsBytes();
-          final fontLoader = FontLoader('CustomSubtitleFont');
-          fontLoader.addFont(Future.value(ByteData.sublistView(bytes)));
-          await fontLoader.load();
-          if (mounted) {
-            setState(() {
-              _customFontLoaded = true;
-            });
-          }
-        }
-      } catch (e) {
-        debugPrint("Failed to load custom font: $e");
+    if (fontFamily != null) {
+      switch (fontFamily.toLowerCase()) {
+        case 'open sans':
+          baseStyle = GoogleFonts.openSans(textStyle: baseStyle);
+          break;
+        case 'poppins':
+          baseStyle = GoogleFonts.poppins(textStyle: baseStyle);
+          break;
+        case 'ubuntu':
+          baseStyle = GoogleFonts.ubuntu(textStyle: baseStyle);
+          break;
+        default:
+          baseStyle = baseStyle.copyWith(fontFamily: fontFamily);
+          break;
       }
     }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    final settings =
-        ref.watch(playerSettingsProvider).value ?? const PlayerSettings();
+    final alignmentCode = settings.subAlignment ?? 2;
+    final textAlign = switch (alignmentCode) {
+      1 || 4 || 7 => TextAlign.left,
+      3 || 6 || 9 => TextAlign.right,
+      _ => TextAlign.center,
+    };
 
-    return StreamBuilder<List<String>>(
-      stream: widget.player.stream.subtitle,
-      initialData: const [],
-      builder: (context, snapshot) {
-        final lines = snapshot.data ?? const [];
-        if (lines.isEmpty) return const SizedBox.shrink();
-
-        // Map font family
-        String? fontFamily;
-        const List<String> builtInFonts = [
-          'Normal (system sans-serif)',
-          'Trebuchet MS',
-          'Netflix Sans',
-          'Google Sans',
-          'Open Sans',
-          'Futura',
-          'Consola',
-          'Gotham',
-          'Lucida Grande',
-          'STIX General',
-          'Times New Roman',
-          'Verdana',
-          'Ubuntu',
-          'Comic Sans',
-          'Poppins',
-        ];
-
-        if (settings.subTypefaceFilePath != null && _customFontLoaded) {
-          fontFamily = 'CustomSubtitleFont';
-        } else if (settings.subTypeface != null &&
-            settings.subTypeface! >= 0 &&
-            settings.subTypeface! < builtInFonts.length) {
-          if (settings.subTypeface == 0) {
-            fontFamily = null;
-          } else {
-            fontFamily = builtInFonts[settings.subTypeface!];
-          }
-        }
-
-        final fontSize = settings.subFixedTextSize ?? 22.0;
-
-        final baseStyle = TextStyle(
-          fontSize: fontSize,
-          fontWeight: settings.subBold ? FontWeight.bold : FontWeight.normal,
-          fontStyle: settings.subItalic ? FontStyle.italic : FontStyle.normal,
-          color: Color(settings.subForegroundColor),
-        );
-
-        final textStyle = _getSubtitleTextStyle(fontFamily, baseStyle);
-
-        final edgeColor = Color(settings.subEdgeColor);
-
-        final alignmentCode = settings.subAlignment ?? 2;
-        final alignment = switch (alignmentCode) {
-          1 => Alignment.bottomLeft,
-          3 => Alignment.bottomRight,
-          4 => Alignment.centerLeft,
-          5 => Alignment.center,
-          6 => Alignment.centerRight,
-          7 => Alignment.topLeft,
-          8 => Alignment.topCenter,
-          9 => Alignment.topRight,
-          _ => Alignment.bottomCenter, // 2
-        };
-
-        final crossAxisAlignment = switch (alignmentCode) {
-          1 || 4 || 7 => CrossAxisAlignment.start,
-          3 || 6 || 9 => CrossAxisAlignment.end,
-          _ => CrossAxisAlignment.center,
-        };
-
-        final textAlign = switch (alignmentCode) {
-          1 || 4 || 7 => TextAlign.left,
-          3 || 6 || 9 => TextAlign.right,
-          _ => TextAlign.center,
-        };
-
-        Widget buildTextLine(String line) {
-          // Clean formatting tags (like HTML tags <...> or ASS tags {...})
-          var cleanedLine = line
-              .replaceAll(RegExp(r'<[^>]*>'), '')
-              .replaceAll(RegExp(r'\{[^}]*\}'), '')
-              .trim();
-
-          if (settings.subUpperCase) {
-            cleanedLine = cleanedLine.toUpperCase();
-          }
-
-          if (cleanedLine.isEmpty) return const SizedBox.shrink();
-
-          final List<Widget> children = [];
-
-          // Edge type outline
-          if (settings.subEdgeType == 1) {
-            children.add(
-              Text(
-                cleanedLine,
-                style: textStyle.copyWith(
-                  color: null,
-                  foreground: Paint()
-                    ..style = PaintingStyle.stroke
-                    ..strokeWidth = settings.subEdgeSize ?? 2.0
-                    ..color = edgeColor,
-                ),
-                textAlign: textAlign,
-              ),
-            );
-          }
-
-          List<Shadow>? shadows;
-          if (settings.subEdgeType == 2) {
-            shadows = [
-              Shadow(
-                offset: const Offset(-1, -1),
-                color: edgeColor.withValues(alpha: 0.5),
-              ),
-              Shadow(
-                offset: const Offset(1, 1),
-                color: Colors.white.withValues(alpha: 0.5),
-              ),
-            ];
-          } else if (settings.subEdgeType == 3) {
-            shadows = [
-              Shadow(
-                offset: const Offset(2, 2),
-                blurRadius: 2.0,
-                color: edgeColor,
-              ),
-            ];
-          } else if (settings.subEdgeType == 4) {
-            shadows = [
-              Shadow(offset: const Offset(1, 1), color: edgeColor),
-              Shadow(
-                offset: const Offset(2, 2),
-                color: edgeColor.withValues(alpha: 0.5),
-              ),
-            ];
-          }
-
-          children.add(
-            Text(
-              cleanedLine,
-              style: textStyle.copyWith(shadows: shadows),
-              textAlign: textAlign,
-            ),
-          );
-
-          Widget resultLine = Stack(children: children);
-
-          final bgColor = Color(settings.subBackgroundColor);
-          if (bgColor.a > 0 && settings.subBackgroundOpacity > 0) {
-            final paddingVal =
-                2.0 + (settings.subBackgroundRadius ?? 0.0) * 0.5;
-            resultLine = Container(
-              padding: EdgeInsets.symmetric(
-                horizontal: paddingVal,
-                vertical: 2.0,
-              ),
-              decoration: BoxDecoration(
-                color: bgColor.withValues(alpha: settings.subBackgroundOpacity),
-                borderRadius: settings.subBackgroundRadius != null
-                    ? BorderRadius.circular(settings.subBackgroundRadius!)
-                    : BorderRadius.zero,
-              ),
-              child: resultLine,
-            );
-          }
-
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2.0),
-            child: resultLine,
-          );
-        }
-
-        return Positioned.fill(
-          child: SafeArea(
-            top: alignment.y < 0,
-            bottom: alignment.y > 0,
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 20.0,
-                right: 20.0,
-                top: 0.0,
-                bottom: alignment.y > 0
-                    ? (widget.controlsVisible ? 60.0 : 20.0)
-                    : 0.0,
-              ),
-              child: Align(
-                alignment: alignment,
-                child: Transform.translate(
-                  offset: Offset(
-                    0.0,
-                    alignment.y >= 0
-                        ? -settings.subElevation.toDouble()
-                        : settings.subElevation.toDouble(),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: crossAxisAlignment,
-                    children: lines.map(buildTextLine).toList(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        );
-      },
+    return SubtitleViewConfiguration(
+      visible: true,
+      style: baseStyle,
+      textAlign: textAlign,
+      padding: EdgeInsets.zero,
     );
   }
 }

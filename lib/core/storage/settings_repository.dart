@@ -165,6 +165,5 @@ class SettingsRepository {
   Future<int> computeImageVideoCacheBytes() =>
       _storageService.computeImageVideoCacheBytes();
 
-  Future<void> clearImageVideoCache() =>
-      _storageService.clearImageVideoCache();
+  Future<void> clearImageVideoCache() => _storageService.clearImageVideoCache();
 }

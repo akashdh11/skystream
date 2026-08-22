@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/services/notification_service.dart';
 
 import '../../../core/domain/entity/multimedia_item.dart';
 import '../../../shared/widgets/thumbnail_error_placeholder.dart';
@@ -46,15 +47,14 @@ class _DetailsScreenState extends ConsumerState<DetailsScreen> {
       return;
     }
 
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Title copied'),
-        duration: Duration(milliseconds: 1200),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ref
+        .read(notificationServiceProvider)
+        .showSuccess(
+          'Copied to clipboard',
+          title: title,
+          icon: Icons.content_copy_rounded,
+          duration: const Duration(milliseconds: 2200),
+        );
   }
 
   @override

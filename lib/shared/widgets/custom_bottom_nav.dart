@@ -179,10 +179,7 @@ class _NavTabCellState extends State<_NavTabCell> {
             decoration: _isFocused
                 ? BoxDecoration(
                     borderRadius: BorderRadius.circular(26),
-                    border: Border.all(
-                      color: colorScheme.primary,
-                      width: 2.0,
-                    ),
+                    border: Border.all(color: colorScheme.primary, width: 2.0),
                     boxShadow: [
                       BoxShadow(
                         color: colorScheme.primary.withValues(alpha: 0.3),

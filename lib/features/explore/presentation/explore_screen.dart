@@ -188,16 +188,16 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
                             ? l10n.exploreMovies
                             : l10n.exploreAnime,
                         child: CircleAvatar(
-                          backgroundColor: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.1),
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.1),
                           radius: 18,
                           child: isAnime
                               ? Icon(
                                   Icons.movie,
-                                  color:
-                                      Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   size: 18,
                                 )
                               : SizedBox(
@@ -205,9 +205,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
                                   height: 16,
                                   child: CustomPaint(
                                     painter: AnimeLogoPainter(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
                                     ),
                                   ),
                                 ),
@@ -537,9 +537,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
           ViewAllCategory.airingTodayTV,
         ),
       ),
-      const SliverPadding(
-        padding: EdgeInsets.only(bottom: 100),
-      ),
+      const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
     ];
   }
 

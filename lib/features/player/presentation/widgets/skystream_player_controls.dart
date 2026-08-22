@@ -96,6 +96,23 @@ class SkyStreamPlayerControlsState
 
   bool _showTorrentInfo = false; // Changed from true
   Timer? _hideTimer;
+  DateTime? _lastHoverTime;
+
+  void _handleThrottledHover() {
+    if (_panelOpen) return;
+    final now = DateTime.now();
+    if (_lastHoverTime != null &&
+        now.difference(_lastHoverTime!).inMilliseconds < 80) {
+      return;
+    }
+    _lastHoverTime = now;
+
+    if (!_isVisible && mounted) {
+      setState(() => _isVisible = true);
+      widget.onVisibilityChanged?.call(true);
+    }
+    _startHideTimer();
+  }
 
   // Metadata scrim (Netflix-style info panel on pause, TV/desktop only)
   final GlobalKey<PlayerMetadataScrimState> _metadataScrimKey = GlobalKey();
@@ -341,7 +358,9 @@ class SkyStreamPlayerControlsState
           .read(playerControllerProvider.notifier)
           .consumeRevertMessage();
       if (msg != null && mounted) {
-        ref.read(notificationServiceProvider).showInfo(msg);
+        ref
+            .read(notificationServiceProvider)
+            .showInfo(msg, title: 'Playback', icon: Icons.sync_problem_rounded);
       }
     });
   }
@@ -997,23 +1016,8 @@ class SkyStreamPlayerControlsState
       cursor: (_isVisible || _panelOpen)
           ? SystemMouseCursors.basic
           : SystemMouseCursors.none,
-      onEnter: (_) {
-        // Always show cursor when mouse enters the player area
-        if (_panelOpen) return; // panel owns the screen
-        if (!_isVisible) {
-          setState(() => _isVisible = true);
-          widget.onVisibilityChanged?.call(true);
-        }
-        _startHideTimer();
-      },
-      onHover: (_) {
-        if (_panelOpen) return; // panel owns the screen
-        if (!_isVisible && mounted) {
-          setState(() => _isVisible = true);
-          widget.onVisibilityChanged?.call(true);
-        }
-        _startHideTimer();
-      },
+      onEnter: (_) => _handleThrottledHover(),
+      onHover: (_) => _handleThrottledHover(),
       onExit: (_) {
         // Mouse left the player area (e.g. moved to another window).
         // Start the hide timer so controls auto-hide after the timeout.
@@ -1537,74 +1541,76 @@ class SkyStreamPlayerControlsState
         excluding: !chromeVisible,
         child: IgnorePointer(
           ignoring: !chromeVisible,
-          child: AnimatedOpacity(
-            opacity: chromeVisible ? 1.0 : 0.0,
-            duration: _animDuration,
-            child: Column(
-              children: [
-                _absorbGestures(
-                  PlayerTopBar(
-                    title: title,
-                    subtitle: subtitle,
-                    onBack: widget.onBackPointer ?? () => context.pop(),
-                    isTv: _isTv,
-                    backFocusNode: _backFocusNode,
-                  ),
-                ),
-                // Center zone stays empty: the touch play/pause is rendered as
-                // a screen-centered overlay in the root Stack (build()) so it
-                // lines up with the OSD / seek animations, instead of being
-                // centered within this shorter middle band.
-                const Expanded(child: SizedBox.expand()),
-                _absorbGestures(
-                  PlayerBottomBar(
-                    isTv: _isTv,
-                    isTouch: isTouch,
-                    progressBar: PlayerProgressBar(
-                      player: widget.player,
-                      videoViewController: widget.videoViewController,
-                      onSeekStart: _cancelHideTimer,
+          child: RepaintBoundary(
+            child: AnimatedOpacity(
+              opacity: chromeVisible ? 1.0 : 0.0,
+              duration: _animDuration,
+              child: Column(
+                children: [
+                  _absorbGestures(
+                    PlayerTopBar(
+                      title: title,
+                      subtitle: subtitle,
+                      onBack: widget.onBackPointer ?? () => context.pop(),
                       isTv: _isTv,
-                      focusNode: _scrubFocusNode,
-                      onArrowUp: () {
-                        final resumePromptPosition = ref.read(
-                          playerControllerProvider.select(
-                            (s) => s.resumePromptPosition,
-                          ),
-                        );
-                        final resumePromptPercentage = ref.read(
-                          playerControllerProvider.select(
-                            (s) => s.resumePromptPercentage,
-                          ),
-                        );
-                        final showNextEpOverlay = ref.read(
-                          playerControllerProvider.select(
-                            (s) => s.showNextEpisodeOverlay,
-                          ),
-                        );
-                        final nextEpTitle = ref.read(
-                          playerControllerProvider.select(
-                            (s) => s.nextEpisodeTitle,
-                          ),
-                        );
-
-                        if (resumePromptPosition != null ||
-                            resumePromptPercentage != null) {
-                          _resumeFocusNode.requestFocus();
-                        } else if (showNextEpOverlay && nextEpTitle != null) {
-                          _nextEpFocusNode.requestFocus();
-                        } else if (_isSkipActive) {
-                          _skipFocusNode.requestFocus();
-                        } else {
-                          _backFocusNode.requestFocus();
-                        }
-                      },
+                      backFocusNode: _backFocusNode,
                     ),
-                    leading: leading,
-                    actions: actions,
                   ),
-                ),
-              ],
+                  // Center zone stays empty: the touch play/pause is rendered as
+                  // a screen-centered overlay in the root Stack (build()) so it
+                  // lines up with the OSD / seek animations, instead of being
+                  // centered within this shorter middle band.
+                  const Expanded(child: SizedBox.expand()),
+                  _absorbGestures(
+                    PlayerBottomBar(
+                      isTv: _isTv,
+                      isTouch: isTouch,
+                      progressBar: PlayerProgressBar(
+                        player: widget.player,
+                        videoViewController: widget.videoViewController,
+                        onSeekStart: _cancelHideTimer,
+                        isTv: _isTv,
+                        focusNode: _scrubFocusNode,
+                        onArrowUp: () {
+                          final resumePromptPosition = ref.read(
+                            playerControllerProvider.select(
+                              (s) => s.resumePromptPosition,
+                            ),
+                          );
+                          final resumePromptPercentage = ref.read(
+                            playerControllerProvider.select(
+                              (s) => s.resumePromptPercentage,
+                            ),
+                          );
+                          final showNextEpOverlay = ref.read(
+                            playerControllerProvider.select(
+                              (s) => s.showNextEpisodeOverlay,
+                            ),
+                          );
+                          final nextEpTitle = ref.read(
+                            playerControllerProvider.select(
+                              (s) => s.nextEpisodeTitle,
+                            ),
+                          );
+
+                          if (resumePromptPosition != null ||
+                              resumePromptPercentage != null) {
+                            _resumeFocusNode.requestFocus();
+                          } else if (showNextEpOverlay && nextEpTitle != null) {
+                            _nextEpFocusNode.requestFocus();
+                          } else if (_isSkipActive) {
+                            _skipFocusNode.requestFocus();
+                          } else {
+                            _backFocusNode.requestFocus();
+                          }
+                        },
+                      ),
+                      leading: leading,
+                      actions: actions,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

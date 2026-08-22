@@ -24,10 +24,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
 import 'core/providers/locale_provider.dart';
 import 'core/network/cloudflare_bypass.dart';
-import 'package:dpad/dpad.dart';
 import 'core/config/tmdb_config.dart';
 import 'core/providers/device_info_provider.dart';
 import 'shared/widgets/loading_indicator.dart';
+import 'core/widgets/m3_toast_overlay.dart';
 import 'features/settings/presentation/general_settings_provider.dart';
 
 void main() async {
@@ -274,7 +274,11 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
       if (updated.isNotEmpty && mounted) {
         ref
             .read(notificationServiceProvider)
-            .showSuccess(_buildUpdateMessage(updated));
+            .showExtension(
+              _buildUpdateMessage(updated),
+              title: 'Extensions Updated',
+              icon: Icons.extension_rounded,
+            );
       }
     } catch (e) {
       if (kDebugMode) debugPrint("Auto-update failed: $e");
@@ -408,7 +412,7 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
               }
             }
 
-            return result;
+            return M3ToastOverlay(child: result);
           },
         );
 

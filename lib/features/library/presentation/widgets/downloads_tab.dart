@@ -625,7 +625,11 @@ class _DownloadItemTile extends ConsumerWidget {
       if (context.mounted) {
         ref
             .read(notificationServiceProvider)
-            .showError(l10n.fileNotFoundRemoving);
+            .showError(
+              l10n.fileNotFoundRemoving,
+              title: 'Downloads',
+              icon: Icons.folder_off_rounded,
+            );
       }
       // Self-delete from DB
       await ref.read(downloadsProvider.notifier).removeDownload(item);

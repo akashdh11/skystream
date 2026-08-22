@@ -920,6 +920,7 @@ class SubSourceProvider extends SubtitleProvider {
       'de': 'german',
       'el': 'greek',
       'es': 'spanish',
+      'fi': 'finnish',
       'fr': 'french',
       'he': 'hebrew',
       'hr': 'croatian',
