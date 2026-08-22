@@ -371,7 +371,7 @@ class _PlayerSourcesPanelState extends ConsumerState<PlayerSourcesPanel>
         return;
       }
       final ctx = _anchorNode.context;
-      if (ctx != null) {
+      if (ctx != null && ctx.mounted) {
         _anchorNode.requestFocus();
         Scrollable.ensureVisible(
           ctx,
@@ -379,7 +379,7 @@ class _PlayerSourcesPanelState extends ConsumerState<PlayerSourcesPanel>
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
         );
-      } else {
+      } else if (mounted) {
         _rootNode.requestFocus();
       }
     });
@@ -919,7 +919,7 @@ class _PlayerEpisodesPanelState extends ConsumerState<PlayerEpisodesPanel> {
         return;
       }
       final ctx = _anchorNode.context;
-      if (ctx != null) {
+      if (ctx != null && ctx.mounted) {
         _anchorNode.requestFocus();
         Scrollable.ensureVisible(
           ctx,
@@ -947,20 +947,26 @@ class _PlayerEpisodesPanelState extends ConsumerState<PlayerEpisodesPanel> {
           playerControllerProvider.select((s) => s.currentStream?.url),
         ) ??
         ref.read(playerControllerProvider.notifier).currentEpisodeUrl;
-    var episodes = widget.item.episodes ?? const <Episode>[];
-    final currentEpisode = episodes.firstWhereOrNull(
+    final allEpisodes = widget.item.episodes ?? const <Episode>[];
+    final hasDub = allEpisodes.any((e) => e.dubStatus == DubStatus.dubbed);
+    final hasSub = allEpisodes.any((e) => e.dubStatus == DubStatus.subbed);
+    final isMixed = hasDub && hasSub;
+
+    final currentEpisode = allEpisodes.firstWhereOrNull(
       (e) => e.url == currentUrl,
     );
     final isSeries =
         widget.item.contentType == MultimediaContentType.series ||
         widget.item.contentType == MultimediaContentType.anime;
-    if (isSeries &&
-        currentEpisode != null &&
-        currentEpisode.dubStatus != DubStatus.none) {
-      episodes = episodes
-          .where((e) => e.dubStatus == currentEpisode.dubStatus)
-          .toList();
-    }
+    final episodes =
+        (isSeries &&
+            isMixed &&
+            currentEpisode != null &&
+            currentEpisode.dubStatus != DubStatus.none)
+        ? allEpisodes
+              .where((e) => e.dubStatus == currentEpisode.dubStatus)
+              .toList()
+        : allEpisodes;
     final historyRepo = ref.read(historyRepositoryProvider);
 
     final seasons = episodes.map((e) => e.season).toSet().toList()..sort();
@@ -993,6 +999,7 @@ class _PlayerEpisodesPanelState extends ConsumerState<PlayerEpisodesPanel> {
           _EpisodeRow(
             episode: ep,
             isCurrent: isCurrent,
+            showDubBadge: isMixed,
             progress: dur > 0 ? (pos / dur).clamp(0.0, 1.0) : 0.0,
             isTv: widget.isTv,
             focusNode: isAnchor ? _anchorNode : null,
@@ -1010,6 +1017,7 @@ class _PlayerEpisodesPanelState extends ConsumerState<PlayerEpisodesPanel> {
         rows[firstEpIndex] = _EpisodeRow(
           episode: r.episode,
           isCurrent: r.isCurrent,
+          showDubBadge: r.showDubBadge,
           progress: r.progress,
           isTv: r.isTv,
           focusNode: _anchorNode,
@@ -1081,6 +1089,7 @@ class _PlayerEpisodesPanelState extends ConsumerState<PlayerEpisodesPanel> {
 class _EpisodeRow extends StatefulWidget {
   final Episode episode;
   final bool isCurrent;
+  final bool showDubBadge;
   final double progress;
   final bool isTv;
   final FocusNode? focusNode;
@@ -1089,6 +1098,7 @@ class _EpisodeRow extends StatefulWidget {
   const _EpisodeRow({
     required this.episode,
     required this.isCurrent,
+    this.showDubBadge = true,
     required this.progress,
     required this.isTv,
     required this.onTap,
@@ -1171,7 +1181,8 @@ class _EpisodeRowState extends State<_EpisodeRow> {
                                 shadows: _kGlassTextShadow,
                               ),
                             ),
-                            if (ep.dubStatus != DubStatus.none) ...[
+                            if (widget.showDubBadge &&
+                                ep.dubStatus != DubStatus.none) ...[
                               const SizedBox(width: 6),
                               _DubBadge(
                                 dubStatus: ep.dubStatus,

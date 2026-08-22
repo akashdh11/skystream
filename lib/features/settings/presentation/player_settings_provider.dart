@@ -446,27 +446,29 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
         0.5;
     final subAlignment = storage.getPlayerSetting<int>('player_sub_alignment');
 
-    final showPip = storage.getPlayerSetting<bool>(
-          'player_show_pip',
-          defaultValue: true,
-        ) ??
+    final showPip =
+        storage.getPlayerSetting<bool>('player_show_pip', defaultValue: true) ??
         true;
-    final showResize = storage.getPlayerSetting<bool>(
+    final showResize =
+        storage.getPlayerSetting<bool>(
           'player_show_resize',
           defaultValue: true,
         ) ??
         true;
-    final showRotate = storage.getPlayerSetting<bool>(
+    final showRotate =
+        storage.getPlayerSetting<bool>(
           'player_show_rotate',
           defaultValue: true,
         ) ??
         true;
-    final showPlaybackSpeed = storage.getPlayerSetting<bool>(
+    final showPlaybackSpeed =
+        storage.getPlayerSetting<bool>(
           'player_show_playback_speed',
           defaultValue: true,
         ) ??
         true;
-    final showEpisodes = storage.getPlayerSetting<bool>(
+    final showEpisodes =
+        storage.getPlayerSetting<bool>(
           'player_show_episodes',
           defaultValue: true,
         ) ??

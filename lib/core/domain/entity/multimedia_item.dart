@@ -492,7 +492,7 @@ class Episode {
       rating: (json['rating'] as num?)?.toDouble(),
       runtime: (json['runtime'] as int?) ?? (json['duration'] as int?),
       airDate: json['airDate'] as String?,
-      dubStatus: _parseDubStatus(json['dubStatus'], name),
+      dubStatus: _parseDubStatus(json['dubStatus']),
       playbackPolicy:
           (json['playbackPolicy'] as String?) ?? (json['vpnStatus'] as String?),
       streams: json['streams'] != null
@@ -507,21 +507,12 @@ class Episode {
     );
   }
 
-  static DubStatus _parseDubStatus(dynamic raw, [String? name]) {
-    if (raw != null) {
-      final str = raw.toString().toLowerCase();
-      if (str.contains('dub')) return DubStatus.dubbed;
-      if (str.contains('sub')) return DubStatus.subbed;
-    }
-
-    if (name != null) {
-      final lowerName = name.toLowerCase();
-      // Look for common patterns: (Dub), [Dub], - Dub, etc.
-      // Or just "Dub" as a word.
-      if (lowerName.contains('dub')) return DubStatus.dubbed;
-      if (lowerName.contains('sub')) return DubStatus.subbed;
-    }
-
+  static DubStatus _parseDubStatus(dynamic raw) {
+    if (raw == null) return DubStatus.none;
+    if (raw is DubStatus) return raw;
+    final str = raw.toString().trim().toLowerCase();
+    if (str == 'dub' || str == 'dubbed') return DubStatus.dubbed;
+    if (str == 'sub' || str == 'subbed') return DubStatus.subbed;
     return DubStatus.none;
   }
 

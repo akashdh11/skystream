@@ -14,6 +14,8 @@ import 'player_settings_provider.dart';
 import 'general_settings_provider.dart';
 import 'app_version_provider.dart';
 import 'account_settings_screen.dart';
+import 'developer_options_screen.dart';
+import '../../extensions/screens/extensions_screen.dart';
 
 import 'package:skystream/l10n/generated/app_localizations.dart';
 import '../../../core/providers/locale_provider.dart';
@@ -21,11 +23,27 @@ import '../../../core/network/doh_service.dart';
 import '../../../core/router/app_router.dart';
 import 'cache_provider.dart';
 
-class SettingsScreen extends ConsumerWidget {
+enum SettingsCategory {
+  general,
+  player,
+  accounts,
+  extensions,
+  developer,
+  about,
+}
+
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  SettingsCategory _selectedCategory = SettingsCategory.general;
+
+  @override
+  Widget build(BuildContext context) {
     final profile = ref.watch(deviceProfileProvider).asData?.value;
     final isTv = profile?.isTv == true || context.isTv;
     final isWidescreen = isTv || context.isTabletOrLarger;
@@ -52,7 +70,7 @@ class SettingsScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            Expanded(child: _buildSettingsList(context, ref, isTv)),
+            Expanded(child: _buildDualPanelLayout(context, isTv)),
           ],
         ),
       );
@@ -62,19 +80,209 @@ class SettingsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(title: Text(l10n.settings)),
-      body: _buildSettingsList(context, ref, isTv),
+      body: _buildMobileSettingsList(context, isTv),
     );
   }
 
-  Widget _buildSettingsList(BuildContext context, WidgetRef ref, bool isTv) {
+  Widget _buildDualPanelLayout(BuildContext context, bool isTv) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    final categories = [
+      (SettingsCategory.general, l10n.general, Icons.tune_rounded),
+      (SettingsCategory.player, l10n.player, Icons.smart_display_rounded),
+      (SettingsCategory.accounts, l10n.accounts, Icons.account_circle_rounded),
+      (SettingsCategory.extensions, l10n.extensions, Icons.extension_rounded),
+      (
+        SettingsCategory.developer,
+        l10n.developerOptions,
+        Icons.developer_mode_rounded,
+      ),
+      (SettingsCategory.about, l10n.about, Icons.info_outline_rounded),
+    ];
+
+    final platform = theme.platform;
+    final isDesktopOS =
+        platform == TargetPlatform.windows ||
+        platform == TargetPlatform.macOS ||
+        platform == TargetPlatform.linux;
+    final isTouchDevice = !isTv && !isDesktopOS;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left Side Navigation Rail / Sidebar
+        SizedBox(
+          width: 250,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            children: categories.map((cat) {
+              final isSelected = _selectedCategory == cat.$1;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Material(
+                  color: isSelected
+                      ? theme.colorScheme.primaryContainer.withValues(
+                          alpha: 0.35,
+                        )
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(14),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedCategory = cat.$1;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 13,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            cat.$3,
+                            size: 22,
+                            color: isSelected
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              cat.$2,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: isSelected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        // Subtle vertical divider
+        VerticalDivider(
+          width: 1,
+          thickness: 1,
+          color: theme.dividerColor.withValues(alpha: 0.15),
+        ),
+        // Right Detail Panel
+        Expanded(
+          child: FocusTraversalGroup(
+            child: _buildCategoryContent(
+              context,
+              isTv,
+              isTouchDevice,
+              _selectedCategory,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCategoryContent(
+    BuildContext context,
+    bool isTv,
+    bool isTouchDevice,
+    SettingsCategory category,
+  ) {
     final versionAsync = ref.watch(appVersionProvider);
     final themeMode = ref.watch(appThemeModeProvider);
     final generalSettings = ref.watch(generalSettingsProvider);
-
     final playerSettings =
         ref.watch(playerSettingsProvider).asData?.value ??
         const PlayerSettings();
+    final l10n = AppLocalizations.of(context)!;
 
+    switch (category) {
+      case SettingsCategory.general:
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 100),
+              children: [
+                const SizedBox(height: LayoutConstants.spacingXs),
+                _buildGeneralSettingsGroup(
+                  context,
+                  l10n,
+                  themeMode,
+                  generalSettings,
+                ),
+                const SizedBox(height: LayoutConstants.spacingLg),
+                _buildNetworkSettingsGroup(context, l10n, generalSettings),
+                const SizedBox(height: LayoutConstants.spacingLg),
+                _buildAppDataSettingsGroup(context, l10n),
+              ],
+            ),
+          ),
+        );
+
+      case SettingsCategory.player:
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 100),
+              children: [
+                const SizedBox(height: LayoutConstants.spacingXs),
+                _buildPlayerSettingsGroup(
+                  context,
+                  l10n,
+                  playerSettings,
+                  isTouchDevice,
+                ),
+              ],
+            ),
+          ),
+        );
+
+      case SettingsCategory.accounts:
+        return const AccountSettingsScreen(isEmbedded: true);
+
+      case SettingsCategory.extensions:
+        return const ExtensionsScreen(isEmbedded: true);
+
+      case SettingsCategory.developer:
+        return const DeveloperOptionsScreen(isEmbedded: true);
+
+      case SettingsCategory.about:
+        return Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 800),
+            child: ListView(
+              padding: const EdgeInsets.only(bottom: 100),
+              children: [
+                const SizedBox(height: LayoutConstants.spacingXs),
+                _buildAboutSettingsGroup(context, l10n, versionAsync),
+              ],
+            ),
+          ),
+        );
+    }
+  }
+
+  Widget _buildMobileSettingsList(BuildContext context, bool isTv) {
+    final versionAsync = ref.watch(appVersionProvider);
+    final themeMode = ref.watch(appThemeModeProvider);
+    final generalSettings = ref.watch(generalSettingsProvider);
+    final playerSettings =
+        ref.watch(playerSettingsProvider).asData?.value ??
+        const PlayerSettings();
     final l10n = AppLocalizations.of(context)!;
 
     final platform = Theme.of(context).platform;
@@ -91,262 +299,18 @@ class SettingsScreen extends ConsumerWidget {
           padding: const EdgeInsets.only(bottom: 100),
           children: [
             const SizedBox(height: LayoutConstants.spacingXs),
-            SettingsGroup(
-              title: l10n.general,
-              children: [
-                SettingsTile(
-                  icon: Icons.dark_mode_rounded,
-                  title: l10n.appTheme,
-                  subtitle: themeMode == ThemeMode.system
-                      ? l10n.system
-                      : (themeMode == ThemeMode.dark ? l10n.dark : l10n.light),
-                  onTap: () => showThemeDialog(context, ref, themeMode),
-                ),
-                SettingsTile(
-                  icon: Icons.history_rounded,
-                  title: l10n.recordWatchHistory,
-                  subtitle: generalSettings.watchHistoryEnabled
-                      ? l10n.enabled
-                      : l10n.disabled,
-                  trailing: Switch(
-                    value: generalSettings.watchHistoryEnabled,
-                    onChanged: (val) => ref
-                        .read(generalSettingsProvider.notifier)
-                        .setWatchHistoryEnabled(val),
-                  ),
-                  onTap: () => ref
-                      .read(generalSettingsProvider.notifier)
-                      .setWatchHistoryEnabled(
-                        !generalSettings.watchHistoryEnabled,
-                      ),
-                ),
-                SettingsTile(
-                  icon: Icons.home_rounded,
-                  title: l10n.defaultHomeScreen,
-                  subtitle: getHomeScreenLabel(
-                    generalSettings.defaultHomeScreen,
-                    l10n,
-                  ),
-                  onTap: () => showDefaultHomeScreenDialog(
-                    context,
-                    ref,
-                    generalSettings.defaultHomeScreen,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.title_rounded,
-                  title: l10n.titlePosition,
-                  subtitle: getTitlePositionLabel(
-                    generalSettings.titlePosition,
-                    l10n,
-                  ),
-                  onTap: () => showTitlePositionDialog(
-                    context,
-                    ref,
-                    generalSettings.titlePosition,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.translate_rounded,
-                  title: l10n.language,
-                  subtitle: l10n.languageName,
-                  isLast: true,
-                  onTap: () => showLanguageDialog(
-                    context,
-                    ref,
-                    ref.read(localeProvider),
-                  ),
-                ),
-              ],
+            _buildGeneralSettingsGroup(
+              context,
+              l10n,
+              themeMode,
+              generalSettings,
             ),
             const SizedBox(height: LayoutConstants.spacingLg),
-            SettingsGroup(
-              title: l10n.player,
-              children: [
-                SettingsTile(
-                  icon: Icons.smart_display_rounded,
-                  title: l10n.defaultPlayer,
-                  subtitle: getPlayerDisplayName(
-                    playerSettings.preferredPlayer,
-                    l10n,
-                  ),
-                  onTap: () => showDefaultPlayerDialog(
-                    context,
-                    ref,
-                    playerSettings.preferredPlayer,
-                  ),
-                ),
-                if (isTouchDevice) ...[
-                  SettingsTile(
-                    icon: Icons.swipe_vertical_rounded,
-                    title: l10n.leftGesture,
-                    subtitle: getGestureLabel(playerSettings.leftGesture, l10n),
-                    onTap: () => showGestureDialog(
-                      context,
-                      ref,
-                      true,
-                      playerSettings.leftGesture,
-                    ),
-                  ),
-                  SettingsTile(
-                    icon: Icons.swipe_vertical_rounded,
-                    title: l10n.rightGesture,
-                    subtitle: getGestureLabel(
-                      playerSettings.rightGesture,
-                      l10n,
-                    ),
-                    onTap: () => showGestureDialog(
-                      context,
-                      ref,
-                      false,
-                      playerSettings.rightGesture,
-                    ),
-                  ),
-                  SettingsTile(
-                    icon: Icons.touch_app_rounded,
-                    title: l10n.doubleTapToSeek,
-                    subtitle: playerSettings.doubleTapEnabled
-                        ? l10n.enabled
-                        : l10n.disabled,
-                    trailing: Switch(
-                      value: playerSettings.doubleTapEnabled,
-                      onChanged: (val) => ref
-                          .read(playerSettingsProvider.notifier)
-                          .setDoubleTapEnabled(val),
-                    ),
-                    onTap: () => ref
-                        .read(playerSettingsProvider.notifier)
-                        .setDoubleTapEnabled(!playerSettings.doubleTapEnabled),
-                  ),
-                  SettingsTile(
-                    icon: Icons.swipe_rounded,
-                    title: l10n.swipeToSeek,
-                    subtitle: playerSettings.swipeSeekEnabled
-                        ? l10n.enabled
-                        : l10n.disabled,
-                    trailing: Switch(
-                      value: playerSettings.swipeSeekEnabled,
-                      onChanged: (val) => ref
-                          .read(playerSettingsProvider.notifier)
-                          .setSwipeSeekEnabled(val),
-                    ),
-                    onTap: () => ref
-                        .read(playerSettingsProvider.notifier)
-                        .setSwipeSeekEnabled(!playerSettings.swipeSeekEnabled),
-                  ),
-                ],
-                SettingsTile(
-                  icon: Icons.av_timer_rounded,
-                  title: l10n.seekDuration,
-                  subtitle: formatSeekDuration(
-                    playerSettings.seekDuration,
-                    l10n,
-                  ),
-                  onTap: () => showDurationDialog(
-                    context,
-                    ref,
-                    playerSettings.seekDuration,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.timer_outlined,
-                  title: l10n.bufferDepth,
-                  subtitle: formatReadahead(
-                    playerSettings.readaheadSeconds,
-                    l10n,
-                  ),
-                  onTap: () => showReadaheadDialog(
-                    context,
-                    ref,
-                    playerSettings.readaheadSeconds,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.aspect_ratio_rounded,
-                  title: l10n.defaultResizeMode,
-                  subtitle: getResizeModeLabel(
-                    playerSettings.defaultResizeMode,
-                    l10n,
-                  ),
-                  onTap: () => showResizeDialog(
-                    context,
-                    ref,
-                    playerSettings.defaultResizeMode,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.high_quality_rounded,
-                  title: l10n.hardwareDecoding,
-                  subtitle: playerSettings.hardwareDecoding
-                      ? '${l10n.enabled} (${l10n.recommended})'
-                      : l10n.disabled,
-                  trailing: Switch(
-                    value: playerSettings.hardwareDecoding,
-                    onChanged: (val) => ref
-                        .read(playerSettingsProvider.notifier)
-                        .setHardwareDecoding(val),
-                  ),
-                  onTap: () => ref
-                      .read(playerSettingsProvider.notifier)
-                      .setHardwareDecoding(!playerSettings.hardwareDecoding),
-                ),
-                SettingsTile(
-                  icon: Icons.wifi_rounded,
-                  title: l10n.wifiQualityPreference,
-                  subtitle: qualityPreferenceLabel(
-                    playerSettings.wifiQuality,
-                    l10n,
-                  ),
-                  onTap: () => showQualityDialog(
-                    context,
-                    ref,
-                    title: l10n.wifiQualityPreference,
-                    current: playerSettings.wifiQuality,
-                    onChanged: ref
-                        .read(playerSettingsProvider.notifier)
-                        .setWifiQuality,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.signal_cellular_alt_rounded,
-                  title: l10n.mobileQualityPreference,
-                  subtitle: qualityPreferenceLabel(
-                    playerSettings.mobileQuality,
-                    l10n,
-                  ),
-                  onTap: () => showQualityDialog(
-                    context,
-                    ref,
-                    title: l10n.mobileQualityPreference,
-                    current: playerSettings.mobileQuality,
-                    onChanged: ref
-                        .read(playerSettingsProvider.notifier)
-                        .setMobileQuality,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.filter_list_rounded,
-                  title: 'Quality Filter Mode',
-                  subtitle: _qualityFilterModeLabel(
-                    playerSettings.qualityFilterMode,
-                  ),
-                  onTap: () => showQualityFilterModeDialog(
-                    context,
-                    ref,
-                    current: playerSettings.qualityFilterMode,
-                    onChanged: ref
-                        .read(playerSettingsProvider.notifier)
-                        .setQualityFilterMode,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.tune_rounded,
-                  title: l10n.playerControls,
-                  subtitle: l10n.playerControlsSubtitle,
-                  isLast: true,
-                  onTap: () => showPlayerControlsDialog(context, ref),
-                ),
-              ],
+            _buildPlayerSettingsGroup(
+              context,
+              l10n,
+              playerSettings,
+              isTouchDevice,
             ),
             const SizedBox(height: LayoutConstants.spacingLg),
             SettingsGroup(
@@ -368,71 +332,7 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: LayoutConstants.spacingLg),
-            Builder(
-              builder: (context) {
-                final dohState =
-                    ref.watch(dohSettingsProvider).asData?.value ??
-                    const DohSettings();
-                return SettingsGroup(
-                  title: l10n.network,
-                  children: [
-                    SettingsTile(
-                      icon: Icons.dns_rounded,
-                      title: l10n.dnsOverHttps,
-                      subtitle: dohState.enabled
-                          ? '${l10n.on} (${getDohProviderLabel(dohState.provider, dohState.customUrl, l10n)})'
-                          : l10n.off,
-                      trailing: Switch(
-                        value: dohState.enabled,
-                        onChanged: (val) {
-                          ref
-                              .read(dohSettingsProvider.notifier)
-                              .setEnabled(val);
-                        },
-                      ),
-                      onTap: () {
-                        ref
-                            .read(dohSettingsProvider.notifier)
-                            .setEnabled(!dohState.enabled);
-                      },
-                    ),
-                    if (dohState.enabled)
-                      SettingsTile(
-                        icon: Icons.cloud_rounded,
-                        title: l10n.dohProvider,
-                        subtitle: getDohProviderLabel(
-                          dohState.provider,
-                          dohState.customUrl,
-                          l10n,
-                        ),
-                        onTap: () => showDohProviderDialog(context, ref),
-                      ),
-
-                    SettingsTile(
-                      icon: Icons.alt_route_rounded,
-                      title: l10n.githubProxy,
-                      subtitle: l10n.githubProxySubtitle,
-                      trailing: Switch(
-                        value: generalSettings.githubProxyEnabled,
-                        onChanged: (val) {
-                          ref
-                              .read(generalSettingsProvider.notifier)
-                              .setGithubProxyEnabled(val);
-                        },
-                      ),
-                      onTap: () {
-                        ref
-                            .read(generalSettingsProvider.notifier)
-                            .setGithubProxyEnabled(
-                              !generalSettings.githubProxyEnabled,
-                            );
-                      },
-                      isLast: true,
-                    ),
-                  ],
-                );
-              },
-            ),
+            _buildNetworkSettingsGroup(context, l10n, generalSettings),
             const SizedBox(height: LayoutConstants.spacingLg),
             SettingsGroup(
               title: l10n.extensions,
@@ -447,38 +347,7 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: LayoutConstants.spacingLg),
-            SettingsGroup(
-              title: l10n.appData,
-              children: [
-                if (!kIsWeb)
-                  SettingsTile(
-                    icon: Icons.cleaning_services_rounded,
-                    title: l10n.clearCache,
-                    subtitle: ref
-                        .watch(cacheSizeProvider)
-                        .when(
-                          data: (bytes) =>
-                              '${l10n.clearCacheSubtitle} • ${_formatBytes(bytes)}',
-                          loading: () => l10n.calculating,
-                          error: (_, _) => l10n.clearCacheSubtitle,
-                        ),
-                    onTap: () => showClearCacheDialog(context, ref),
-                  ),
-                SettingsTile(
-                  icon: Icons.restore_rounded,
-                  title: l10n.resetDataKeepExtensions,
-                  subtitle: l10n.resetDataSubtitle,
-                  onTap: () => showResetDataDialog(context, ref),
-                ),
-                SettingsTile(
-                  icon: Icons.delete_forever_rounded,
-                  title: l10n.factoryReset,
-                  subtitle: l10n.factoryResetSubtitle,
-                  isLast: true,
-                  onTap: () => showFactoryResetDialog(context, ref),
-                ),
-              ],
-            ),
+            _buildAppDataSettingsGroup(context, l10n),
             const SizedBox(height: LayoutConstants.spacingLg),
             SettingsGroup(
               title: l10n.developer,
@@ -493,49 +362,391 @@ class SettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: LayoutConstants.spacingLg),
-            SettingsGroup(
-              title: l10n.about,
-              children: [
-                SettingsTile(
-                  icon: Icons.person_outline_rounded,
-                  title: l10n.developer,
-                  subtitle: l10n.developedBy('Akash'),
-                  onTap: () => showDeveloperDialog(context),
-                ),
-                SettingsTile(
-                  icon: Icons.forum_outlined,
-                  title: l10n.discord,
-                  subtitle: l10n.discordSubtitle,
-                  onTap: () => launchUrl(
-                    Uri.parse('https://discord.gg/73XGA8Mxn9'),
-                    mode: LaunchMode.externalApplication,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.send_rounded,
-                  title: l10n.telegram,
-                  subtitle: l10n.telegramSubtitle,
-                  onTap: () => launchUrl(
-                    Uri.parse('https://t.me/+Ez5Vsv2pUUFjZmNl'),
-                    mode: LaunchMode.externalApplication,
-                  ),
-                ),
-                SettingsTile(
-                  icon: Icons.info_outline_rounded,
-                  title: l10n.version,
-                  subtitle: versionAsync.when(
-                    data: (v) => v,
-                    loading: () => l10n.loading,
-                    error: (err, stack) => l10n.unknown,
-                  ),
-                  trailing: const SizedBox.shrink(),
-                  isLast: true,
-                ),
-              ],
-            ),
+            _buildAboutSettingsGroup(context, l10n, versionAsync),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildGeneralSettingsGroup(
+    BuildContext context,
+    AppLocalizations l10n,
+    ThemeMode themeMode,
+    GeneralSettings generalSettings,
+  ) {
+    return SettingsGroup(
+      title: l10n.general,
+      children: [
+        SettingsTile(
+          icon: Icons.dark_mode_rounded,
+          title: l10n.appTheme,
+          subtitle: themeMode == ThemeMode.system
+              ? l10n.system
+              : (themeMode == ThemeMode.dark ? l10n.dark : l10n.light),
+          onTap: () => showThemeDialog(context, ref, themeMode),
+        ),
+        SettingsTile(
+          icon: Icons.history_rounded,
+          title: l10n.recordWatchHistory,
+          subtitle: generalSettings.watchHistoryEnabled
+              ? l10n.enabled
+              : l10n.disabled,
+          trailing: Switch(
+            value: generalSettings.watchHistoryEnabled,
+            onChanged: (val) => ref
+                .read(generalSettingsProvider.notifier)
+                .setWatchHistoryEnabled(val),
+          ),
+          onTap: () => ref
+              .read(generalSettingsProvider.notifier)
+              .setWatchHistoryEnabled(!generalSettings.watchHistoryEnabled),
+        ),
+        SettingsTile(
+          icon: Icons.home_rounded,
+          title: l10n.defaultHomeScreen,
+          subtitle: getHomeScreenLabel(generalSettings.defaultHomeScreen, l10n),
+          onTap: () => showDefaultHomeScreenDialog(
+            context,
+            ref,
+            generalSettings.defaultHomeScreen,
+          ),
+        ),
+        SettingsTile(
+          icon: Icons.title_rounded,
+          title: l10n.titlePosition,
+          subtitle: getTitlePositionLabel(generalSettings.titlePosition, l10n),
+          onTap: () => showTitlePositionDialog(
+            context,
+            ref,
+            generalSettings.titlePosition,
+          ),
+        ),
+        SettingsTile(
+          icon: Icons.translate_rounded,
+          title: l10n.language,
+          subtitle: l10n.languageName,
+          isLast: true,
+          onTap: () =>
+              showLanguageDialog(context, ref, ref.read(localeProvider)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlayerSettingsGroup(
+    BuildContext context,
+    AppLocalizations l10n,
+    PlayerSettings playerSettings,
+    bool isTouchDevice,
+  ) {
+    return SettingsGroup(
+      title: l10n.player,
+      children: [
+        SettingsTile(
+          icon: Icons.smart_display_rounded,
+          title: l10n.defaultPlayer,
+          subtitle: getPlayerDisplayName(playerSettings.preferredPlayer, l10n),
+          onTap: () => showDefaultPlayerDialog(
+            context,
+            ref,
+            playerSettings.preferredPlayer,
+          ),
+        ),
+        if (isTouchDevice) ...[
+          SettingsTile(
+            icon: Icons.swipe_vertical_rounded,
+            title: l10n.leftGesture,
+            subtitle: getGestureLabel(playerSettings.leftGesture, l10n),
+            onTap: () => showGestureDialog(
+              context,
+              ref,
+              true,
+              playerSettings.leftGesture,
+            ),
+          ),
+          SettingsTile(
+            icon: Icons.swipe_vertical_rounded,
+            title: l10n.rightGesture,
+            subtitle: getGestureLabel(playerSettings.rightGesture, l10n),
+            onTap: () => showGestureDialog(
+              context,
+              ref,
+              false,
+              playerSettings.rightGesture,
+            ),
+          ),
+          SettingsTile(
+            icon: Icons.touch_app_rounded,
+            title: l10n.doubleTapToSeek,
+            subtitle: playerSettings.doubleTapEnabled
+                ? l10n.enabled
+                : l10n.disabled,
+            trailing: Switch(
+              value: playerSettings.doubleTapEnabled,
+              onChanged: (val) => ref
+                  .read(playerSettingsProvider.notifier)
+                  .setDoubleTapEnabled(val),
+            ),
+            onTap: () => ref
+                .read(playerSettingsProvider.notifier)
+                .setDoubleTapEnabled(!playerSettings.doubleTapEnabled),
+          ),
+          SettingsTile(
+            icon: Icons.swipe_rounded,
+            title: l10n.swipeToSeek,
+            subtitle: playerSettings.swipeSeekEnabled
+                ? l10n.enabled
+                : l10n.disabled,
+            trailing: Switch(
+              value: playerSettings.swipeSeekEnabled,
+              onChanged: (val) => ref
+                  .read(playerSettingsProvider.notifier)
+                  .setSwipeSeekEnabled(val),
+            ),
+            onTap: () => ref
+                .read(playerSettingsProvider.notifier)
+                .setSwipeSeekEnabled(!playerSettings.swipeSeekEnabled),
+          ),
+        ],
+        SettingsTile(
+          icon: Icons.av_timer_rounded,
+          title: l10n.seekDuration,
+          subtitle: formatSeekDuration(playerSettings.seekDuration, l10n),
+          onTap: () =>
+              showDurationDialog(context, ref, playerSettings.seekDuration),
+        ),
+        SettingsTile(
+          icon: Icons.timer_outlined,
+          title: l10n.bufferDepth,
+          subtitle: formatReadahead(playerSettings.readaheadSeconds, l10n),
+          onTap: () => showReadaheadDialog(
+            context,
+            ref,
+            playerSettings.readaheadSeconds,
+          ),
+        ),
+        SettingsTile(
+          icon: Icons.aspect_ratio_rounded,
+          title: l10n.defaultResizeMode,
+          subtitle: getResizeModeLabel(playerSettings.defaultResizeMode, l10n),
+          onTap: () =>
+              showResizeDialog(context, ref, playerSettings.defaultResizeMode),
+        ),
+        SettingsTile(
+          icon: Icons.high_quality_rounded,
+          title: l10n.hardwareDecoding,
+          subtitle: playerSettings.hardwareDecoding
+              ? '${l10n.enabled} (${l10n.recommended})'
+              : l10n.disabled,
+          trailing: Switch(
+            value: playerSettings.hardwareDecoding,
+            onChanged: (val) => ref
+                .read(playerSettingsProvider.notifier)
+                .setHardwareDecoding(val),
+          ),
+          onTap: () => ref
+              .read(playerSettingsProvider.notifier)
+              .setHardwareDecoding(!playerSettings.hardwareDecoding),
+        ),
+        SettingsTile(
+          icon: Icons.wifi_rounded,
+          title: l10n.wifiQualityPreference,
+          subtitle: qualityPreferenceLabel(playerSettings.wifiQuality, l10n),
+          onTap: () => showQualityDialog(
+            context,
+            ref,
+            title: l10n.wifiQualityPreference,
+            current: playerSettings.wifiQuality,
+            onChanged: ref.read(playerSettingsProvider.notifier).setWifiQuality,
+          ),
+        ),
+        SettingsTile(
+          icon: Icons.signal_cellular_alt_rounded,
+          title: l10n.mobileQualityPreference,
+          subtitle: qualityPreferenceLabel(playerSettings.mobileQuality, l10n),
+          onTap: () => showQualityDialog(
+            context,
+            ref,
+            title: l10n.mobileQualityPreference,
+            current: playerSettings.mobileQuality,
+            onChanged: ref
+                .read(playerSettingsProvider.notifier)
+                .setMobileQuality,
+          ),
+        ),
+        SettingsTile(
+          icon: Icons.filter_list_rounded,
+          title: 'Quality Filter Mode',
+          subtitle: _qualityFilterModeLabel(playerSettings.qualityFilterMode),
+          onTap: () => showQualityFilterModeDialog(
+            context,
+            ref,
+            current: playerSettings.qualityFilterMode,
+            onChanged: ref
+                .read(playerSettingsProvider.notifier)
+                .setQualityFilterMode,
+          ),
+        ),
+        SettingsTile(
+          icon: Icons.tune_rounded,
+          title: l10n.playerControls,
+          subtitle: l10n.playerControlsSubtitle,
+          isLast: true,
+          onTap: () => showPlayerControlsDialog(context, ref),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNetworkSettingsGroup(
+    BuildContext context,
+    AppLocalizations l10n,
+    GeneralSettings generalSettings,
+  ) {
+    return Builder(
+      builder: (context) {
+        final dohState =
+            ref.watch(dohSettingsProvider).asData?.value ?? const DohSettings();
+        return SettingsGroup(
+          title: l10n.network,
+          children: [
+            SettingsTile(
+              icon: Icons.dns_rounded,
+              title: l10n.dnsOverHttps,
+              subtitle: dohState.enabled
+                  ? '${l10n.on} (${getDohProviderLabel(dohState.provider, dohState.customUrl, l10n)})'
+                  : l10n.off,
+              trailing: Switch(
+                value: dohState.enabled,
+                onChanged: (val) {
+                  ref.read(dohSettingsProvider.notifier).setEnabled(val);
+                },
+              ),
+              onTap: () {
+                ref
+                    .read(dohSettingsProvider.notifier)
+                    .setEnabled(!dohState.enabled);
+              },
+            ),
+            if (dohState.enabled)
+              SettingsTile(
+                icon: Icons.cloud_rounded,
+                title: l10n.dohProvider,
+                subtitle: getDohProviderLabel(
+                  dohState.provider,
+                  dohState.customUrl,
+                  l10n,
+                ),
+                onTap: () => showDohProviderDialog(context, ref),
+              ),
+            SettingsTile(
+              icon: Icons.alt_route_rounded,
+              title: l10n.githubProxy,
+              subtitle: l10n.githubProxySubtitle,
+              trailing: Switch(
+                value: generalSettings.githubProxyEnabled,
+                onChanged: (val) {
+                  ref
+                      .read(generalSettingsProvider.notifier)
+                      .setGithubProxyEnabled(val);
+                },
+              ),
+              onTap: () {
+                ref
+                    .read(generalSettingsProvider.notifier)
+                    .setGithubProxyEnabled(!generalSettings.githubProxyEnabled);
+              },
+              isLast: true,
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildAppDataSettingsGroup(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    return SettingsGroup(
+      title: l10n.appData,
+      children: [
+        if (!kIsWeb)
+          SettingsTile(
+            icon: Icons.cleaning_services_rounded,
+            title: l10n.clearCache,
+            subtitle: ref
+                .watch(cacheSizeProvider)
+                .when(
+                  data: (bytes) =>
+                      '${l10n.clearCacheSubtitle} • ${_formatBytes(bytes)}',
+                  loading: () => l10n.calculating,
+                  error: (_, _) => l10n.clearCacheSubtitle,
+                ),
+            onTap: () => showClearCacheDialog(context, ref),
+          ),
+        SettingsTile(
+          icon: Icons.restore_rounded,
+          title: l10n.resetDataKeepExtensions,
+          subtitle: l10n.resetDataSubtitle,
+          onTap: () => showResetDataDialog(context, ref),
+        ),
+        SettingsTile(
+          icon: Icons.delete_forever_rounded,
+          title: l10n.factoryReset,
+          subtitle: l10n.factoryResetSubtitle,
+          isLast: true,
+          onTap: () => showFactoryResetDialog(context, ref),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAboutSettingsGroup(
+    BuildContext context,
+    AppLocalizations l10n,
+    AsyncValue<String> versionAsync,
+  ) {
+    return SettingsGroup(
+      title: l10n.about,
+      children: [
+        SettingsTile(
+          icon: Icons.person_outline_rounded,
+          title: l10n.developer,
+          subtitle: l10n.developedBy('Akash'),
+          onTap: () => showDeveloperDialog(context),
+        ),
+        SettingsTile(
+          icon: Icons.forum_outlined,
+          title: l10n.discord,
+          subtitle: l10n.discordSubtitle,
+          onTap: () => launchUrl(
+            Uri.parse('https://discord.gg/73XGA8Mxn9'),
+            mode: LaunchMode.externalApplication,
+          ),
+        ),
+        SettingsTile(
+          icon: Icons.send_rounded,
+          title: l10n.telegram,
+          subtitle: l10n.telegramSubtitle,
+          onTap: () => launchUrl(
+            Uri.parse('https://t.me/+Ez5Vsv2pUUFjZmNl'),
+            mode: LaunchMode.externalApplication,
+          ),
+        ),
+        SettingsTile(
+          icon: Icons.info_outline_rounded,
+          title: l10n.version,
+          subtitle: versionAsync.when(
+            data: (v) => v,
+            loading: () => l10n.loading,
+            error: (err, stack) => l10n.unknown,
+          ),
+          trailing: const SizedBox.shrink(),
+          isLast: true,
+        ),
+      ],
     );
   }
 }
@@ -560,7 +771,8 @@ String _formatBytes(int bytes) {
     size /= 1024;
     unitIndex++;
   }
-  final value =
-      unitIndex == 0 ? size.toStringAsFixed(0) : size.toStringAsFixed(1);
+  final value = unitIndex == 0
+      ? size.toStringAsFixed(0)
+      : size.toStringAsFixed(1);
   return '$value ${units[unitIndex]}';
 }

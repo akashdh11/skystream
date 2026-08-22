@@ -14,6 +14,7 @@ import '../../../../core/utils/stream_quality_sorter.dart';
 import '../general_settings_provider.dart';
 import '../../../../core/providers/locale_provider.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
+import '../../../../core/services/notification_service.dart';
 import '../cache_provider.dart';
 
 /// Returns a localized label for a player gesture.
@@ -831,7 +832,6 @@ void showFactoryResetDialog(BuildContext context, WidgetRef ref) {
 /// Shows a dialog to clear the image & video cache.
 void showClearCacheDialog(BuildContext context, WidgetRef ref) {
   final l10n = AppLocalizations.of(context)!;
-  final callerContext = context;
   showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
@@ -853,11 +853,13 @@ void showClearCacheDialog(BuildContext context, WidgetRef ref) {
             Navigator.pop<void>(dialogContext);
             await ref.read(settingsRepositoryProvider).clearImageVideoCache();
             ref.invalidate(cacheSizeProvider);
-            if (callerContext.mounted) {
-              ScaffoldMessenger.of(callerContext).showSnackBar(
-                SnackBar(content: Text(l10n.cacheCleared)),
-              );
-            }
+            ref
+                .read(notificationServiceProvider)
+                .showSuccess(
+                  l10n.cacheCleared,
+                  title: 'Storage',
+                  icon: Icons.cleaning_services_rounded,
+                );
           },
           style: TextButton.styleFrom(
             foregroundColor: Theme.of(dialogContext).colorScheme.error,

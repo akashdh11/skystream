@@ -17,7 +17,9 @@ import '../../../core/services/notification_service.dart';
 import 'package:flutter/foundation.dart';
 
 class DeveloperOptionsScreen extends ConsumerStatefulWidget {
-  const DeveloperOptionsScreen({super.key});
+  final bool isEmbedded;
+
+  const DeveloperOptionsScreen({super.key, this.isEmbedded = false});
 
   @override
   ConsumerState<DeveloperOptionsScreen> createState() =>
@@ -39,83 +41,98 @@ class _DeveloperOptionsScreenState
     final deviceAsync = ref.watch(deviceProfileProvider);
 
     final l10n = AppLocalizations.of(context)!;
-    final scaffold = Scaffold(
-      appBar: AppBar(title: Text(l10n.developerOptions)),
-      body: ListView(
-        padding: const EdgeInsets.all(8),
-        children: [
-          SettingsGroup(
-            title: l10n.debugTools,
-            children: [
-              SettingsTile(
-                icon: Icons.video_file_rounded,
-                title: l10n.playLocalVideo,
-                subtitle: l10n.playLocalVideoSubtitle,
-                onTap: () => _pickLocalVideo(context),
-              ),
-              SettingsTile(
-                icon: Icons.link_rounded,
-                title: l10n.streamUrl,
-                subtitle: l10n.streamUrlSubtitle,
-                onTap: () => _showStreamUrlDialog(
-                  context,
-                  deviceAsync.asData?.value.isTv ?? false,
-                ),
-              ),
-              SettingsTile(
-                icon: Icons.stream,
-                title: l10n.streamTorrent,
-                subtitle: l10n.streamTorrentSubtitle,
-                onTap: () => _pickTorrentFile(context),
-              ),
-              if (kDebugMode)
+    final content = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 800),
+        child: ListView(
+          padding: const EdgeInsets.all(8),
+          children: [
+            SettingsGroup(
+              title: l10n.debugTools,
+              children: [
                 SettingsTile(
-                  icon: Icons.folder_copy_rounded,
-                  title: l10n.loadPluginFromAssets,
-                  subtitle: _devLoadAssets ? l10n.enabled : l10n.disabled,
-                  isLast: true,
-                  trailing: Switch(
-                    value: _devLoadAssets,
-                    onChanged: (val) => _toggleAssetLoading(context, val),
-                  ),
-                  onTap: () => _toggleAssetLoading(context, !_devLoadAssets),
+                  icon: Icons.video_file_rounded,
+                  title: l10n.playLocalVideo,
+                  subtitle: l10n.playLocalVideoSubtitle,
+                  onTap: () => _pickLocalVideo(context),
                 ),
-            ],
-          ),
-          SettingsGroup(
-            title: l10n.diagnostics,
-            children: [
-              SettingsTile(
-                icon: Icons.bug_report_rounded,
-                title: l10n.viewLogs,
-                subtitle: l10n.viewLogsSubtitle,
-                isLast: true,
-                onTap: () {
-                  if (kDebugMode) {
-                    unawaited(const AppLogsRoute().push<void>(context));
-                  } else {
-                    ref
-                        .read(notificationServiceProvider)
-                        .showInfo(
-                          'Log tracking requires a debug build to work',
-                        );
-                  }
-                },
-              ),
-            ],
-          ),
-        ],
+                SettingsTile(
+                  icon: Icons.link_rounded,
+                  title: l10n.streamUrl,
+                  subtitle: l10n.streamUrlSubtitle,
+                  onTap: () => _showStreamUrlDialog(
+                    context,
+                    deviceAsync.asData?.value.isTv ?? false,
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.stream,
+                  title: l10n.streamTorrent,
+                  subtitle: l10n.streamTorrentSubtitle,
+                  onTap: () => _pickTorrentFile(context),
+                ),
+                if (kDebugMode)
+                  SettingsTile(
+                    icon: Icons.folder_copy_rounded,
+                    title: l10n.loadPluginFromAssets,
+                    subtitle: _devLoadAssets ? l10n.enabled : l10n.disabled,
+                    isLast: true,
+                    trailing: Switch(
+                      value: _devLoadAssets,
+                      onChanged: (val) => _toggleAssetLoading(context, val),
+                    ),
+                    onTap: () => _toggleAssetLoading(context, !_devLoadAssets),
+                  ),
+              ],
+            ),
+            SettingsGroup(
+              title: l10n.diagnostics,
+              children: [
+                SettingsTile(
+                  icon: Icons.bug_report_rounded,
+                  title: l10n.viewLogs,
+                  subtitle: l10n.viewLogsSubtitle,
+                  isLast: true,
+                  onTap: () {
+                    if (kDebugMode) {
+                      unawaited(const AppLogsRoute().push<void>(context));
+                    } else {
+                      ref
+                          .read(notificationServiceProvider)
+                          .showInfo(
+                            'Log tracking requires a debug build to work',
+                            title: 'Developer Options',
+                            icon: Icons.developer_mode_rounded,
+                          );
+                    }
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
 
-    return scaffold;
+    if (widget.isEmbedded) {
+      return content;
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: Text(l10n.developerOptions)),
+      body: content,
+    );
   }
 
   Future<void> _toggleAssetLoading(BuildContext context, bool newValue) async {
     if (!kDebugMode) {
       ref
           .read(notificationServiceProvider)
-          .showError(AppLocalizations.of(context)!.debugOnlyFeature);
+          .showError(
+            AppLocalizations.of(context)!.debugOnlyFeature,
+            title: 'Developer Options',
+            icon: Icons.developer_mode_rounded,
+          );
       return;
     }
 

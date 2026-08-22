@@ -4,7 +4,10 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 
-class TrackingAuthDialog extends StatefulWidget {
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/notification_service.dart';
+
+class TrackingAuthDialog extends ConsumerStatefulWidget {
   final String providerName;
   final String verificationUrl;
   final String userCode;
@@ -17,10 +20,10 @@ class TrackingAuthDialog extends StatefulWidget {
   });
 
   @override
-  State<TrackingAuthDialog> createState() => _TrackingAuthDialogState();
+  ConsumerState<TrackingAuthDialog> createState() => _TrackingAuthDialogState();
 }
 
-class _TrackingAuthDialogState extends State<TrackingAuthDialog> {
+class _TrackingAuthDialogState extends ConsumerState<TrackingAuthDialog> {
   @override
   void initState() {
     super.initState();
@@ -37,9 +40,13 @@ class _TrackingAuthDialogState extends State<TrackingAuthDialog> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not launch ${widget.verificationUrl}')),
-        );
+        ref
+            .read(notificationServiceProvider)
+            .showError(
+              'Could not launch ${widget.verificationUrl}',
+              title: widget.providerName,
+              icon: Icons.open_in_browser_rounded,
+            );
       }
     }
   }

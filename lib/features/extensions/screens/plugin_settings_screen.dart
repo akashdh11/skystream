@@ -11,6 +11,7 @@ import '../../../core/storage/settings_repository.dart';
 import '../../../core/utils/layout_constants.dart';
 import '../../../shared/widgets/custom_widgets.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../core/services/notification_service.dart';
 import '../../settings/presentation/widgets/settings_widgets.dart';
 
 class PluginSettingsScreen extends ConsumerStatefulWidget {
@@ -156,12 +157,10 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
     String? rawValue,
   ]) {
     final values = <String, bool>{
-      for (final option in definition.options)
-        option.value: option.defaultBool,
+      for (final option in definition.options) option.value: option.defaultBool,
     };
 
-    final raw =
-        rawValue ?? _values[definition.key] ?? definition.defaultValue;
+    final raw = rawValue ?? _values[definition.key] ?? definition.defaultValue;
     if (raw.trim().isEmpty) return values;
 
     try {
@@ -256,28 +255,30 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: definition.options.map((option) {
-                    final description = option.description?.trim();
+                  children: definition.options
+                      .map((option) {
+                        final description = option.description?.trim();
 
-                    return SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      secondary: Icon(_toggleGroupOptionIcon(option)),
-                      title: Text(option.label),
-                      subtitle: description == null || description.isEmpty
-                          ? null
-                          : Text(description),
-                      value: values[option.value] ?? option.defaultBool,
-                      onChanged: (enabled) {
-                        values[option.value] = enabled;
-                        setDialogState(() {});
+                        return SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          secondary: Icon(_toggleGroupOptionIcon(option)),
+                          title: Text(option.label),
+                          subtitle: description == null || description.isEmpty
+                              ? null
+                              : Text(description),
+                          value: values[option.value] ?? option.defaultBool,
+                          onChanged: (enabled) {
+                            values[option.value] = enabled;
+                            setDialogState(() {});
 
-                        if (!mounted) return;
-                        setState(() {
-                          _values[definition.key] = jsonEncode(values);
-                        });
-                      },
-                    );
-                  }).toList(growable: false),
+                            if (!mounted) return;
+                            setState(() {
+                              _values[definition.key] = jsonEncode(values);
+                            });
+                          },
+                        );
+                      })
+                      .toList(growable: false),
                 ),
               ),
               actions: [
@@ -377,14 +378,22 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Extension settings saved')));
+      ref
+          .read(notificationServiceProvider)
+          .showExtension(
+            'Extension settings saved',
+            title: widget.plugin.name,
+            icon: Icons.extension_rounded,
+          );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save settings: $error')),
-      );
+      ref
+          .read(notificationServiceProvider)
+          .showError(
+            'Failed to save settings: $error',
+            title: widget.plugin.name,
+            icon: Icons.extension_rounded,
+          );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -417,9 +426,8 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
     final description = definition.description?.trim();
 
     final value = switch (definition.type) {
-      PluginSettingType.toggle => _boolValue(definition.key)
-          ? 'Enabled'
-          : 'Disabled',
+      PluginSettingType.toggle =>
+        _boolValue(definition.key) ? 'Enabled' : 'Disabled',
       PluginSettingType.toggleGroup => _toggleGroupSummary(definition),
       PluginSettingType.select => _selectedOptionLabel(definition),
       PluginSettingType.text || PluginSettingType.url =>
@@ -440,9 +448,7 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
     setState(() => _values[key] = value ? 'true' : 'false');
   }
 
-  Future<void> _showSelectDialog(
-    PluginSettingDefinition definition,
-  ) async {
+  Future<void> _showSelectDialog(PluginSettingDefinition definition) async {
     if (_saving || definition.options.isEmpty) return;
 
     final current = _values[definition.key] ?? definition.defaultValue;
@@ -484,9 +490,7 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
     );
   }
 
-  Future<void> _showTextDialog(
-    PluginSettingDefinition definition,
-  ) async {
+  Future<void> _showTextDialog(PluginSettingDefinition definition) async {
     if (_saving) return;
 
     final editor = TextEditingController(
@@ -605,9 +609,7 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
                 ? null
                 : (next) => _setToggleValue(definition.key, next),
           ),
-          onTap: _saving
-              ? null
-              : () => _setToggleValue(definition.key, !value),
+          onTap: _saving ? null : () => _setToggleValue(definition.key, !value),
           isLast: isLast,
         );
 
@@ -616,9 +618,7 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
           icon: _iconForSetting(definition),
           title: definition.title,
           subtitle: _settingSubtitle(definition),
-          onTap: _saving
-              ? null
-              : () => _showToggleGroupDialog(definition),
+          onTap: _saving ? null : () => _showToggleGroupDialog(definition),
           isLast: isLast,
         );
 

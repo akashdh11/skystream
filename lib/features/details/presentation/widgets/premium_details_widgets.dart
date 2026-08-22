@@ -217,10 +217,7 @@ class MetadataBar extends ConsumerWidget {
 class NextAiringWidget extends StatefulWidget {
   final NextAiring nextAiring;
 
-  const NextAiringWidget({
-    super.key,
-    required this.nextAiring,
-  });
+  const NextAiringWidget({super.key, required this.nextAiring});
 
   @override
   State<NextAiringWidget> createState() => _NextAiringWidgetState();
@@ -288,14 +285,8 @@ class _NextAiringWidgetState extends State<NextAiringWidget> {
   String _formatCountdown(Duration duration) {
     final days = duration.inDays;
     final hours = duration.inHours.remainder(24).toString().padLeft(2, '0');
-    final minutes = duration.inMinutes
-        .remainder(60)
-        .toString()
-        .padLeft(2, '0');
-    final seconds = duration.inSeconds
-        .remainder(60)
-        .toString()
-        .padLeft(2, '0');
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
 
     if (days > 0) {
       return '$days days  $hours:$minutes:$seconds';
@@ -347,9 +338,9 @@ class _NextAiringWidgetState extends State<NextAiringWidget> {
               Expanded(
                 child: Text(
                   '$episodeDescription in',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             ],

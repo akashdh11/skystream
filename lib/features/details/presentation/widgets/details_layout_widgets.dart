@@ -473,8 +473,12 @@ class SliverDetailsDesktopEpisodeGrid extends ConsumerWidget {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
 
+    final hasDub = episodes.any((e) => e.dubStatus == DubStatus.dubbed);
+    final hasSub = episodes.any((e) => e.dubStatus == DubStatus.subbed);
+    final isMixed = hasDub && hasSub;
+
     // Apply Language Filter
-    if (detailsState.selectedDubStatus != DubStatus.none) {
+    if (isMixed && detailsState.selectedDubStatus != DubStatus.none) {
       episodes = episodes
           .where((e) => e.dubStatus == detailsState.selectedDubStatus)
           .toList();
@@ -596,8 +600,12 @@ class SliverDetailsEpisodeList extends ConsumerWidget {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
     }
 
+    final hasDub = episodes.any((e) => e.dubStatus == DubStatus.dubbed);
+    final hasSub = episodes.any((e) => e.dubStatus == DubStatus.subbed);
+    final isMixed = hasDub && hasSub;
+
     // Apply Language Filter
-    if (detailsState.selectedDubStatus != DubStatus.none) {
+    if (isMixed && detailsState.selectedDubStatus != DubStatus.none) {
       episodes = episodes
           .where((e) => e.dubStatus == detailsState.selectedDubStatus)
           .toList();
@@ -674,15 +682,15 @@ class DetailsEpisodeFilterBar extends ConsumerWidget {
 
     final allEpisodes =
         detailsState.seasonMap[detailsState.selectedSeason] ?? [];
-    final filteredEpisodes = selectedDub == DubStatus.none
-        ? allEpisodes
-        : allEpisodes.where((e) => e.dubStatus == selectedDub).toList();
-
-    final int batchCount = (filteredEpisodes.length / batchSize).ceil();
-
     final hasDub = allEpisodes.any((e) => e.dubStatus == DubStatus.dubbed);
     final hasSub = allEpisodes.any((e) => e.dubStatus == DubStatus.subbed);
     final isMixed = hasDub && hasSub;
+
+    final filteredEpisodes = (isMixed && selectedDub != DubStatus.none)
+        ? allEpisodes.where((e) => e.dubStatus == selectedDub).toList()
+        : allEpisodes;
+
+    final int batchCount = (filteredEpisodes.length / batchSize).ceil();
 
     return SizedBox(
       height: 40,
@@ -1013,8 +1021,12 @@ class DetailsDesktopEpisodeColumn extends ConsumerWidget {
 
     if (episodes.isEmpty) return const SizedBox.shrink();
 
+    final hasDub = episodes.any((e) => e.dubStatus == DubStatus.dubbed);
+    final hasSub = episodes.any((e) => e.dubStatus == DubStatus.subbed);
+    final isMixed = hasDub && hasSub;
+
     // Apply Language Filter
-    if (detailsState.selectedDubStatus != DubStatus.none) {
+    if (isMixed && detailsState.selectedDubStatus != DubStatus.none) {
       episodes = episodes
           .where((e) => e.dubStatus == detailsState.selectedDubStatus)
           .toList();

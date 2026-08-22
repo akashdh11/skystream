@@ -9,6 +9,7 @@ import '../../../../shared/widgets/thumbnail_error_placeholder.dart';
 import '../../../../shared/widgets/expandable_text.dart';
 import 'premium_details_widgets.dart';
 import 'details_layout_widgets.dart';
+import '../../../../core/services/notification_service.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
 
 /// Immersive desktop/TV hero for non-TMDB details.
@@ -161,7 +162,7 @@ class DetailsDesktopHero extends ConsumerWidget {
                       // Logo or Title
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onLongPress: () => _copyAnimeTitle(context),
+                        onLongPress: () => _copyAnimeTitle(context, ref),
                         child: displayItem.logoUrl != null
                             ? CachedNetworkImage(
                                 imageUrl: displayItem.logoUrl!,
@@ -231,7 +232,7 @@ class DetailsDesktopHero extends ConsumerWidget {
     );
   }
 
-  Future<void> _copyAnimeTitle(BuildContext context) async {
+  Future<void> _copyAnimeTitle(BuildContext context, WidgetRef ref) async {
     await Clipboard.setData(ClipboardData(text: displayItem.title));
     await HapticFeedback.selectionClick();
 
@@ -239,15 +240,14 @@ class DetailsDesktopHero extends ConsumerWidget {
       return;
     }
 
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Title copied'),
-        duration: Duration(milliseconds: 1200),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    ref
+        .read(notificationServiceProvider)
+        .showSuccess(
+          'Copied to clipboard',
+          title: displayItem.title,
+          icon: Icons.content_copy_rounded,
+          duration: const Duration(milliseconds: 2200),
+        );
   }
 
   Widget _buildTitle(Color textColor) {
