@@ -470,6 +470,14 @@ class PlayerController extends Notifier<PlayerState> {
     StreamResult stream, {
     required bool isLive,
   }) {
+    // Never build an engine for a controller that is already torn down. This
+    // notifier is keepAlive'd and outlives PlayerScreen, so a late async
+    // completion can reach here after dispose — and because creation is a side
+    // effect below, that would spawn an ExoPlayer attached to a dead State
+    // which nothing ever disposes. Symptom: audio keeps playing after the user
+    // closes the player.
+    if (_isDisposed) return false;
+
     // Preserve the current product behavior: video_view is the native live path.
     if (_videoViewFactory == null || Platform.isLinux || !isLive) {
       return false;
@@ -4022,6 +4030,8 @@ class PlayerController extends Notifier<PlayerState> {
 
   void disposeController() {
     _isDisposed = true;
+    // Release the screen's factory: it closes over a State that is going away.
+    _videoViewFactory = null;
     _torrentPollTimer?.cancel();
     _torrentPollTimer = null;
     _stallTimer?.cancel();

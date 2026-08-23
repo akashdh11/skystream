@@ -660,6 +660,20 @@ class SkyStreamPlayerControlsState
     closeContentPanel();
   }
 
+  @override
+  void deactivate() {
+    // Stop listening as the widget leaves the tree, not when it is disposed.
+    //
+    // `mounted` stays true through deactivation, but Riverpod's `ref` is
+    // already unsafe there, so the mounted check in _onFocusChange is not
+    // enough: FocusManager fires during _appLifecycleChange while the player
+    // is being torn down, _startHideTimer reads _panelOpen, and that
+    // ref.read() throws "Using ref when a widget is about to or has been
+    // unmounted".
+    FocusManager.instance.removeListener(_onFocusChange);
+    super.deactivate();
+  }
+
   void _onFocusChange() {
     if (_isVisible && mounted) {
       _startHideTimer();
