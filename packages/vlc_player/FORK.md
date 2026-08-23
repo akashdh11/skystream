@@ -86,7 +86,37 @@ creation) and `supportsToneMapping = false` (no mpv-`vo_gpu` equivalent).
 
 Covered by `test/vlc_player_config_test.dart`.
 
-### 5. Dropped upstream repo scaffolding
+### 5. Android `minSdk` lowered 29 → 24
+
+Upstream set `minSdk = 29` in `android/build.gradle.kts` as a bare line in
+`defaultConfig` with no comment and nothing requiring it.
+
+It is not a real constraint:
+
+* **libVLC declares `minSdkVersion="17"`** — read from the `libvlc-all:3.7.0`
+  AAR manifest, not inferred.
+* The plugin's Kotlin contains **no `@RequiresApi`, no `Build.VERSION` check and
+  no `SDK_INT` guard anywhere**, and every Android import is API-17-era except
+  one: `android.view.PixelCopy` (API 24), used only by `takeSnapshot`.
+
+So the floor the code actually needs is 24 — which is exactly Flutter's default
+`minSdkVersion`, so hosts inherit it for free.
+
+This matters beyond tidiness. A host app's effective `minSdk` is the highest
+across itself and all its plugins (it is not forced by the app the way
+`compileSdk` and `targetSdk` typically are), so 29 silently raised any host to
+29 — excluding Android 7, 8 and 9. **Fire OS 7 is Android 9 / API 28**, so
+upstream's default quietly dropped a large share of Fire TV devices.
+
+Going below 24 is possible and cheap — guard the single `PixelCopy` call in
+`VlcPlayerPlatformView` behind `SDK_INT >= 24` and degrade snapshots — but is
+deliberately **not** done here; 24 is Flutter's own floor and going lower means
+fighting the toolchain for devices that cannot decode modern codecs anyway.
+
+Verified by reading the AAR manifest and the plugin source. **Not yet verified by
+an Android build** — the package is not in the host `pubspec.yaml` yet.
+
+### 6. Dropped upstream repo scaffolding
 
 Removed `.github/` and `.vscode/`, matching how `video_view`, `flutter_js_ng`
 and `flutter_torrent_server` are vendored here — the host repo owns CI.
