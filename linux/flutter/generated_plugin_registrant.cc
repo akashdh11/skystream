@@ -16,6 +16,7 @@
 #include <screen_retriever_linux/screen_retriever_linux_plugin.h>
 #include <url_launcher_linux/url_launcher_plugin.h>
 #include <video_view/video_view_plugin.h>
+#include <vlc_player/vlc_player_plugin.h>
 #include <window_manager/window_manager_plugin.h>
 
 void fl_register_plugins(FlPluginRegistry* registry) {
@@ -49,6 +50,9 @@ void fl_register_plugins(FlPluginRegistry* registry) {
   g_autoptr(FlPluginRegistrar) video_view_registrar =
       fl_plugin_registry_get_registrar_for_plugin(registry, "VideoViewPlugin");
   video_view_plugin_register_with_registrar(video_view_registrar);
+  g_autoptr(FlPluginRegistrar) vlc_player_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(registry, "VlcPlayerPlugin");
+  vlc_player_plugin_register_with_registrar(vlc_player_registrar);
   g_autoptr(FlPluginRegistrar) window_manager_registrar =
       fl_plugin_registry_get_registrar_for_plugin(registry, "WindowManagerPlugin");
   window_manager_plugin_register_with_registrar(window_manager_registrar);

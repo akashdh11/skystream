@@ -24,6 +24,7 @@ import shared_preferences_foundation
 import sqflite_darwin
 import url_launcher_macos
 import video_view
+import vlc_player
 import wakelock_plus
 import window_manager
 
@@ -47,6 +48,7 @@ func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   SqflitePlugin.register(with: registry.registrar(forPlugin: "SqflitePlugin"))
   UrlLauncherPlugin.register(with: registry.registrar(forPlugin: "UrlLauncherPlugin"))
   VideoViewPlugin.register(with: registry.registrar(forPlugin: "VideoViewPlugin"))
+  VlcPlayerPlugin.register(with: registry.registrar(forPlugin: "VlcPlayerPlugin"))
   WakelockPlusMacosPlugin.register(with: registry.registrar(forPlugin: "WakelockPlusMacosPlugin"))
   WindowManagerPlugin.register(with: registry.registrar(forPlugin: "WindowManagerPlugin"))
 }

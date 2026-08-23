@@ -17,6 +17,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   share_plus
   url_launcher_windows
   video_view
+  vlc_player
   window_manager
 )
 

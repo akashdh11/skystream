@@ -82,6 +82,9 @@ dependencies:
   shimmer: ^4.0.0
   video_view:
     path: packages/video_view
+  # Phase 0b build-viability gate: linked but not yet imported by any Dart code.
+  vlc_player:
+    path: packages/vlc_player
   encrypt: ^5.0.3
   flutter_cache_manager: ^3.4.1
   path: ^1.9.1
