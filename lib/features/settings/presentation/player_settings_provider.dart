@@ -9,6 +9,20 @@ enum PlayerGesture { brightness, volume, none }
 
 /// Preferred playback quality tier. Plugins don't guarantee a specific
 /// quality but sources are sorted so the preferred tier is tried first.
+/// Default Wi-Fi quality ceiling for users who have never opened the setting.
+///
+/// Was 4K. media_kit sizes its render target to the *source* resolution — the
+/// `videoParams` listener pushes the decoded width/height straight into
+/// SetSize/SetSurfaceSize and AndroidVideoController.setSize() throws
+/// UnsupportedError, so there is no in-app escape once a 4K stream is chosen.
+/// A 3840x2160 buffer is ~33 MB per frame, filled twice (render + composite),
+/// on every device including 1 GB TV sticks.
+///
+/// 1080p matches the existing mobile default and is a ceiling, not a floor:
+/// anyone who wants 4K can still select it, and an explicit stored choice is
+/// never overwritten — this only changes what happens when nothing was chosen.
+const QualityPreference kDefaultWifiQuality = QualityPreference.q1080;
+
 enum QualityPreference {
   any, // no preference — keep original order
   q360, // 360p
@@ -198,7 +212,7 @@ class PlayerSettings {
     this.subEdgeColor = 0xFF000000,
     this.subBackgroundOpacity = 0.5,
     this.subAlignment,
-    this.wifiQuality = QualityPreference.q4k,
+    this.wifiQuality = kDefaultWifiQuality,
     this.mobileQuality = QualityPreference.q1080,
     this.qualityFilterMode = QualityFilterMode.any,
     this.hdrMode = HdrMode.auto,
@@ -420,7 +434,7 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
         100.0;
     final wifiQ = _parseQuality(
       storage.getPlayerSetting<String>('player_wifi_quality'),
-      QualityPreference.q4k,
+      kDefaultWifiQuality,
     );
     final mobileQ = _parseQuality(
       storage.getPlayerSetting<String>('player_mobile_quality'),

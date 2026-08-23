@@ -45,8 +45,16 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     with WidgetsBindingObserver {
   late final Player _player;
   late final VideoController _videoController; // media_kit renderer
-  late final vv.VideoController
-  _videoViewController; // video_view (ExoPlayer/AVPlayer)
+  // video_view (ExoPlayer/AVPlayer). Null until a live stream actually needs
+  // it — constructing it spins up an ExoPlayer, two SurfaceProducers and a
+  // SubtitlePainter, which every VOD session used to pay for and never use.
+  vv.VideoController? _videoViewController;
+
+  /// Builds the video_view engine on first use and remembers it. Handed to
+  /// PlayerController, which calls it only when it decides a stream needs the
+  /// native live path.
+  vv.VideoController _ensureVideoViewController() =>
+      _videoViewController ??= vv.VideoController(autoPlay: true);
 
   final ValueNotifier<BoxFit> _videoFit = ValueNotifier(BoxFit.contain);
   // Mirrors SkyStreamPlayerControlsState._isVisible, fed by its
@@ -173,8 +181,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
     _videoController = VideoController(_player);
 
-    // Phase 8: Initialize video_view engine (ExoPlayer on Android, AVPlayer on iOS/macOS)
-    _videoViewController = vv.VideoController(autoPlay: true);
 
     _settingsSub = ref.listenManual<AsyncValue<PlayerSettings>>(
       playerSettingsProvider,
@@ -200,7 +206,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
         videoUrl: widget.videoUrl,
         episode: widget.episode,
         preloadedStreams: widget.preloadedStreams,
-        videoViewController: _videoViewController,
+        videoViewFactory: _ensureVideoViewController,
       );
     });
   }
@@ -220,7 +226,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       _playerController.setAppBackgrounded(true);
       final ctrl = ref.read(playerControllerProvider);
       _wasPlayingBeforeBackground = ctrl.useExoPlayer
-          ? _videoViewController.playbackState.value ==
+          ? _videoViewController?.playbackState.value ==
                 vv.VideoControllerPlaybackState.playing
           : _player.state.playing;
       _playerController.saveProgress();
@@ -251,7 +257,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
       // (H-PLAYER-4)
       final ctrl = ref.read(playerControllerProvider);
       final isCurrentlyPlaying = ctrl.useExoPlayer
-          ? _videoViewController.playbackState.value ==
+          ? _videoViewController?.playbackState.value ==
                 vv.VideoControllerPlaybackState.playing
           : _player.state.playing;
       if (isCurrentlyPlaying) {
@@ -301,10 +307,24 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     }
 
     _settingsSub?.close();
+
+    // Restore the pre-space-hold rate BEFORE anything is torn down.
+    //
+    // This used to run at the end of dispose(), after `_player.dispose()` — a
+    // use-after-dispose that called setRate() on a destroyed Player. It is not
+    // dead code, so it cannot simply be deleted: PlayerController is
+    // ref.keepAlive()'d, so `state.playbackSpeed` outlives this screen, and
+    // leaving it at the temporary hold speed leaks 2x into the next playback.
+    _spaceHoldTimer?.cancel();
+    if (_spaceHeldForSpeed) {
+      unawaited(_playerController.setPlaybackSpeed(_speedBeforeSpaceHold ?? 1.0));
+      _spaceHeldForSpeed = false;
+    }
+
     _playerController.disposeController();
 
     _player.dispose();
-    _videoViewController.dispose();
+    _videoViewController?.dispose();
     _controlsVisible.dispose();
     _videoFit.dispose();
     _rootFocusNode.dispose();
@@ -316,11 +336,6 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     // value the user set, until they manually adjust again (audit H4).
     // Idempotent and safe on platforms without an override active.
     unawaited(ScreenBrightness().resetApplicationScreenBrightness());
-    _spaceHoldTimer?.cancel();
-    if (_spaceHeldForSpeed) {
-      final previousSpeed = _speedBeforeSpaceHold ?? 1.0;
-      unawaited(_playerController.setPlaybackSpeed(previousSpeed));
-    }
     if (!Platform.isAndroid && !Platform.isIOS) {
       try {
         windowManager.setFullScreen(false);
@@ -549,7 +564,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
     if (_isTv && _controlsVisible.value) {
       final isPlaying =
           ref.read(playerControllerProvider.select((s) => s.useExoPlayer))
-          ? _videoViewController.playbackState.value ==
+          ? _videoViewController?.playbackState.value ==
                 vv.VideoControllerPlaybackState.playing
           : _player.state.playing;
       if (isPlaying) {
@@ -683,7 +698,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
                           );
                           if (useExoPlayer) {
                             return vv.VideoView(
-                              controller: _videoViewController,
+                              controller: _ensureVideoViewController(),
                               videoFit: fit,
                             );
                           }

@@ -403,6 +403,12 @@ class PlayerTrackSelectionSnapshot {
 class PlayerController extends Notifier<PlayerState> {
   late Player _player;
   VideoController? _videoViewController;
+
+  /// Builds the video_view engine on first live use. Supplied by the screen,
+  /// which owns the instance's lifetime. Null means the host cannot provide
+  /// one at all, which is how [_shouldUseVideoViewForStream] tells "not
+  /// available" apart from "not created yet".
+  VideoController Function()? _videoViewFactory;
   late MultimediaItem _item;
   late String _videoUrl;
   Episode? _episode;
@@ -449,13 +455,22 @@ class PlayerController extends Notifier<PlayerState> {
         _isLiveStream(url);
   }
 
-  bool _canUseVideoViewForStream(
+  /// Whether this stream should play on video_view, materialising the engine
+  /// if so.
+  ///
+  /// Named "should" rather than "can" because it has a side effect: when the
+  /// answer is yes it creates the engine. That is deliberate — this is the only
+  /// place that decides video_view is needed, so it is the correct place to pay
+  /// for it. Previously the engine was built eagerly in PlayerScreen.initState
+  /// for every session, VOD included, and the null check below meant
+  /// "unavailable" rather than "not yet built".
+  bool _shouldUseVideoViewForStream(
     String playUrl,
     StreamResult stream, {
     required bool isLive,
   }) {
     // Preserve the current product behavior: video_view is the native live path.
-    if (_videoViewController == null || Platform.isLinux || !isLive) {
+    if (_videoViewFactory == null || Platform.isLinux || !isLive) {
       return false;
     }
 
@@ -472,6 +487,8 @@ class PlayerController extends Notifier<PlayerState> {
       return false;
     }
 
+    // Decided: this stream needs video_view. Build it now if we have not yet.
+    _videoViewController ??= _videoViewFactory!();
     return true;
   }
 
@@ -842,7 +859,7 @@ class PlayerController extends Notifier<PlayerState> {
     required String videoUrl,
     Episode? episode,
     List<StreamResult>? preloadedStreams,
-    VideoController? videoViewController,
+    VideoController Function()? videoViewFactory,
   }) async {
     state = const PlayerState(); // Resets all fields including errorMessage
     _isDisposed = false; // Reset disposal flag on re-initialization
@@ -859,7 +876,11 @@ class PlayerController extends Notifier<PlayerState> {
     _midPlaybackRetryTimer?.cancel();
     _midPlaybackRetryTimer = null;
     _player = player;
-    _videoViewController = videoViewController;
+    // The video_view engine is created on demand, not here. Constructing it
+    // spins up an ExoPlayer, two SurfaceProducers and a SubtitlePainter, and
+    // the overwhelming majority of sessions (all VOD) never touch it.
+    _videoViewFactory = videoViewFactory;
+    _videoViewController = null;
     _videoUrl = videoUrl;
     _episode = episode;
     _preloadedStreams = preloadedStreams == null || preloadedStreams.isEmpty
@@ -1887,7 +1908,7 @@ class PlayerController extends Notifier<PlayerState> {
 
       final headers = _buildPlaybackHeaders(stream);
       final resolvedIsLive = _detectResolvedLiveState(playUrl);
-      final useVideoView = _canUseVideoViewForStream(
+      final useVideoView = _shouldUseVideoViewForStream(
         playUrl,
         stream,
         isLive: resolvedIsLive,
@@ -3101,7 +3122,7 @@ class PlayerController extends Notifier<PlayerState> {
       }
 
       final resolvedIsLive = _detectResolvedLiveState(playUrl);
-      final useVideoView = _canUseVideoViewForStream(
+      final useVideoView = _shouldUseVideoViewForStream(
         playUrl,
         stream,
         isLive: resolvedIsLive,
@@ -3382,7 +3403,7 @@ class PlayerController extends Notifier<PlayerState> {
       final subtitles = _effectiveExternalSubtitles(stream.subtitles);
 
       final resolvedIsLive = _detectResolvedLiveState(playUrl);
-      final useVideoView = _canUseVideoViewForStream(
+      final useVideoView = _shouldUseVideoViewForStream(
         playUrl,
         stream,
         isLive: resolvedIsLive,
@@ -4452,8 +4473,11 @@ class PlayerController extends Notifier<PlayerState> {
       final isDashStream = _isDashStreamUrl(stream.url);
       String cacheSize = "512MiB"; // Default
       if (profile != null) {
-        if (profile.isTv) {
-          cacheSize = "128MiB"; // Less RAM on TVs
+        if (profile.isTv || profile.isLowEnd) {
+          // Form factor is not capability: a 1 GB phone needs the same restraint
+          // as a cheap stick, and isTv alone never caught it. DeviceTier.low is
+          // Android's own isLowRamDevice, or under ~2 GB.
+          cacheSize = "128MiB";
         } else if (profile.isDesktopOS || profile.isTablet) {
           cacheSize = isDashStream
               ? "256MiB"
@@ -4463,7 +4487,7 @@ class PlayerController extends Notifier<PlayerState> {
 
       await native.setProperty('demuxer-max-bytes', cacheSize);
       // Allow seeking back without re-fetching — proportional to device RAM
-      final backCacheSize = profile?.isTv == true
+      final backCacheSize = (profile?.isTv == true || profile?.isLowEnd == true)
           ? '64MiB'
           : (profile?.isDesktopOS == true || profile?.isTablet == true)
           ? (Platform.isWindows ? '128MiB' : '256MiB')
