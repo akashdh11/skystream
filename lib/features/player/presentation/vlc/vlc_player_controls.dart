@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vlc_player/vlc_player.dart';
 
+import 'vlc_track_sheet.dart';
+
 /// Minimal chrome for the Phase 5 VLC player: back, title, play/pause, seek.
 ///
 /// A fresh overlay rather than a reuse of `SkyStreamPlayerControls`, which is
@@ -212,6 +214,13 @@ class _VlcPlayerControlsState extends State<VlcPlayerControls> {
                   Text(
                     _fmt(value.duration),
                     style: const TextStyle(color: Colors.white70),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.subtitles, color: Colors.white),
+                    onPressed: () {
+                      _onInteraction();
+                      VlcTrackSheet.show(context, widget.controller);
+                    },
                   ),
                   const SizedBox(width: 8),
                 ],

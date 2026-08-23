@@ -281,6 +281,7 @@ class PlayerRoute extends GoRouteData with $PlayerRoute {
             videoUrl: $extra.videoUrl,
             episode: $extra.episode,
             headers: $extra.preloadedStreams?.firstOrNull?.headers,
+            subtitles: $extra.preloadedStreams?.firstOrNull?.subtitles,
           );
         }
         return PlayerScreen(

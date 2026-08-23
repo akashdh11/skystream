@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,23 +17,27 @@ import 'vlc_player_controls.dart';
 /// screen is untouched and remains the default, so this cannot regress
 /// shipping playback.
 ///
-/// DELIBERATELY OUT OF SCOPE, and not stubbed either — a missing feature should
-/// be obviously missing rather than half-present: tracks, subtitles, live, DRM,
-/// torrent, PiP, skip segments, next-episode, gestures, playback speed and
-/// volume boost. Phases 6 and 7 add them in that order.
+/// Phase 6 added audio/subtitle track selection and subtitle delay, all owned
+/// by the engine — see [VlcTrackSheet].
+///
+/// STILL DELIBERATELY OUT OF SCOPE, and not stubbed either — a missing feature
+/// should be obviously missing rather than half-present: live, DRM, torrent,
+/// PiP, skip segments, next-episode, gestures, playback speed and volume boost.
+/// Phase 7 takes live and then the long tail.
 ///
 /// It is also **read-only against watch history and the scrobblers**. The old
 /// controller's saveProgress() branches on `state.useExoPlayer`, which is false
 /// on this path, so it would read the idle media_kit handle and persist a
 /// position of zero — and markWatched pushes irreversible writes to
-/// Trakt/Simkl/MAL. Nothing here writes progress until Phase 6 establishes a
-/// single position source of truth.
+/// Trakt/Simkl/MAL. Progress writing needs a validated duration source and is
+/// still outstanding.
 class VlcPlayerScreen extends ConsumerStatefulWidget {
   const VlcPlayerScreen({
     required this.item,
     required this.videoUrl,
     this.episode,
     this.headers,
+    this.subtitles,
     super.key,
   });
 
@@ -39,6 +45,11 @@ class VlcPlayerScreen extends ConsumerStatefulWidget {
   final String videoUrl;
   final Episode? episode;
   final Map<String, String>? headers;
+
+  /// Subtitles the source advertised. Handed straight to the engine as real
+  /// tracks — see [VlcTrackSheet] for why there is deliberately no second list
+  /// and no `external:` id scheme.
+  final List<SubtitleFile>? subtitles;
 
   @override
   ConsumerState<VlcPlayerScreen> createState() => _VlcPlayerScreenState();
@@ -76,6 +87,15 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen> {
       ),
       autoPlay: true,
     );
+
+    // Register external subtitles with the engine rather than tracking them
+    // ourselves. VLC turns each into an ordinary subtitle track, so
+    // getSubtitleTracks() returns one list containing both embedded and
+    // external entries, with one kind of id.
+    for (final sub in widget.subtitles ?? const <SubtitleFile>[]) {
+      final uri = Uri.tryParse(sub.url);
+      if (uri != null) unawaited(_controller.addSubtitle(uri));
+    }
   }
 
   /// Mirrors the old controller's _buildPlaybackHeaders: pass what the plugin
