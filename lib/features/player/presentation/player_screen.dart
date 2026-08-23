@@ -323,6 +323,29 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen>
 
     _playerController.disposeController();
 
+    // Stop playback before disposing, or the user keeps hearing the movie
+    // after leaving the screen.
+    //
+    // Player.dispose() is async and this dispose() cannot await it. Worse, its
+    // internal stop() sits behind three awaits inside a lock.synchronized, and
+    // the mpv context is then left alive for a further five seconds
+    // (media_kit-1.2.6 real.dart:89-108):
+    //
+    //     await waitForPlayerInitialization;
+    //     await waitForVideoControllerInitializationIfAttached;
+    //     await NativeReferenceHolder.instance.remove(ctx);
+    //     await stop(notify: false, synchronized: false);
+    //     ...
+    //     Future.delayed(const Duration(seconds: 5), () {
+    //       mpv.mpv_terminate_destroy(ctx);
+    //     });
+    //
+    // Queuing stop() first means the mpv stop command is issued ahead of that
+    // chain instead of behind it. It also shortens the window in which mpv's
+    // core thread pushes property changes into Dart FFI callbacks that are
+    // being torn down — the source of the DLRT_GetFfiCallbackMetadata assert
+    // seen on shutdown.
+    unawaited(_player.stop());
     _player.dispose();
     _videoViewController?.dispose();
     _controlsVisible.dispose();
