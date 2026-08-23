@@ -7,6 +7,49 @@ import 'package:path/path.dart' as p;
 import '../models/extension_plugin.dart';
 import 'dart:convert';
 
+/// Matches a well-formed plugin package name: reverse-DNS style, no path
+/// separators, and never starting with a dot (which also rules out `.`, `..`
+/// and hidden directories).
+///
+/// Deliberately has NO length cap. Length buys no safety here — containment
+/// does that job — and a cap is exactly the kind of clause that rejects a
+/// legitimate plugin two years from now.
+final RegExp _kPackageNamePattern = RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]*$');
+
+/// Whether [name] is safe to use as a single directory name under the plugin
+/// root. Applied at INSTALL time only, where nothing exists yet and rejecting
+/// costs nothing.
+@visibleForTesting
+bool isSafePluginPackageName(String name) =>
+    _kPackageNamePattern.hasMatch(name);
+
+/// Resolves [segment] under [rootPath], returning the normalized absolute path
+/// only if it stays strictly inside [rootPath]; otherwise `null`.
+///
+/// This is the load-bearing check, and it is used on the read/delete paths in
+/// preference to [isSafePluginPackageName] because it is behaviour-preserving:
+/// any plugin already on disk keeps working whatever its name looks like,
+/// while a traversing name still cannot escape.
+///
+/// Handles the two escapes the old `filename.contains('..')` test missed:
+///   * `p.join(root, '/etc/passwd')` returns `/etc/passwd` — an absolute
+///     segment discards the root entirely, and contains no `..`;
+///   * backslash separators from archives written on Windows.
+@visibleForTesting
+String? resolvePluginPathWithin(String rootPath, String segment) {
+  if (segment.isEmpty) return null;
+  // ZIP entries use `/`; a backslash is either a Windows-authored separator or
+  // an attempt to slip past a `/`-only check. Treat it as a separator so the
+  // containment test below sees the real shape.
+  final normalizedSegment = segment.replaceAll(r'\', '/');
+  if (p.isAbsolute(normalizedSegment)) return null;
+  final root = p.normalize(rootPath);
+  final resolved = p.normalize(p.join(root, normalizedSegment));
+  if (resolved == root) return null;
+  if (!p.isWithin(root, resolved)) return null;
+  return resolved;
+}
+
 // Args/result types for the `compute()`-offloaded plugin install.
 // Kept at file scope so the function passed to compute is top-level.
 class _InstallArgs {
@@ -44,8 +87,26 @@ Future<_InstallResult> _installPluginIsolate(_InstallArgs args) async {
 
   final packageName =
       (manifestMap['packageName'] ?? manifestMap['id']) as String;
+
+  // `packageName` is attacker-controlled — it comes straight out of the
+  // untrusted plugin.json inside the .sky archive — and below it becomes a
+  // directory that gets `delete(recursive: true)`d and renamed onto. An
+  // absolute value such as `/tmp/x` would make `p.join` discard the plugin
+  // root entirely, so this must be rejected before any path is built.
+  if (!isSafePluginPackageName(packageName)) {
+    throw Exception(
+      'Invalid .sky: unsafe packageName "\$packageName". Expected a name like '
+      'com.author.plugin — letters, digits, dot, dash and underscore only.',
+    );
+  }
+
   final repoId = args.explicitRepoId ?? 'UnknownRepo';
-  final targetDir = Directory(p.join(args.pluginsRootPath, packageName));
+  final targetPath =
+      resolvePluginPathWithin(args.pluginsRootPath, packageName);
+  if (targetPath == null) {
+    throw Exception('Invalid .sky: packageName escapes the plugin directory');
+  }
+  final targetDir = Directory(targetPath);
 
   // Atomic-ish install: extract to a temp sibling dir, then swap in.
   // If extraction fails partway, the previous install stays intact
@@ -66,11 +127,21 @@ Future<_InstallResult> _installPluginIsolate(_InstallArgs args) async {
     for (final entity in archive) {
       if (entity.isFile) {
         final filename = entity.name;
-        // Block zip-slip: refuse paths trying to escape the staging dir.
-        if (filename.contains('..')) continue;
+        // Block zip-slip. The previous test was `filename.contains('..')`,
+        // which caught `../../x` but sailed past `/Users/you/.zshrc` — an
+        // absolute entry name has no `..` in it, and `p.join` drops the
+        // staging root when its second argument is absolute. Containment
+        // catches both, plus Windows-style separators.
+        final outPath = resolvePluginPathWithin(stagingDir.path, filename);
+        if (outPath == null) {
+          throw Exception(
+            'Invalid .sky: archive entry "\$filename" escapes the '
+            'plugin directory',
+          );
+        }
 
         final data = entity.content as List<int>;
-        final outFile = File(p.join(stagingDir.path, filename));
+        final outFile = File(outPath);
         await outFile.parent.create(recursive: true);
         await outFile.writeAsBytes(data);
       }
@@ -169,19 +240,40 @@ class PluginStorageService {
     return plugin;
   }
 
-  /// Deletes a plugin directory (by Package Name)
+  /// Deletes a plugin directory (by Package Name).
+  ///
+  /// Containment-checked rather than format-checked: a plugin already on disk
+  /// keeps being deletable whatever its name looks like, but a traversing name
+  /// can never point this recursive delete outside the plugin root.
   Future<void> deletePlugin(ExtensionPlugin plugin) async {
     final rootDir = await _pluginsDir;
-    final pluginDir = Directory(p.join(rootDir.path, plugin.packageName));
+    final path = resolvePluginPathWithin(rootDir.path, plugin.packageName);
+    if (path == null) {
+      throw Exception(
+        'Refusing to delete "${plugin.packageName}": path escapes the '
+        'plugin directory',
+      );
+    }
+    final pluginDir = Directory(path);
     if (await pluginDir.exists()) {
       await pluginDir.delete(recursive: true);
     }
   }
 
-  /// Deletes an entire repository folder
+  /// Deletes an entire repository folder.
+  ///
+  /// `repoId` also originates from remote repository JSON, so it gets the same
+  /// containment check as a package name.
   Future<void> deleteRepository(String repoId) async {
     final rootDir = await _pluginsDir;
-    final repoDir = Directory(p.join(rootDir.path, repoId));
+    final path = resolvePluginPathWithin(rootDir.path, repoId);
+    if (path == null) {
+      throw Exception(
+        'Refusing to delete repository "$repoId": path escapes the '
+        'plugin directory',
+      );
+    }
+    final repoDir = Directory(path);
 
     if (await repoDir.exists()) {
       await repoDir.delete(recursive: true);
@@ -245,8 +337,16 @@ class PluginStorageService {
 
     final rootDir = await _pluginsDir;
     // New Path: plugin/[packageName]/plugin.js
-    final jsFile = File(p.join(rootDir.path, plugin.packageName, 'plugin.js'));
-    return jsFile.path;
+    // The file this returns is read and evaluated as JavaScript, so the
+    // package name must not be able to redirect it outside the plugin root.
+    final dir = resolvePluginPathWithin(rootDir.path, plugin.packageName);
+    if (dir == null) {
+      throw Exception(
+        'Refusing to load "${plugin.packageName}": path escapes the '
+        'plugin directory',
+      );
+    }
+    return p.join(dir, 'plugin.js');
   }
 
   /// Verifies the on-disk `plugin.js` matches the SHA-256 captured at
@@ -264,7 +364,13 @@ class PluginStorageService {
     if (plugin.repositoryId == 'LocalAssets') return true;
 
     final rootDir = await _pluginsDir;
-    final pluginDir = Directory(p.join(rootDir.path, plugin.packageName));
+    final pluginPath = resolvePluginPathWithin(
+      rootDir.path,
+      plugin.packageName,
+    );
+    // Fail closed: an unresolvable path means we cannot vouch for the code.
+    if (pluginPath == null) return false;
+    final pluginDir = Directory(pluginPath);
     final metaFile = File(p.join(pluginDir.path, 'meta.json'));
     if (!await metaFile.exists()) {
       if (kDebugMode) {
