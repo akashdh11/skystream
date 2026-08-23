@@ -10,7 +10,7 @@ engine decision comes after we can measure.
 
 ## 1. Why
 
-One 5,052-line Riverpod `Notifier`
+One 5,249-line Riverpod `Notifier`
 ([player_controller.dart](../lib/features/player/presentation/player_controller.dart)) drives two
 engines:
 
@@ -21,10 +21,17 @@ The cost, measured:
 
 | | |
 |---|---|
-| `useExoPlayer` branches in the controller | **44** |
-| `_videoViewController` references | **71** |
-| `setProperty` calls / distinct libmpv properties | **77 / 43** (18 of them `sub-*`) |
-| Controller / screen size | **5,052 / 924 lines** |
+| `useExoPlayer` references | **75** across 8 files (44 in the controller) |
+| `_videoViewController` references | **80** (71 in the controller) |
+| `setProperty` call sites | **77** |
+| distinct libmpv properties | **51** — 44 literal (17 `sub-*`) + 7 HDR written via `trySet` (`:5068`) |
+| Controller / screen size | **5,249 / 924 lines** |
+
+> Counts as of `main` @ `637b7c2`. Two caveats for anyone re-deriving them:
+> `player_side_panel.dart:337` embeds a literal NUL in `'${s.source}\x00${s.url}'`, so `file`
+> reports that 1,937-line source as `data` and **plain `grep` silently skips it** — use `grep -a`.
+> And two properties are set by multi-line calls (`:4374`, `:5021`), so a single-line grep
+> undercounts.
 
 Engine selection ([player_controller.dart:452-476](../lib/features/player/presentation/player_controller.dart#L452))
 is narrower than it feels: video_view runs only when a controller exists **and** not Linux **and**
@@ -128,15 +135,43 @@ These are the owner's constraints, restated as rules this plan can be checked ag
 | Feature | Where it lives now | Decision | Why |
 |---|---|---|---|
 | HDR mode, tone-map curve, target peak, compute peak, inverse tone mapping | `player_controller.dart` `_applyHdrProperties`; settings in `settings_screen.dart` | **Drop on migration** | These are libmpv `vo_gpu` properties. libVLC has no equivalent. Merged very recently in PR #91 — dropping them weeks after shipping is bad, so they stay while media_kit is the engine and are removed with it, not before. |
-| Subtitle styling via 18 `sub-*` properties | `player_controller.dart` `applySubtitleSettings`, `subtitle_appearance_dialog.dart` (1,816 lines) | **Delegate to app-side rendering** | VLC 3.x fixes subtitle styling at instance creation and cannot restyle live. The app already renders its own subtitles in `skystream_subtitle_view.dart`. Keep app-side rendering, disable the engine renderer, delete the property plumbing. |
+| Subtitle **rendering** | media_kit's own `SubtitleView` (`player_screen.dart:739`), configured at `:783`/`:917` | **Replaced by the engine, with loss** | Corrected — an earlier draft of this plan claimed the app renders its own subtitles. It does not. `skystream_subtitle_view.dart` (620 lines) has **zero call sites in `lib/`** and has never rendered a frame. VOD subtitles come from media_kit's `SubtitleView`, live from ExoPlayer's `SubtitlePainter`. Both die with their engines. VLC **burns subtitles into the video surface** and exposes no cue-text stream, so there is nothing to render app-side. See the note below the table. |
+| Subtitle **styling** via 17 `sub-*` properties | `applySubtitleSettings`, `subtitle_appearance_dialog.dart` (1,816 lines) | **Reduced to construction-time** | `VlcPlayerCapabilities.supportsRuntimeSubtitleStyling` is `false`: VLC 3.x fixes styling when the instance is created. Styling moves to `VlcSubtitleStyle` at construction; changing it means recreating the player. Most of the appearance dialog loses its live preview. |
 | Volume boost above 100% | `supportsVolumeBoost` (:276) | **Keep** | Free — `setVolume` clamps 0–200 in `vlc_player`. |
 | Playback speed above 2× | `maxPlaybackSpeed` (:275) | **Keep, unify** | The 2.0 vs 3.0 split exists only because of the engine divergence. One engine, one limit. |
 | Per-stream health pre-flight `HEAD`/ranged-`GET` | `_isStreamCandidateHealthy` (:2988) | **Drop** | Uses a different HTTP identity than playback, so it fails good sources. Let playback fail and use the existing failover. |
 | `_isLiveStream` 15-pattern URL guesser | `player_controller.dart:4726-4770` | **Demote to a hint** | Both candidate engines report `isLive` themselves. Keep the URL check only as a pre-open guess for buffer sizing. |
-| The seven capability getters | :273-280 | **Delete** | All are `!useExoPlayer`-shaped. One engine makes them constants. |
+| The seven capability getters | :273-280 | **Five delete, two do not** | Corrected. `supportsPlaybackSpeed => !isLive` (:274) has no `useExoPlayer` and survives unchanged. `canSeek => !useExoPlayer \|\| isSeekable` (:273) does not become a constant — it becomes the **runtime** field `isSeekable`, which on VLC flips false during open and buffering. That has a TV consequence: `_scrubFocusNode` is focusable only when `isTv && canSeek` (`player_stream_widgets.dart:242`), so the scrubber's focus node would appear and vanish mid-session, and can be destroyed while holding focus. Keep it unconditionally focusable on TV and no-op the seek instead. |
 | Widevine / PlayReady | — | **Not applicable** | There is none. `_extractKeysFromLicenseUrl` (:4671-4715) parses a W3C ClearKey JWK; there is no CDM code in `lib/`. DRM is ClearKey only. |
 | `pendingVideoViewSubtitleIdsBeforeReload`, `selectNewestVideoViewSubtitleAfterReload` | :425-426, :1145-1159 | **Delete** | Exists purely to survive a video_view reload. Dies with the second engine. |
 | `_videoViewSupportsMergedExternalSubtitles` | :494 | **Delete** | A platform check for one engine's quirk. |
+
+### The subtitle problem, stated plainly
+
+This is the largest single unknown in the migration and the plan should not pretend otherwise.
+
+Today subtitles are rendered by the **engine's** Flutter-side widget: media_kit's `SubtitleView`
+receives decoded cue text from libmpv and the app styles it with 17 `sub-*` properties and a
+1,816-line appearance dialog. That is why styling works today.
+
+`vlc_player` exposes **no cue text** on any of its five backends — `VlcPlayerValue` carries
+`subtitleDelay` and nothing else. VLC renders subtitles by drawing them into the video surface.
+So on VLC:
+
+* subtitle **styling** is construction-time only (`VlcSubtitleStyle` → `--freetype-*`);
+* the "lift subtitles above the chrome when controls are visible" behaviour
+  (`player_screen.dart:705-750`) is **not implementable**;
+* most of `subtitle_appearance_dialog.dart` becomes dead or preview-less.
+
+Three options, and Phase 6 must pick one **before** Phase 8 deletes the current renderers:
+
+1. **Accept engine rendering.** Cheapest; loses live restyling and the chrome lift.
+2. **Recreate the player on style change.** Keeps styling, costs a visible reload per change.
+3. **Render app-side.** Requires a cue-text stream that does not exist — we would add it to the
+   fork (libVLC does expose subtitle callbacks). Real work, and the only option that preserves
+   today's behaviour.
+
+`skystream_subtitle_view.dart` is **dead code**, not a head start. It is deleted in Phase 1.
 
 ---
 
@@ -192,6 +227,59 @@ against this; without it the whole plan is opinion.
 **Risk.** Skipping this. Every later phase's "done when" depends on it, and re-deriving a baseline
 after changes have landed is impossible.
 
+### Phase 0b — Build viability gate
+
+**Goal.** Prove the app can be *built* with `vlc_player` at all. Nothing downstream matters if it
+cannot. **No app code changes** — this is a build spike on a throwaway branch.
+
+**Scope**
+- Add `vlc_player` as a path dependency and build for every target. It is currently **absent from
+  `pubspec.yaml`**, so it has never been compiled by this app.
+- Reconcile the toolchain skew: the fork's buildscript pins **AGP 9.0.1 / Kotlin 2.3.20**
+  (`packages/vlc_player/android/build.gradle.kts:4-15`) against the app's **8.13.0 / 2.2.20**
+  (`android/settings.gradle.kts:22-23`). `compileSdk`/`targetSdk`/JVM target are already forced onto
+  subprojects by `android/build.gradle.kts:41,44,50-53`, so those are fine; the buildscript block is
+  not. Deleting it is the likely fix — Flutter plugins do not need one.
+- Configure ABI splits. `libvlc-all:3.7.0` is a **97 MB fat AAR** (armeabi-v7a 37, arm64-v8a 50,
+  x86 46, x86_64 55). With splits an arm64 install takes ~50 MB, which is the agreed "reasonable".
+- Windows: the build downloads the VLC runtime from `download.videolan.org`
+  (`packages/vlc_player/windows/CMakeLists.txt:61`). Vendor it or pre-seed the cache, or offline and
+  CI builds fail.
+- Linux: `pkg_check_modules(LIBVLC REQUIRED)` needs system libVLC. Decide bundle-or-document.
+- **Already fixed:** `minSdk` was 29 upstream, which excluded Fire OS 7 (Android 9 / API 28). Lowered
+  to 24 in commit `2aff10d` — libVLC's own AAR declares 17, and the only API-24 symbol in the plugin
+  is `PixelCopy` in `takeSnapshot`. Verified by reading, **not yet by a build**; this phase proves it.
+
+**Done when.** A debug build runs on Android, Android TV, iOS, macOS, Windows and Linux with the
+package linked, and the arm64 APK size delta is recorded.
+
+**Risk / escape hatch.** If the toolchain skew or the from-source libVLC requirement makes this
+uneconomic, the migration stops here and Phases 1-3 still stand on their own.
+
+### Phase 0c — Render path
+
+**Goal.** Decide `Texture` vs platform view on evidence, before any migration code depends on it.
+
+Stability and performance are the stated priorities and APK size is negotiable, so this is not a
+"measure and maybe" item. `vlc_player` renders through `AndroidView` / `UiKitView` / `AppKitView`
+(`packages/vlc_player/lib/src/vlc_player.dart:101,117,172`) with `Texture` only on Windows and Linux.
+media_kit uses a `Texture` on Android today. Adopting platform views is a step **backwards** on the
+exact axis that matters most — hybrid composition with a controls overlay on top of video is its
+worst case, on precisely the low-end TV hardware in question.
+
+**Scope**
+- Measure the example app against media_kit on the Phase 0 reference devices.
+- If platform views cost anything measurable, build the Android texture path in the fork:
+  `SurfaceTextureEntry` → `Surface` → `IVLCVout.setVideoSurface`, replacing `attachViews`
+  (`VlcPlayerPlatformView.kt:493`). ~150-250 lines of Kotlin.
+- Apple is harder — VLCKit exposes no clean frame callback, so it means
+  `libvlc_video_set_callbacks` → `CVPixelBuffer` → `FlutterTexture`. Scope separately; do Android first.
+- Note the related defect either way: `_platformViewKey` is
+  `'${identityHashCode(controller)}-${fit.name}'` (`vlc_player.dart:189`), so **changing video fit
+  recreates the entire LibVLC instance** — a visible stall on every resize press.
+
+**Done when.** A recorded comparison, and a decision written into this doc.
+
 ### Phase 1 — Stop the bleeding
 
 **Goal.** Remove the verified defects that cost memory, battery and stability today.
@@ -211,6 +299,8 @@ after changes have landed is impossible.
   by device class.
 - Break the readahead feedback loop. [player_controller.dart:1607](../lib/features/player/presentation/player_controller.dart#L1607)
   doubles readahead to 360 s *after a stall* — on a device already failing.
+- **Delete `skystream_subtitle_view.dart`** — 620 lines, zero call sites, never rendered a frame.
+  Pure deletion, no user impact. It also removes 7 of the 75 `useExoPlayer` references for free.
 - Give `DeviceProfile` a low-end axis. `device_info_provider.dart` has no RAM or tier signal, so
   buffer and quality decisions cannot distinguish a flagship from a 1 GB TV box.
 
@@ -233,14 +323,19 @@ creation behind a debug flag for one release.
 **Goal.** Fix the rebuild and allocation costs that hurt most on TV and low-end, all engine-independent.
 
 **Scope**
-- Subtitle overlay `setState` at 10 Hz with an O(cues) scan and URL re-resolution per tick
-  (`skystream_subtitle_view.dart`) → `ValueListenableBuilder` on position, pre-indexed cues.
-- SRT parsing compiling thousands of `RegExp`s synchronously on the UI isolate → hoist the patterns
-  to statics; move parsing off the UI isolate if it is still visible.
-- Controls rebuilding on every position tick — the whole control `Column` stays mounted under
-  `AnimatedOpacity(opacity: 0)` with nested `StreamBuilder`s on position/duration/buffer
-  (`skystream_player_controls.dart`, `player_stream_widgets.dart`) → selectors + `RepaintBoundary`,
-  and unmount rather than fade to zero.
+- **The single `RepaintBoundary`.** There is exactly one inside the chrome, at
+  `skystream_player_controls.dart:1544`, and it wraps the *entire* `Column`. So one seek-bar tick
+  repaints the top bar, both scrims and every icon button in one layer. Add a boundary at the
+  `PlayerProgressBar` mount site (`:1568`) so the ticking widget repaints alone. **This is the item
+  that moves the frame-time gate.**
+- Throttle the position source feeding the nested `StreamBuilder`s in
+  `player_stream_widgets.dart:296-314` — libmpv's `time-pos` is unthrottled.
+- Unmount the chrome rather than fading it to `opacity: 0` — it stays fully mounted and building
+  under `AnimatedOpacity` (`:1545`).
+- SRT parsing compiling `RegExp`s per call — the live one is `parseSubtitle`
+  (`subtitle_sync_dialog.dart:30`). Hoist the patterns to statics. Note this is reached only from a
+  modal (`player_side_panel.dart:842`, `player_bottom_sheets.dart:834`), **not** the playback hot
+  path, so it is a correctness/tidiness fix, not a frame-time one.
 - `playerGestureHandlerProvider` is `keepAlive` and retains a disposed controls `State`.
 - Bundled asset images decoded at native resolution in `subtitle_appearance_dialog.dart`.
 
@@ -290,11 +385,35 @@ playback behaviour is unchanged across VOD, live, torrent and DRM.
 
 **Goal.** Play a video with basic controls on the new engine. Nothing else.
 
-**Scope.** Open a URL with headers; play/pause/seek/stop; position and duration; the existing control
-bar; a debug setting selecting old or new engine. Both engines coexist; the old path is untouched.
+**Scope.** Open a URL with headers; play/pause/seek/stop; position and duration; **a forked minimal
+controls overlay**; a debug setting selecting old or new engine at `PlayerRoute.build`
+(`app_router.dart:269`). Both engines coexist; the old path is untouched.
+
+Plus one non-obvious item: **a single position/duration source of truth**. `saveProgress()`
+(`player_controller.dart:3773`) branches on `state.useExoPlayer` at `:3778`; under a screen-level
+flag that stays `false`, so it reads the **idle media_kit handle** and returns 0. It has 9 call
+sites and drives history rows, `scrobbleStart`, the local watched flag, `markWatched` at ≥90% and
+next-episode rollover. Wrong reads push **irreversible** writes to Trakt/Simkl/MAL. Until a
+validated duration source exists, **the new path is read-only against watch history and sync** —
+state that explicitly, and treat the `if (dur < 30000) return;` guard at `:3807` as a required
+invariant of any reimplementation.
 
 **Explicitly out of scope.** Tracks, subtitles, live, DRM, torrent, PiP, skip, next-episode, gestures,
 speed, volume boost.
+
+**Why the controls are forked, not reused.** An earlier draft said "use the existing control bar".
+That is not possible: `SkyStreamPlayerControls` takes `final Player player` — a **non-nullable
+media_kit type**, `required` (`skystream_player_controls.dart:36,61`) — reads
+`playerControllerProvider` **72 times**, and *unconditionally mounts* `TorrentInfoWidget` (:1168),
+`ResumePromptOverlay` (:1182), `NextEpisodeOverlay` (:1200), `SkipSegmentOverlay` (:1226), three
+`PlayerSidePanel`s (:1258, :1275, :1318) and `PlayerMetadataScrim` (:1297) — i.e. exactly the
+features this phase excludes. The surrounding chrome is equally coupled (`player_side_panel`,
+`player_stream_widgets`, `skip_segment_overlay` all import media_kit or video_view).
+
+So Phase 5 writes a **new, small** overlay and **no file the old screen imports may be edited during
+Phases 5-7**. Give it a line budget and hold to it. Include the seek bar explicitly — `PlayerProgressBar`
+(`player_stream_widgets.dart:16`) is the largest chrome component and is bound to
+`widget.player.stream.buffer` (:315).
 
 **Done when.** A VOD stream plays end to end on every platform we ship, with working controls, and
 D-pad reaches every control on the TV box.
@@ -324,8 +443,14 @@ property fixes. Then ClearKey, torrent, PiP, skip segments, next-episode.
 
 ### Phase 8 — Delete the old engine
 
-Remove media_kit, `packages/video_view`, all 44 `useExoPlayer` branches, the 43 libmpv properties,
-and the HDR settings. **Only after the new path has shipped and held.**
+Remove media_kit, `packages/video_view`, the **75** `useExoPlayer` references across 8 files, and the
+**51** libmpv properties (the 7 HDR ones are among them — they are not a separate item).
+
+**Gated on, not vibes:** the subtitle option from §3 is chosen and implemented; the §6 hardware
+checklist passes on Android TV; a full Phase 0 baseline re-run is no worse than the original on every
+metric; and the new path has been the default (Phase 7) through at least one full release cycle with
+no player-related regression reports. If any of those is unmet, this phase does not start — both
+engines keep coexisting, which is annoying but safe.
 
 ---
 
@@ -337,22 +462,80 @@ deliberately minimal: it uses `FocusManager.instance.primaryFocus == node` to de
 focused" and otherwise stays out of the way so **native directional traversal** and the focused
 control's own activation run. No manual focus bookkeeping. Keep this.
 
-**The risk.** `vlc_player` renders via `AndroidView` on Android. Platform views participate in
-Android's focus system and can swallow key events. The package's `VlcPlayerPlatformView.kt` does
-**no** focus or key handling — `getView()` returns a bare `VLCVideoLayout` — so it is not actively
-stealing input, but it inherits Android defaults and this must be tested on hardware.
+### The real risk is focus theft, not key interception
 
-**Fix if it bites** (three lines in our fork): `isFocusable = false` and
-`descendantFocusability = FOCUS_BLOCK_DESCENDANTS` on the layout.
+An earlier draft of this plan got this wrong. It said the platform view might *swallow key events*,
+and prescribed "three lines in our fork" on the Android side. That fix cannot work, because the node
+is not created by the native view — **Flutter creates it**:
 
-**Acceptance checklist, every UI-touching phase**
+* `flutter/lib/src/widgets/platform_view.dart:716` declares `FocusNode? _focusNode;`
+* `:722-733` returns `Focus(focusNode: _focusNode, onFocusChange: …, child: _AndroidPlatformView(…))`
+* `:799-801` installs `onFocus: () { _focusNode!.requestFocus(); }`
+
+`Focus` defaults to `canRequestFocus: true`, `skipTraversal: false`. The Darwin path is identical.
+`VlcPlayer` uses `AndroidView` (`vlc_player.dart:101`), `UiKitView` (:117) **and** `AppKitView`
+(:172) — three platforms, so a Kotlin-only fix would miss two of them.
+
+**The concrete failure.** With the chrome hidden, `skystream_player_controls.dart:1540` is
+`ExcludeFocus(excluding: !chromeVisible)`, which removes *every* chrome node from the tree. The
+full-screen platform-view node is then the only focusable candidate. It takes `primaryFocus`, so
+`player_screen.dart:348`'s `rootHasFocus` evaluates **false**, `_handleKey` correctly stands aside —
+and nothing is left to handle the key. Remote Play/Pause stops working and focus is invisible.
+
+This works today only because **both current engines render to a `Texture`, which contributes no
+focus nodes at all.** It is a regression introduced by the render path, not a pre-existing risk.
+
+### The fix — two parts, a Phase 5 prerequisite (not "if it bites")
+
+1. **Dart, in the fork.** Wrap all three platform-view branches in
+   `packages/vlc_player/lib/src/vlc_player.dart:96-181` in `ExcludeFocus`. This sets
+   `descendantsAreFocusable: false`, drops the node from `traversalDescendants`, *and* neutralises
+   the engine's `requestFocus` callback. This is the part that actually works.
+2. **Kotlin, also in the fork.** `isFocusable = false` and
+   `descendantFocusability = FOCUS_BLOCK_DESCENDANTS` on the `VLCVideoLayout`, for Android's own
+   native focus search.
+
+If Phase 0c moves rendering to a `Texture`, this problem disappears entirely — another reason that
+phase comes first.
+
+### A second TV hazard: `canSeek` becomes a flapping runtime value
+
+`canSeek => !useExoPlayer || isSeekable` (:273) is a constant today on the media_kit path. On VLC it
+becomes the live `isSeekable` field, which flips false during open and buffering. `_scrubFocusNode`
+is focusable only when `isTv && canSeek` (`player_stream_widgets.dart:242`), so the scrubber's focus
+node would appear and vanish mid-session — and can be destroyed **while holding focus**, dumping the
+user into the same invisible-focus state. Keep it unconditionally focusable on TV and no-op the seek
+when the engine reports not-seekable.
+
+### Acceptance checklist — must pass on real Android TV / Fire TV hardware
+
+- `debugDumpFocusTree()` on the new route shows **no** `AndroidView`/`UiKitView`/`AppKitView` node in
+  `traversalDescendants`. (Mechanical, and the one check that catches the regression above.)
 - Every control in the bottom bar is reachable by D-pad, in visual order.
+- With chrome **hidden**, remote Play/Pause still works.
 - The side panel is enterable and exitable without a focus trap.
 - Back/Escape dismisses one layer at a time and never skips straight out of the player.
-- Play/Pause on the remote works when no control is focused.
-- Focus is visible at all times — no invisible focus.
+- Focus is visible at all times — no invisible focus, including during buffering.
+- Seeking with the scrubber works, and the scrubber never disappears while focused.
 
----
+## 6b. Testing and CI — currently absent
+
+The repo has **3 app test files** and `.github/workflows` runs **no** analyze, test or build job.
+Nine phases of "done when" gates therefore rest entirely on one person checking by hand on hardware.
+That is the most likely way this migration silently regresses something.
+
+Minimum, and it belongs in **Phase 1** so everything after it is protected:
+
+- A CI job on push/PR running `flutter analyze` (currently clean, 2 pre-existing warnings) and
+  `flutter test`, made required on `main`.
+- A build job per platform, so the Phase 0b toolchain work cannot rot.
+- Unit tests for the pure logic the migration will touch: `stream_quality_sorter`,
+  `torrent_file_parser`, episode filtering, and — most importantly — the resume/progress arithmetic
+  in `saveProgress`, since that is where the irreversible third-party writes originate.
+
+Golden-frame or integration tests for the player itself are **not** proposed; they are expensive and
+brittle. The hardware checklist in §6 stays manual, but it should be a written checklist that is
+actually run, not an assumption.
 
 ## 7. Open questions
 
@@ -373,6 +556,7 @@ stealing input, but it inherits Android defaults and this must be tested on hard
   can select at the screen level. Adding an interface both engines must satisfy is the exact
   over-engineering constraint 1 rules out.
 - **Migrating the HDR settings.** No libVLC equivalent. They go when media_kit goes.
-- **Porting the subtitle-styling property plumbing.** App-side rendering already exists.
+- **Assuming app-side subtitle rendering exists.** It does not — `skystream_subtitle_view.dart` is
+  dead code with zero call sites. See §3; this is a real open decision, not a solved one.
 - **A big-bang cutover.** Both engines coexist behind a flag until Phase 8.
 - **Rewriting the control UI.** It works and its D-pad model is sound. Optimize it; do not replace it.
