@@ -888,6 +888,29 @@ class PlayerController extends Notifier<PlayerState> {
         ? null
         : List<StreamResult>.from(preloadedStreams);
     _pendingResumeSeekPosition = null;
+    _pendingResumeSeekPercentage = null;
+
+    // Per-session state that previously survived re-init. PlayerController is
+    // ref.keepAlive()'d and re-init()ed for each screen, so anything not reset
+    // here carries into the next item: _failedAudioTrackIds made episode 2
+    // inherit episode 1's failed tracks, _lastSavedPosition and the buffering
+    // timestamps described the previous playback, and the overlay flags meant
+    // a dismissal stuck across episodes.
+    _failedAudioTrackIds.clear();
+    _bufferDepletionTimes.clear();
+    _lastKnownAudioTrackId = null;
+    _audioFailoverLastTime = null;
+    _lastSavedPosition = Duration.zero;
+    _lastPosition = null;
+    _lastPositionUpdateTime = null;
+    _bufferingSince = null;
+    _bufferingStartPosition = null;
+    _bufferRecoveryStage = 0;
+    _isRecoveringFromStall = false;
+    _isPolling = false;
+    _userDismissedOverlay = false;
+    _isNextEpisodeOverlayForced = false;
+    _suppressNextEpisodeDetection = false;
     _isApplyingPendingResumeSeek = false;
     _userAddedExternalSubtitles.clear();
     pendingVideoViewSubtitleIdsBeforeReload = null;
@@ -3646,6 +3669,11 @@ class PlayerController extends Notifier<PlayerState> {
     _hasScrobbleStarted = false;
     _hasMarkedWatched = false;
     _pendingResumeSeekPosition = null;
+    // Percentage was missed here. _flushPendingResumeSeek is triggered by
+    // `position != null || percentage != null` (:1446), so a stale percentage
+    // on its own is enough to seek the new episode to the previous one's
+    // offset — exactly the hazard the comment above describes.
+    _pendingResumeSeekPercentage = null;
     _isApplyingPendingResumeSeek = false;
     ref.read(syncManagerProvider).clearCache();
     if (state.skipSegments.isNotEmpty) {
