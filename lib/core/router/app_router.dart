@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:skystream/features/home/presentation/home_screen.dart';
 import 'package:skystream/features/search/presentation/search_screen.dart';
@@ -10,6 +11,8 @@ import 'package:skystream/features/addons/presentation/addons_screen.dart';
 import 'package:skystream/features/addons/presentation/addon_detail_screen.dart';
 import 'package:skystream/features/addons/presentation/addon_catalog_screen.dart';
 import 'package:skystream/features/settings/presentation/settings_screen.dart';
+import 'package:skystream/features/player/presentation/vlc/vlc_engine_flag.dart';
+import 'package:skystream/features/player/presentation/vlc/vlc_player_screen.dart';
 import '../../features/extensions/screens/extensions_screen.dart';
 import '../../features/settings/presentation/developer_options_screen.dart';
 import '../../features/details/presentation/details_screen.dart';
@@ -267,11 +270,26 @@ class PlayerRoute extends GoRouteData with $PlayerRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
-    return PlayerScreen(
-      item: $extra.item,
-      videoUrl: $extra.videoUrl,
-      episode: $extra.episode,
-      preloadedStreams: $extra.preloadedStreams,
+    // Phase 5 fork point (docs/PLAYER_MIGRATION.md). Screen-level, so the two
+    // engines never have to satisfy a shared abstraction — when the old one is
+    // deleted in Phase 8 there is nothing left to unwind but this Consumer.
+    return Consumer(
+      builder: (context, ref, _) {
+        if (ref.watch(vlcEngineEnabledProvider)) {
+          return VlcPlayerScreen(
+            item: $extra.item,
+            videoUrl: $extra.videoUrl,
+            episode: $extra.episode,
+            headers: $extra.preloadedStreams?.firstOrNull?.headers,
+          );
+        }
+        return PlayerScreen(
+          item: $extra.item,
+          videoUrl: $extra.videoUrl,
+          episode: $extra.episode,
+          preloadedStreams: $extra.preloadedStreams,
+        );
+      },
     );
   }
 }
