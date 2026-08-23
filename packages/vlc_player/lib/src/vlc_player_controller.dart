@@ -11,6 +11,7 @@ import 'vlc_media_stats.dart';
 import 'vlc_player_controller_internals.dart';
 import 'vlc_player_error.dart';
 import 'vlc_player_value.dart';
+import 'vlc_video_fit.dart';
 
 /// Playlist repeat behavior used by `VlcPlayerController.setPlaylist`.
 enum VlcPlaylistLoopMode {
@@ -176,6 +177,10 @@ abstract class VlcPlayerController extends ValueNotifier<VlcPlayerValue> {
   ///
   /// [speed] must be finite and greater than zero. `1.0` is normal speed.
   Future<void> setPlaybackSpeed(double speed);
+
+  /// Changes how video is scaled inside the view, without recreating the
+  /// native player. Called by `VlcPlayer` when its `fit` changes.
+  Future<void> setFit(VlcVideoFit fit);
 
   /// Sets the audio playback delay.
   ///
@@ -670,6 +675,11 @@ class _VlcPlayerController extends VlcPlayerController
       );
     }
     return _invoke('setPlaybackSpeed', <String, Object?>{'speed': speed});
+  }
+
+  @override
+  Future<void> setFit(VlcVideoFit fit) {
+    return _invoke('setFit', <String, Object?>{'fit': fit.name});
   }
 
   @override

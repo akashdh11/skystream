@@ -36,7 +36,7 @@ internal class VlcPlayerPlatformView(
     private val videoLayout = VLCVideoLayout(context)
     private val libVLC = LibVLC(context, options)
     private val mediaPlayer = MediaPlayer(libVLC)
-    private val videoScale = scaleTypeFor(fit)
+    private var videoScale = scaleTypeFor(fit)
     private val eventChannel = EventChannel(messenger, "vlc_player/events/$viewIdentifier")
     private val streamHandler = StreamHandler()
     private val viewId = viewIdentifier.toLong()
@@ -483,6 +483,20 @@ internal class VlcPlayerPlatformView(
     private fun updateState(state: String) {
         this.state = state
         sendSnapshot()
+    }
+
+    /// Changes how video is scaled without recreating the player.
+    ///
+    /// setVideoScale is already a runtime call on MediaPlayer; only the Dart
+    /// side forced a rebuild, by folding `fit` into the platform-view key.
+    fun setFit(fit: String, result: MethodChannel.Result) {
+        if (disposed) {
+            result.error("disposed", "This player has been disposed.", null)
+            return
+        }
+        videoScale = scaleTypeFor(fit)
+        mediaPlayer.setVideoScale(videoScale)
+        result.success(null)
     }
 
     private fun attachViewsIfNeeded() {

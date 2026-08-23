@@ -1,18 +1,19 @@
 group = "com.lingjhf.vlc_player"
 version = "1.0-SNAPSHOT"
 
-buildscript {
-    val kotlinVersion = "2.3.20"
-    repositories {
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath("com.android.tools.build:gradle:9.0.1")
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-    }
-}
+// No `buildscript` block here on purpose.
+//
+// Upstream pinned AGP 9.0.1 / Kotlin 2.3.20 on its own classpath. A Flutter
+// plugin is built as a subproject of the host app, so the host's plugin
+// management already supplies both — and a second, different version on the
+// plugin's classpath conflicts with it. SkyStream is on AGP 8.13.0 / Kotlin
+// 2.2.20 and cannot currently move to 9.0.1: AGP 9 rejects
+// `getDefaultProguardFile('proguard-android.txt')`, which
+// flutter_inappwebview_android 1.1.3 still uses, and that package has had no
+// stable release since 2024-10-02.
+//
+// Removing the block lets the plugin inherit whatever the host uses, which is
+// what every other vendored package here does.
 
 allprojects {
     repositories {

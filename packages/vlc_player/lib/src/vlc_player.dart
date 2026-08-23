@@ -7,23 +7,9 @@ import 'package:flutter/services.dart';
 import 'vlc_player_controller.dart';
 import 'vlc_player_controller_internals.dart';
 import 'vlc_player_value.dart';
+import 'vlc_video_fit.dart';
 
 const String _viewType = 'plugins.lingjhf.com/vlc_player/view';
-
-/// How video should be fitted inside the `VlcPlayer` widget bounds.
-enum VlcVideoFit {
-  /// Preserve the video aspect ratio and show the full frame.
-  contain,
-
-  /// Preserve the video aspect ratio and cover the full widget bounds.
-  cover,
-
-  /// Stretch the video to fill the widget bounds.
-  fill,
-
-  /// Render the video at its natural decoded size when available.
-  none,
-}
 
 /// Widget that hosts the native VLC video output.
 ///
@@ -68,6 +54,12 @@ class _VlcPlayerState extends State<VlcPlayer> {
   @override
   void didUpdateWidget(VlcPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    // Fit is applied to the running player rather than rebuilding the view.
+    if (oldWidget.fit != widget.fit && widget.controller.isAttached) {
+      unawaited(widget.controller.setFit(widget.fit));
+    }
+
     if (oldWidget.controller == widget.controller) {
       return;
     }
@@ -98,15 +90,17 @@ class _VlcPlayerState extends State<VlcPlayer> {
     if (defaultTargetPlatform == TargetPlatform.android) {
       return ColoredBox(
         color: widget.backgroundColor,
-        child: AndroidView(
-          key: ValueKey<String>(_platformViewKey),
-          viewType: _viewType,
-          creationParams: <String, Object?>{
-            'options': widget.controller.options,
-            'fit': widget.fit.name,
-          },
-          creationParamsCodec: const StandardMessageCodec(),
-          onPlatformViewCreated: _handlePlatformViewCreated,
+        child: _excludeFromFocus(
+          AndroidView(
+            key: ValueKey<String>(_platformViewKey),
+            viewType: _viewType,
+            creationParams: <String, Object?>{
+              'options': widget.controller.options,
+              'fit': widget.fit.name,
+            },
+            creationParamsCodec: const StandardMessageCodec(),
+            onPlatformViewCreated: _handlePlatformViewCreated,
+          ),
         ),
       );
     }
@@ -114,15 +108,17 @@ class _VlcPlayerState extends State<VlcPlayer> {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return ColoredBox(
         color: widget.backgroundColor,
-        child: UiKitView(
-          key: ValueKey<String>(_platformViewKey),
-          viewType: _viewType,
-          creationParams: <String, Object?>{
-            'options': widget.controller.options,
-            'fit': widget.fit.name,
-          },
-          creationParamsCodec: const StandardMessageCodec(),
-          onPlatformViewCreated: _handlePlatformViewCreated,
+        child: _excludeFromFocus(
+          UiKitView(
+            key: ValueKey<String>(_platformViewKey),
+            viewType: _viewType,
+            creationParams: <String, Object?>{
+              'options': widget.controller.options,
+              'fit': widget.fit.name,
+            },
+            creationParamsCodec: const StandardMessageCodec(),
+            onPlatformViewCreated: _handlePlatformViewCreated,
+          ),
         ),
       );
     }
@@ -169,26 +165,56 @@ class _VlcPlayerState extends State<VlcPlayer> {
 
     return ColoredBox(
       color: widget.backgroundColor,
-      child: AppKitView(
-        key: ValueKey<String>(_platformViewKey),
-        viewType: _viewType,
-        creationParams: <String, Object?>{
-          'options': widget.controller.options,
-          'fit': widget.fit.name,
-        },
-        creationParamsCodec: const StandardMessageCodec(),
-        onPlatformViewCreated: _handlePlatformViewCreated,
+      child: _excludeFromFocus(
+        AppKitView(
+          key: ValueKey<String>(_platformViewKey),
+          viewType: _viewType,
+          creationParams: <String, Object?>{
+            'options': widget.controller.options,
+            'fit': widget.fit.name,
+          },
+          creationParamsCodec: const StandardMessageCodec(),
+          onPlatformViewCreated: _handlePlatformViewCreated,
+        ),
       ),
     );
   }
+
+  /// Wraps the platform view so it never participates in focus traversal.
+  ///
+  /// Flutter inserts a `Focus` node around every platform view — see
+  /// `flutter/lib/src/widgets/platform_view.dart`, which declares `_focusNode`,
+  /// builds `Focus(focusNode: _focusNode, ...)` and installs an `onFocus`
+  /// callback that calls `requestFocus()`. That node exists regardless of what
+  /// the native view does, and it defaults to `canRequestFocus: true` /
+  /// `skipTraversal: false`.
+  ///
+  /// On a TV that is a real bug, not a nicety. A full-screen video surface is a
+  /// focusable candidate covering the whole screen, so when a host hides its
+  /// controls (and with them their focus nodes) the video node is the only
+  /// thing left to take focus. Hosts that detect "nothing is focused" by
+  /// comparing `FocusManager.instance.primaryFocus` against their own root then
+  /// see something focused, stand aside, and no one handles the remote's
+  /// Play/Pause. Focus also becomes invisible.
+  ///
+  /// `ExcludeFocus` sets `descendantsAreFocusable: false`, drops the node from
+  /// `traversalDescendants`, and neutralises the engine's `requestFocus`.
+  /// Texture-backed platforms do not need this — a `Texture` contributes no
+  /// focus node — which is why this only wraps the platform-view branches.
+  Widget _excludeFromFocus(Widget platformView) =>
+      ExcludeFocus(child: platformView);
 
   void _handlePlatformViewCreated(int viewId) {
     unawaited(_attachPlatformView(widget.controller, viewId));
   }
 
-  String get _platformViewKey {
-    return '${identityHashCode(widget.controller)}-${widget.fit.name}';
-  }
+  /// Deliberately excludes `fit`.
+  ///
+  /// It used to be part of this key, which meant every change of video fit
+  /// tore down and rebuilt the platform view — recreating the entire LibVLC
+  /// instance and stalling playback. Fit is now pushed to the running player
+  /// via setFit() in didUpdateWidget.
+  String get _platformViewKey => '${identityHashCode(widget.controller)}';
 
   Future<int> _attachTexturePlayer(VlcPlayerController controller) async {
     final generation = ++_textureGeneration;

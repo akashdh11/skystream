@@ -64,6 +64,62 @@ void main() {
     return calls;
   }
 
+  testWidgets('platform views never take focus', (WidgetTester tester) async {
+    // Flutter wraps every platform view in a Focus node (platform_view.dart
+    // declares _focusNode, builds Focus(...), and installs an onFocus callback
+    // that calls requestFocus). On a TV that node is a full-screen focusable
+    // candidate: when the host hides its controls, the video surface becomes
+    // the only thing left to focus, so the remote's Play/Pause stops working
+    // and focus goes invisible. ExcludeFocus removes it from traversal.
+    for (final platform in <TargetPlatform>[
+      TargetPlatform.android,
+      TargetPlatform.iOS,
+      TargetPlatform.macOS,
+    ]) {
+      await runAsPlatform(platform, () async {
+        recordPluginCalls();
+        final platformViews = _PlatformViewsRecorder(onCreate: mockEventChannel)
+          ..install();
+        final controller = VlcPlayerController();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: SizedBox(
+              width: 320,
+              height: 180,
+              child: VlcPlayer(controller: controller),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final excludes = find.ancestor(
+          of: find.byType(switch (platform) {
+            TargetPlatform.android => AndroidView,
+            TargetPlatform.iOS => UiKitView,
+            TargetPlatform.macOS => AppKitView,
+            _ => throw StateError('Unexpected platform $platform.'),
+          }),
+          matching: find.byType(ExcludeFocus),
+        );
+        expect(
+          excludes,
+          findsOneWidget,
+          reason: 'the $platform platform view must be wrapped in ExcludeFocus',
+        );
+
+        // Nothing under the player may be reachable by directional traversal.
+        final scope = FocusScope.of(
+          tester.element(find.byType(VlcPlayer)),
+        );
+        expect(scope.traversalDescendants, isEmpty);
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        controller.dispose();
+      });
+    }
+  });
+
   testWidgets('creates platform views with player options and fit', (
     WidgetTester tester,
   ) async {

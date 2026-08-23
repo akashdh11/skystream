@@ -79,6 +79,14 @@ class VlcPlayerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler {
                 }
                 player.seekTo(position, result)
             }
+            "setFit" -> {
+                val fit = call.argument<String>("fit")
+                if (fit == null) {
+                    result.error("invalid_args", "A fit value is required.", null)
+                    return
+                }
+                player.setFit(fit, result)
+            }
             "setVolume" -> {
                 val volume = call.argument<Number>("volume")?.toInt()
                 if (volume == null) {
