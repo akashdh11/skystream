@@ -65,6 +65,47 @@ not have that file** — the concern was reabsorbed into the monolith.
 > **Caveat, and it matters:** `fvp_test` proves *single-engine collapses the complexity*. It does
 > **not** prove VLC works. It ran on fvp/libmdk. Keep those claims separate.
 
+### Which branch is the base? — settled: `main`
+
+`fvp_test` is a test spike, not a candidate base. Every branch was measured against `main`:
+
+| Branch | Date | Commits ahead of merge-base | Commits behind `main` | Non-player files diverged |
+|---|---|---|---|---|
+| `fvp_test` | 2026-05-03 | **1** | 339 | 595 |
+| `media_kit_test` | 2026-05-03 | **1** | 339 | 595 |
+| `search_filters` | 2026-05-03 | 0 | 337 | 593 |
+| `video_player_dpad` | 2026-05-30 | 0 | 256 | 505 |
+| `main-backup` | 2026-05-28 | 0 | 268 | 510 |
+| `tv-dpad-navigation` | 2026-05-26 | 0 | 278 | 512 |
+| `code-optimization` | 2026-04-19 | 0 | 394 | 617 |
+| `video_view` | 2026-04-05 | 0 | 482 | 747 |
+| `feat/ext_subs` | 2026-04-04 | 0 | 484 | 899 |
+
+**Every branch but two is 0 commits ahead** — they are historical snapshots of `main`'s own history
+and contain nothing `main` lacks. Only `fvp_test` and `media_kit_test` hold unique work, one commit
+each:
+
+- `media_kit_test` @ `98b32de` — despite the name, this is plugin-engine work (`js_engine.dart`,
+  `js_engine_worker.dart`, `js_unpacker.dart`), not a player experiment. **Already on `main`**
+  (`js_unpacker.dart` is present). Nothing to take.
+- `fvp_test` @ `b8f41eb` — the single-engine spike, 16 files, +739 / −1,853.
+
+**`b8f41eb` is not cherry-pickable.** Applied to `main` it conflicts in **11 of 16 files**,
+including *every* player file — `player_controller.dart`, `player_screen.dart`,
+`player_subtitle_manager.dart` (modify/delete), `player_control_components.dart`,
+`player_osd_overlay.dart`, `player_stream_widgets.dart`, `skystream_player_controls.dart` — plus
+`main.dart`, `pubspec.yaml` and both lockfiles. It deletes code that `main` has since rewritten
+twice over. Resolving those conflicts is not cherry-picking; it is reimplementing by hand with the
+extra risk of a stale diff pulling old code back in.
+
+Going the other way is worse: rebasing `fvp_test` forward means carrying **339 commits and 595
+non-player files** of unrelated work.
+
+**Conclusion.** The base is `main`. There is no competing branch and no patch to cherry-pick.
+`fvp_test` is a **reference implementation** — read `b8f41eb` for its *shape* (the 26-line
+`selectSubtitleTrack`, the 101-line `player_subtitle_manager.dart`) and reimplement that shape on
+`main`. Do not merge it.
+
 ---
 
 ## 2. Principles
