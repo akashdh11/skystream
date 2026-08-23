@@ -53,6 +53,56 @@ class _PlayerProgressBarState extends ConsumerState<PlayerProgressBar> {
   final _vvPositionNotifier = ValueNotifier<int>(0);
   final _vvDurationNotifier = ValueNotifier<int>(0);
 
+  /// Position, sampled down from mpv's raw rate.
+  ///
+  /// media_kit forwards every `time-pos` property change straight into
+  /// `player.stream.position` with no throttling (media_kit real.dart:1564-1572),
+  /// so on a 60 fps title this emits ~60 times a second. Each emission rebuilt
+  /// the seek row. A progress bar cannot show more than a pixel of change per
+  /// tick, so ~10 Hz is visually identical and cuts the rebuild rate by ~6x.
+  Stream<Duration>? _throttledPosition;
+  StreamSubscription<Duration>? _positionSub;
+  StreamController<Duration>? _positionController;
+
+  static const Duration _positionSampleInterval = Duration(milliseconds: 100);
+
+  Stream<Duration> get _positionStream =>
+      _throttledPosition ??= _makeThrottledPosition();
+
+  Stream<Duration> _makeThrottledPosition() {
+    final controller = StreamController<Duration>.broadcast(sync: true);
+    _positionController = controller;
+    DateTime last = DateTime.fromMillisecondsSinceEpoch(0);
+    Duration? pending;
+    Timer? flush;
+
+    _positionSub = widget.player.stream.position.listen((p) {
+      final now = DateTime.now();
+      if (now.difference(last) >= _positionSampleInterval) {
+        last = now;
+        pending = null;
+        flush?.cancel();
+        flush = null;
+        if (!controller.isClosed) controller.add(p);
+        return;
+      }
+      // Inside the sample window: remember the newest value and make sure it
+      // still lands, so the bar settles on the true position when playback
+      // pauses or the stream goes quiet.
+      pending = p;
+      flush ??= Timer(_positionSampleInterval, () {
+        flush = null;
+        final value = pending;
+        pending = null;
+        if (value != null) {
+          last = DateTime.now();
+          if (!controller.isClosed) controller.add(value);
+        }
+      });
+    });
+    return controller.stream;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -108,6 +158,8 @@ class _PlayerProgressBarState extends ConsumerState<PlayerProgressBar> {
     widget.videoViewController?.position.removeListener(_onVvPosition);
     widget.videoViewController?.mediaInfo.removeListener(_onVvMediaInfo);
     _streamIndexSub?.close();
+    unawaited(_positionSub?.cancel());
+    unawaited(_positionController?.close());
     _vvPositionNotifier.dispose();
     _vvDurationNotifier.dispose();
     if (widget.focusNode == null) {
@@ -301,7 +353,7 @@ class _PlayerProgressBarState extends ConsumerState<PlayerProgressBar> {
         final durationMs = duration.inMilliseconds.toDouble();
 
         return StreamBuilder<Duration>(
-          stream: widget.player.stream.position,
+          stream: _positionStream,
           initialData: widget.player.state.position,
           builder: (context, positionSnapshot) {
             final position = positionSnapshot.data ?? Duration.zero;

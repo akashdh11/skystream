@@ -1565,45 +1565,52 @@ class SkyStreamPlayerControlsState
                     PlayerBottomBar(
                       isTv: _isTv,
                       isTouch: isTouch,
-                      progressBar: PlayerProgressBar(
-                        player: widget.player,
-                        videoViewController: widget.videoViewController,
-                        onSeekStart: _cancelHideTimer,
-                        isTv: _isTv,
-                        focusNode: _scrubFocusNode,
-                        onArrowUp: () {
-                          final resumePromptPosition = ref.read(
-                            playerControllerProvider.select(
-                              (s) => s.resumePromptPosition,
-                            ),
-                          );
-                          final resumePromptPercentage = ref.read(
-                            playerControllerProvider.select(
-                              (s) => s.resumePromptPercentage,
-                            ),
-                          );
-                          final showNextEpOverlay = ref.read(
-                            playerControllerProvider.select(
-                              (s) => s.showNextEpisodeOverlay,
-                            ),
-                          );
-                          final nextEpTitle = ref.read(
-                            playerControllerProvider.select(
-                              (s) => s.nextEpisodeTitle,
-                            ),
-                          );
+                      // Own layer: the progress bar repaints on every position
+                      // tick, and the only other RepaintBoundary is at the top
+                      // of this whole Column — without this, one tick repaints
+                      // the top bar, both scrims and every icon button.
+                      progressBar: RepaintBoundary(
+                        child: PlayerProgressBar(
+                          player: widget.player,
+                          videoViewController: widget.videoViewController,
+                          onSeekStart: _cancelHideTimer,
+                          isTv: _isTv,
+                          focusNode: _scrubFocusNode,
+                          onArrowUp: () {
+                            final resumePromptPosition = ref.read(
+                              playerControllerProvider.select(
+                                (s) => s.resumePromptPosition,
+                              ),
+                            );
+                            final resumePromptPercentage = ref.read(
+                              playerControllerProvider.select(
+                                (s) => s.resumePromptPercentage,
+                              ),
+                            );
+                            final showNextEpOverlay = ref.read(
+                              playerControllerProvider.select(
+                                (s) => s.showNextEpisodeOverlay,
+                              ),
+                            );
+                            final nextEpTitle = ref.read(
+                              playerControllerProvider.select(
+                                (s) => s.nextEpisodeTitle,
+                              ),
+                            );
 
-                          if (resumePromptPosition != null ||
-                              resumePromptPercentage != null) {
-                            _resumeFocusNode.requestFocus();
-                          } else if (showNextEpOverlay && nextEpTitle != null) {
-                            _nextEpFocusNode.requestFocus();
-                          } else if (_isSkipActive) {
-                            _skipFocusNode.requestFocus();
-                          } else {
-                            _backFocusNode.requestFocus();
-                          }
-                        },
+                            if (resumePromptPosition != null ||
+                                resumePromptPercentage != null) {
+                              _resumeFocusNode.requestFocus();
+                            } else if (showNextEpOverlay &&
+                                nextEpTitle != null) {
+                              _nextEpFocusNode.requestFocus();
+                            } else if (_isSkipActive) {
+                              _skipFocusNode.requestFocus();
+                            } else {
+                              _backFocusNode.requestFocus();
+                            }
+                          },
+                        ),
                       ),
                       leading: leading,
                       actions: actions,
