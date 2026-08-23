@@ -163,13 +163,33 @@ So on VLC:
   (`player_screen.dart:705-750`) is **not implementable**;
 * most of `subtitle_appearance_dialog.dart` becomes dead or preview-less.
 
-Three options, and Phase 6 must pick one **before** Phase 8 deletes the current renderers:
+**DECIDED: raw engine rendering.** VLC composites subtitles into the video surface; we accept that
+and do not try to reproduce today's behaviour. Rationale: the migration's whole justification is
+stability, and the two alternatives — recreating the player on every style change, or adding a
+cue-text stream to the fork — both add risk to the thing we are trying to de-risk.
 
-1. **Accept engine rendering.** Cheapest; loses live restyling and the chrome lift.
-2. **Recreate the player on style change.** Keeps styling, costs a visible reload per change.
-3. **Render app-side.** Requires a cue-text stream that does not exist — we would add it to the
-   fork (libVLC does expose subtitle callbacks). Real work, and the only option that preserves
-   today's behaviour.
+What this costs, stated so nobody is surprised later:
+
+* Styling is **construction-time only**, applied on next play rather than live. Settings map onto
+  `VlcSubtitleStyle` → `--freetype-*`: font, size, colour, opacity, bold, outline colour/thickness,
+  shadow colour/distance, background colour/opacity, `--sub-margin`. Anything outside that
+  vocabulary goes.
+* The **chrome lift** (`player_screen.dart:722-735`, which animates `bottomOffset` off
+  `_controlsVisible`) is gone. Text baked into the frame cannot move.
+* `subtitle_appearance_dialog.dart` loses its live preview and most of its options.
+* `sub-delay` survives — `setSubtitleDelay` is a real runtime API on the engine.
+
+Rejected, and why:
+
+* **Recreate the player on style change** — keeps full styling, but every tweak is a visible reload,
+  and `_platformViewKey` (`vlc_player.dart:189`) already forces a LibVLC rebuild on fit change, so
+  this leans on a path that is known-janky.
+* **Render app-side in Flutter** — would preserve today's behaviour exactly, and is genuinely
+  feasible **for external subtitle files** (the app already parses SRT at
+  `subtitle_sync_dialog.dart:30`). It is not feasible for **embedded** container tracks: libVLC 3.x
+  exposes no decoded cue text to the host (UNVERIFIED but consistent with its burn-in design). A
+  hybrid would give two visibly different subtitle experiences in one app. Left as a possible
+  follow-up for external subs only; it blocks nothing.
 
 `skystream_subtitle_view.dart` is **dead code**, not a head start. It is deleted in Phase 1.
 
@@ -559,4 +579,14 @@ actually run, not an assumption.
 - **Assuming app-side subtitle rendering exists.** It does not — `skystream_subtitle_view.dart` is
   dead code with zero call sites. See §3; this is a real open decision, not a solved one.
 - **A big-bang cutover.** Both engines coexist behind a flag until Phase 8.
-- **Rewriting the control UI.** It works and its D-pad model is sound. Optimize it; do not replace it.
+- **Rewriting the control UI, or adopting engine-native controls.** The controls are already 100%
+  Flutter — `player_screen.dart:698` passes `controls: (state) => const SizedBox.shrink()`, so
+  media_kit's built-ins are switched off and `SkyStreamPlayerControls` draws everything. `vlc_player`
+  ships no controls at all (`VlcPlayer` takes only `controller`, `backgroundColor`, `fit`), so
+  Flutter is the only option on the target engine regardless.
+  It is also the right one: no engine offers D-pad traversal, Skip Intro, next-episode, the sources
+  panel, our theming, or identical behaviour on seven platforms — and native controls would sit
+  *inside* the platform view, on the far side of the focus boundary that §6 is about.
+  Note the corollary for Phase 0c: a full-screen Flutter overlay composited over a **platform view**
+  every frame is hybrid composition's worst case; over a **`Texture`** it is an ordinary widget. The
+  controls architecture is itself an argument for the texture path.
