@@ -438,6 +438,56 @@ Phases 5-7**. Give it a line budget and hold to it. Include the seek bar explici
 **Done when.** A VOD stream plays end to end on every platform we ship, with working controls, and
 D-pad reaches every control on the TV box.
 
+### Phase 5b — Rebuild the controls' machinery, keep the design
+
+**Goal.** The controls look right and behave wrong. Keep the visual design pixel-for-pixel; replace
+the machinery underneath, which is the app's densest concentration of manual handling.
+
+**What is actually wrong** — `skystream_player_controls.dart`, 1,659 lines:
+
+| Symptom | Evidence |
+|---|---|
+| The auto-hide timer is poked by hand from **15 call sites** | `:114, :188, :247, :284, :351, :548, :580, :661, :700, :728, :749, :767, :777, :1024, :1048` (definition `:665`) |
+| **6 hand-managed `FocusNode`s**, 34 references | `_playFocusNode`, `_skipFocusNode`, `_resumeFocusNode`, `_nextEpFocusNode`, `_backFocusNode`, `_scrubFocusNode` |
+| **72 instance fields**, 23 `setState` calls | one State object holding the whole player's UI state |
+| **72 `playerControllerProvider` reads**, only 30 with `.select(` | the rest rebuild on any state change |
+| **99 `if (`, 24 `Platform.is*`** scattered through build | per-widget platform branching |
+| **One `RepaintBoundary`** for the entire `Column` | `:1544` — a seek tick repaints the whole overlay |
+
+Each of these is the same bug in a different costume: state that should be derived is instead
+maintained by hand at every call site, so correctness depends on remembering to update it. Miss one
+`_startHideTimer()` and the chrome vanishes mid-interaction; add one in the wrong branch and it
+never hides.
+
+**Scope**
+- **One interaction sink.** A single `Listener`/`Focus` wrapper resets the hide timer on any pointer
+  or key event. Delete all 15 manual calls. One place, not fifteen.
+- **Delete the named focus nodes.** The screen already does the right thing — `_handleKey`
+  (`player_screen.dart:347`) stays out of the way so native directional traversal runs, and
+  `FocusTraversalGroup(policy: ReadingOrderTraversalPolicy())` is already in place at `:1538`.
+  Ordinary focusable widgets in reading order replace the hand-placed nodes. Keep at most one, for
+  the autofocus target on open.
+- **High-frequency state to `ValueListenable`.** Position, buffer and visibility become listenables
+  consumed by leaf `ValueListenableBuilder`s, so a tick rebuilds one widget. Riverpod keeps only what
+  changes rarely.
+- **Resolve platform once.** Compute a layout/capability record at build from `DeviceProfile`
+  instead of 24 scattered `Platform.is*` checks.
+- **Boundaries where they matter** — carried over from Phase 2.
+
+**Explicitly out of scope.** Any visual change. No new features. No redesign. If the rebuilt overlay
+does not look identical, it is wrong.
+
+**Done when**
+- Line count materially down (target: well under half of 1,659) with **no visual diff**.
+- Exactly one code path restarts the hide timer.
+- D-pad: the full §6 hardware checklist passes — this phase touches focus, so it is the highest-risk
+  phase for TV and must be tested on real hardware before it lands.
+- Controls do not rebuild on position ticks.
+
+**Risk / escape hatch.** This is a rewrite of the most-touched UI in the app. It lands on the new
+engine's overlay first (Phase 5), where it is behind the flag and cannot regress the shipping path.
+Only after it is proven there does the old overlay get retired with its engine in Phase 8.
+
 ### Phase 6 — Tracks and subtitles, engine-owned
 
 **Goal.** Deliver constraint 3 — no hand-driven track state.
@@ -579,14 +629,13 @@ actually run, not an assumption.
 - **Assuming app-side subtitle rendering exists.** It does not — `skystream_subtitle_view.dart` is
   dead code with zero call sites. See §3; this is a real open decision, not a solved one.
 - **A big-bang cutover.** Both engines coexist behind a flag until Phase 8.
-- **Rewriting the control UI, or adopting engine-native controls.** The controls are already 100%
-  Flutter — `player_screen.dart:698` passes `controls: (state) => const SizedBox.shrink()`, so
-  media_kit's built-ins are switched off and `SkyStreamPlayerControls` draws everything. `vlc_player`
-  ships no controls at all (`VlcPlayer` takes only `controller`, `backgroundColor`, `fit`), so
-  Flutter is the only option on the target engine regardless.
-  It is also the right one: no engine offers D-pad traversal, Skip Intro, next-episode, the sources
-  panel, our theming, or identical behaviour on seven platforms — and native controls would sit
-  *inside* the platform view, on the far side of the focus boundary that §6 is about.
-  Note the corollary for Phase 0c: a full-screen Flutter overlay composited over a **platform view**
-  every frame is hybrid composition's worst case; over a **`Texture`** it is an ordinary widget. The
+- **Adopting engine-native controls, or redesigning the look.** The controls stay Flutter and keep
+  their current visual design. `player_screen.dart:698` passes
+  `controls: (state) => const SizedBox.shrink()`, so media_kit's built-ins are already off;
+  `vlc_player` ships none at all (`VlcPlayer` takes only `controller`, `backgroundColor`, `fit`).
+  No engine offers D-pad traversal, Skip Intro, next-episode, the sources panel or our theming, and
+  native controls would sit *inside* the platform view — on the far side of the focus boundary §6 is
+  about. What **is** being rewritten is the controls' internal machinery: see Phase 5b.
+  Corollary for Phase 0c: a full-screen Flutter overlay composited over a **platform view** every
+  frame is hybrid composition's worst case; over a **`Texture`** it is an ordinary widget. The
   controls architecture is itself an argument for the texture path.
