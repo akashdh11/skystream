@@ -103,3 +103,20 @@
 # ─────────────────────────────────────────────────────────────────────────
 -dontwarn javax.annotation.**
 -dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
+
+# ─────────────────────────────────────────────────────────────────────────
+# androidx.window optional runtime APIs.
+#
+# androidx.window ships compile-time references to OEM-provided extension and
+# sidecar classes (androidx.window.extensions.*, androidx.window.sidecar.*)
+# that only exist on foldables and large-screen devices that implement them.
+# They are absent from the SDK, so R8 fails the release build outright with
+# "Missing class androidx.window.extensions.WindowExtensions" and ~12 similar.
+# androidx.window reflects on them and degrades gracefully when absent, so
+# these are safe to leave unresolved.
+#
+# Verified pre-existing: a release build with vlc_player removed produces the
+# identical failure, so this is not caused by any recent dependency.
+# ─────────────────────────────────────────────────────────────────────────
+-dontwarn androidx.window.extensions.**
+-dontwarn androidx.window.sidecar.**
