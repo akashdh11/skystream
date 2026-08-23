@@ -834,6 +834,11 @@ class _SubtitleAppearanceDialogState
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
+          // The source is 5120x3413 — 66.6 MB once decoded to ARGB, for a
+          // backdrop behind a subtitle preview. cacheWidth decodes it at a
+          // sensible size instead: 1280 wide is ~4.2 MB, and BoxFit.cover
+          // scales from there with no visible difference at this size.
+          cacheWidth: 1280,
           errorBuilder: (context, error, stackTrace) {
             // Fallback gradient when image fails to load
             return Container(

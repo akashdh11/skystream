@@ -220,6 +220,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 child: Image.asset(
                   'assets/images/search_background.jpg',
                   fit: BoxFit.cover,
+                  // 2000x1125 = 8.6 MB decoded for a backdrop. 1280 is ~3.5 MB
+                  // and BoxFit.cover scales from there.
+                  cacheWidth: 1280,
                   errorBuilder: (context, error, stackTrace) =>
                       const SizedBox.shrink(),
                 ),
@@ -738,6 +741,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             'assets/images/no_results.png',
             fit: BoxFit.contain,
             width: imageWidth,
+            // Source is 1613x1929 — 11.9 MB decoded — for an illustration
+            // shown at 320 logical px at most. 640 covers 2x density.
+            cacheWidth: 640,
             errorBuilder: (context, error, stackTrace) =>
                 const SizedBox.shrink(),
           ),

@@ -387,6 +387,10 @@ class SkyStreamPlayerControlsState
             .setPlaybackSpeed(previousSpeed),
       );
     }
+    // Release the callbacks handed to the keepAlive gesture handler. They
+    // capture this State, so without this every player session leaks its whole
+    // element tree.
+    ref.read(playerGestureHandlerProvider.notifier).detach();
     FocusManager.instance.removeListener(_onFocusChange);
     _revertMessageSub?.close();
     _playFocusNode.dispose();

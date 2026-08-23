@@ -111,6 +111,35 @@ class PlayerGestureHandler extends _$PlayerGestureHandler {
     return const PlayerGestureState();
   }
 
+  /// Drops every callback handed in by [init].
+  ///
+  /// This notifier is `keepAlive: true`, so it outlives the player screen. The
+  /// closures [init] receives capture the controls' State — `setState`, the
+  /// hide timer, `widget.*` — so leaving them attached pins that State and its
+  /// whole element tree in memory for the rest of the app's life, once per
+  /// player session. Call this from the controls' dispose().
+  void detach() {
+    getSettings = null;
+    isTv = null;
+    isDesktop = null;
+    getDuration = null;
+    getPosition = null;
+    canSeek = null;
+    getMaxVolumeLevel = null;
+    onInteraction = null;
+    onHideControls = null;
+    onSeekRelative = null;
+    onSeekTo = null;
+    getVolumeLevel = null;
+    setVolumeLevel = null;
+    onVolumeChange = null;
+    toggleMuteLevel = null;
+    onDoubleTapAnimationStart = null;
+    _osdTimer?.cancel();
+    _osdTimer = null;
+    _cachedSettings = null;
+  }
+
   void init({
     required Future<PlayerSettings> Function() getSettings,
     required bool isTv,
