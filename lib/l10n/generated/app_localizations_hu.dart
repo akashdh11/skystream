@@ -24,10 +24,10 @@ class AppLocalizationsHu extends AppLocalizations {
   String get explore => 'Felfedezés';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Anime felfedezése';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Filmek felfedezése';
 
   @override
   String get library => 'Könyvtár';
@@ -63,13 +63,13 @@ class AppLocalizationsHu extends AppLocalizations {
   String get defaultHomeScreen => 'Alapértelmezett kezdőképernyő';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'Cím helye';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'A poszter alatt';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'A poszteren';
 
   @override
   String get player => 'Lejátszó';
@@ -111,11 +111,11 @@ class AppLocalizationsHu extends AppLocalizations {
   String get dohProvider => 'DoH szolgáltató';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'GitHub proxy';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'A bővítmények letöltése a jsDelivren keresztül, a szolgáltatói tiltások megkerüléséhez.';
 
   @override
   String get manageExtensions => 'Bővítmények kezelése';
@@ -496,7 +496,7 @@ class AppLocalizationsHu extends AppLocalizations {
   String get playNow => 'Lejátszás most';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'Következik';
 
   @override
   String get deleteDownloadPrompt => 'Letöltés törlése?';
@@ -675,21 +675,21 @@ class AppLocalizationsHu extends AppLocalizations {
   String get installed => 'Telepítve';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'Tárolók';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Nincs telepített bővítmény';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Nyisd meg a Tárolók lapot bővítmények kereséséhez és telepítéséhez.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Tárolók böngészése';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Adj meg egy tároló URL-t vagy rövid kódot bővítmények kereséséhez és telepítéséhez.';
 
   @override
   String updateTo(String version) {
@@ -1122,13 +1122,13 @@ class AppLocalizationsHu extends AppLocalizations {
   String get skip => 'Kihagyás';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Főcím átugrása';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Stáblista átugrása';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Összefoglaló átugrása';
 
   @override
   String get goLive => 'Élő adás';
@@ -1181,7 +1181,7 @@ class AppLocalizationsHu extends AppLocalizations {
   String get subtitleAccounts => 'Felirat fiókok';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'Fiókok';
 
   @override
   String get notLoggedIn => 'Not logged in';

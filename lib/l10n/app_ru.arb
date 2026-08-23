@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Обзор аниме",
+  "exploreMovies": "Обзор фильмов",
+  "titlePosition": "Положение названия",
+  "titlePositionBelowPoster": "Под постером",
+  "titlePositionInsidePoster": "На постере",
+  "githubProxy": "Прокси GitHub",
+  "githubProxySubtitle": "Направлять загрузку расширений через jsDelivr, чтобы обойти блокировки провайдера.",
+  "upNext": "Далее",
+  "repositories": "Репозитории",
+  "noExtensionsInstalled": "Расширения не установлены",
+  "browseRepositoriesToInstall": "Откройте вкладку «Репозитории», чтобы найти и установить расширения.",
+  "browseRepositories": "Обзор репозиториев",
+  "addRepoDescription": "Добавьте URL репозитория или короткий код, чтобы найти и установить плагины расширений.",
+  "skipIntro": "Пропустить заставку",
+  "skipOutro": "Пропустить титры",
+  "skipRecap": "Пропустить краткий обзор",
+  "accounts": "Аккаунты"
 }

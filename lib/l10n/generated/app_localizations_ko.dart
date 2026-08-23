@@ -24,10 +24,10 @@ class AppLocalizationsKo extends AppLocalizations {
   String get explore => '탐색';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => '애니메이션 탐색';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => '영화 탐색';
 
   @override
   String get library => '라이브러리';
@@ -63,13 +63,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get defaultHomeScreen => '기본 홈 화면';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => '제목 위치';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => '포스터 아래';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => '포스터 안';
 
   @override
   String get player => '플레이어';
@@ -111,11 +111,11 @@ class AppLocalizationsKo extends AppLocalizations {
   String get dohProvider => 'DoH 제공자';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'GitHub 프록시';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'ISP 차단을 우회하도록 확장 프로그램 다운로드를 jsDelivr로 우회합니다.';
 
   @override
   String get manageExtensions => '확장 프로그램 관리';
@@ -487,7 +487,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get playNow => '지금 재생하기';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => '다음 화';
 
   @override
   String get deleteDownloadPrompt => '다운로드 삭제?';
@@ -657,21 +657,19 @@ class AppLocalizationsKo extends AppLocalizations {
   String get installed => '설치됨';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => '저장소';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => '설치된 확장 프로그램 없음';
 
   @override
-  String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+  String get browseRepositoriesToInstall => '저장소 탭에서 확장 프로그램을 찾아 설치하세요.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => '저장소 둘러보기';
 
   @override
-  String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+  String get addRepoDescription => '저장소 URL 또는 단축 코드를 추가해 확장 플러그인을 찾아 설치하세요.';
 
   @override
   String updateTo(String version) {
@@ -1104,13 +1102,13 @@ class AppLocalizationsKo extends AppLocalizations {
   String get skip => '건너뛰기';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => '오프닝 건너뛰기';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => '엔딩 건너뛰기';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => '줄거리 건너뛰기';
 
   @override
   String get goLive => '실시간 시청';
@@ -1163,7 +1161,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get subtitleAccounts => '자막 계정';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => '계정';
 
   @override
   String get notLoggedIn => '로그인되지 않음';

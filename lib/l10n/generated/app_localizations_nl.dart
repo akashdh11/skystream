@@ -24,10 +24,10 @@ class AppLocalizationsNl extends AppLocalizations {
   String get explore => 'Ontdekken';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Anime ontdekken';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Films ontdekken';
 
   @override
   String get library => 'Bibliotheek';
@@ -63,13 +63,13 @@ class AppLocalizationsNl extends AppLocalizations {
   String get defaultHomeScreen => 'Standaard startscherm';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'Titelpositie';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'Onder de poster';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'In de poster';
 
   @override
   String get player => 'Speler';
@@ -111,11 +111,11 @@ class AppLocalizationsNl extends AppLocalizations {
   String get dohProvider => 'DoH-provider';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'GitHub-proxy';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'Downloads van extensies via jsDelivr leiden om blokkades van de provider te omzeilen.';
 
   @override
   String get manageExtensions => 'Extensies beheren';
@@ -497,7 +497,7 @@ class AppLocalizationsNl extends AppLocalizations {
   String get playNow => 'Nu afspelen';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'Hierna';
 
   @override
   String get deleteDownloadPrompt => 'Download verwijderen?';
@@ -676,21 +676,21 @@ class AppLocalizationsNl extends AppLocalizations {
   String get installed => 'Geïnstalleerd';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'Repository\'s';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Geen extensies geïnstalleerd';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Open het tabblad Repository\'s om extensies te ontdekken en te installeren.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Repository\'s verkennen';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Voeg een repository-URL of shortcode toe om extensieplug-ins te ontdekken en te installeren.';
 
   @override
   String updateTo(String version) {
@@ -1123,13 +1123,13 @@ class AppLocalizationsNl extends AppLocalizations {
   String get skip => 'Overslaan';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Intro overslaan';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Aftiteling overslaan';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Samenvatting overslaan';
 
   @override
   String get goLive => 'Ga live';

@@ -24,10 +24,10 @@ class AppLocalizationsId extends AppLocalizations {
   String get explore => 'Jelajahi';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Jelajahi Anime';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Jelajahi Film';
 
   @override
   String get library => 'Perpustakaan';
@@ -111,11 +111,11 @@ class AppLocalizationsId extends AppLocalizations {
   String get dohProvider => 'Penyedia DoH';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'Proksi GitHub';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'Alihkan unduhan ekstensi melalui jsDelivr untuk melewati pemblokiran ISP.';
 
   @override
   String get manageExtensions => 'Kelola Ekstensi';
@@ -494,7 +494,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get playNow => 'Putar Sekarang';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'Berikutnya';
 
   @override
   String get deleteDownloadPrompt => 'Hapus Unduhan?';
@@ -673,21 +673,21 @@ class AppLocalizationsId extends AppLocalizations {
   String get installed => 'Terinstal';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'Repositori';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Tidak Ada Ekstensi Terpasang';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Buka tab Repositori untuk menemukan dan memasang ekstensi.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Jelajahi Repositori';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Tambahkan URL repositori atau kode pendek untuk menemukan dan memasang plugin ekstensi.';
 
   @override
   String updateTo(String version) {
@@ -1129,13 +1129,13 @@ class AppLocalizationsId extends AppLocalizations {
   String get skip => 'Lewati';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Lewati Intro';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Lewati Outro';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Lewati Rekap';
 
   @override
   String get goLive => 'Siaran Langsung';
@@ -1188,7 +1188,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get subtitleAccounts => 'Akun subtitle';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'Akun';
 
   @override
   String get notLoggedIn => 'Not logged in';

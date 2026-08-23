@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Εξερεύνηση anime",
+  "exploreMovies": "Εξερεύνηση ταινιών",
+  "titlePosition": "Θέση τίτλου",
+  "titlePositionBelowPoster": "Κάτω από την αφίσα",
+  "titlePositionInsidePoster": "Μέσα στην αφίσα",
+  "githubProxy": "Διακομιστής μεσολάβησης GitHub",
+  "githubProxySubtitle": "Δρομολόγηση των λήψεων επεκτάσεων μέσω jsDelivr για παράκαμψη αποκλεισμών του παρόχου.",
+  "upNext": "Ακολουθεί",
+  "repositories": "Αποθετήρια",
+  "noExtensionsInstalled": "Δεν έχουν εγκατασταθεί επεκτάσεις",
+  "browseRepositoriesToInstall": "Ανοίξτε την καρτέλα «Αποθετήρια» για να βρείτε και να εγκαταστήσετε επεκτάσεις.",
+  "browseRepositories": "Περιήγηση αποθετηρίων",
+  "addRepoDescription": "Προσθέστε ένα URL αποθετηρίου ή έναν σύντομο κωδικό για να βρείτε και να εγκαταστήσετε πρόσθετα.",
+  "skipIntro": "Παράλειψη εισαγωγής",
+  "skipOutro": "Παράλειψη τελικών τίτλων",
+  "skipRecap": "Παράλειψη ανακεφαλαίωσης",
+  "accounts": "Λογαριασμοί"
 }

@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "اینیمے دریافت کریں",
+  "exploreMovies": "فلمیں دریافت کریں",
+  "titlePosition": "عنوان کی جگہ",
+  "titlePositionBelowPoster": "پوسٹر کے نیچے",
+  "titlePositionInsidePoster": "پوسٹر کے اندر",
+  "githubProxy": "GitHub پراکسی",
+  "githubProxySubtitle": "آئی ایس پی کی پابندیوں سے بچنے کے لیے ایکسٹینشن ڈاؤن لوڈز jsDelivr کے ذریعے بھیجیں۔",
+  "upNext": "اگلا",
+  "repositories": "ریپوزٹریز",
+  "noExtensionsInstalled": "کوئی ایکسٹینشن انسٹال نہیں",
+  "browseRepositoriesToInstall": "ایکسٹینشنز تلاش کرنے اور انسٹال کرنے کے لیے ریپوزٹریز ٹیب دیکھیں۔",
+  "browseRepositories": "ریپوزٹریز دیکھیں",
+  "addRepoDescription": "ایکسٹینشن پلگ اِن تلاش کرنے اور انسٹال کرنے کے لیے ریپوزٹری URL یا شارٹ کوڈ شامل کریں۔",
+  "skipIntro": "ابتدائیہ چھوڑیں",
+  "skipOutro": "اختتامیہ چھوڑیں",
+  "skipRecap": "خلاصہ چھوڑیں",
+  "accounts": "اکاؤنٹس"
 }

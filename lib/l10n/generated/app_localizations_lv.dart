@@ -24,10 +24,10 @@ class AppLocalizationsLv extends AppLocalizations {
   String get explore => 'Izpētīt';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Pārlūkot anime';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Pārlūkot filmas';
 
   @override
   String get library => 'Bibliotēka';
@@ -63,13 +63,13 @@ class AppLocalizationsLv extends AppLocalizations {
   String get defaultHomeScreen => 'Noklusējuma sākuma ekrāns';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'Nosaukuma novietojums';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'Zem plakāta';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'Uz plakāta';
 
   @override
   String get player => 'Atskaņotājs';
@@ -111,11 +111,11 @@ class AppLocalizationsLv extends AppLocalizations {
   String get dohProvider => 'DoH pakalpojumu sniedzējs';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'GitHub starpniekserveris';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'Novirzīt paplašinājumu lejupielādes caur jsDelivr, lai apietu interneta pakalpojumu sniedzēja bloķēšanu.';
 
   @override
   String get manageExtensions => 'Pārvaldīt paplašinājumus';
@@ -498,7 +498,7 @@ class AppLocalizationsLv extends AppLocalizations {
   String get playNow => 'Atskaņot tūlīt';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'Tālāk';
 
   @override
   String get deleteDownloadPrompt => 'Dzēst lejupielādi?';
@@ -675,21 +675,21 @@ class AppLocalizationsLv extends AppLocalizations {
   String get installed => 'Instalēts';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'Repozitoriji';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Nav instalētu paplašinājumu';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Atveriet cilni Repozitoriji, lai atrastu un instalētu paplašinājumus.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Pārlūkot repozitorijus';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Pievienojiet repozitorija URL vai īso kodu, lai atrastu un instalētu paplašinājumu spraudņus.';
 
   @override
   String updateTo(String version) {
@@ -1122,13 +1122,13 @@ class AppLocalizationsLv extends AppLocalizations {
   String get skip => 'Izlaist';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Izlaist ievadu';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Izlaist noslēgumu';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Izlaist kopsavilkumu';
 
   @override
   String get goLive => 'Tiešraide';
@@ -1181,7 +1181,7 @@ class AppLocalizationsLv extends AppLocalizations {
   String get subtitleAccounts => 'Subtitru konti';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'Konti';
 
   @override
   String get notLoggedIn => 'Not logged in';

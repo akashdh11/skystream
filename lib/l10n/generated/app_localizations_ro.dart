@@ -24,10 +24,10 @@ class AppLocalizationsRo extends AppLocalizations {
   String get explore => 'Explorează';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Explorează anime';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Explorează filme';
 
   @override
   String get library => 'Bibliotecă';
@@ -63,13 +63,13 @@ class AppLocalizationsRo extends AppLocalizations {
   String get defaultHomeScreen => 'Ecran principal implicit';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'Poziția titlului';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'Sub poster';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'Pe poster';
 
   @override
   String get player => 'Player';
@@ -111,11 +111,11 @@ class AppLocalizationsRo extends AppLocalizations {
   String get dohProvider => 'Furnizor DoH';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'Proxy GitHub';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'Rutează descărcările de extensii prin jsDelivr pentru a ocoli blocajele furnizorului.';
 
   @override
   String get manageExtensions => 'Gestionare extensii';
@@ -496,7 +496,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get playNow => 'Redă acum';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'Urmează';
 
   @override
   String get deleteDownloadPrompt => 'Ștergi descărcarea?';
@@ -674,21 +674,21 @@ class AppLocalizationsRo extends AppLocalizations {
   String get installed => 'Instalat';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'Depozite';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Nicio extensie instalată';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Deschide fila Depozite pentru a descoperi și instala extensii.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Explorează depozitele';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Adaugă URL-ul unui depozit sau un cod scurt pentru a descoperi și instala pluginuri de extensie.';
 
   @override
   String updateTo(String version) {
@@ -1125,13 +1125,13 @@ class AppLocalizationsRo extends AppLocalizations {
   String get skip => 'Sari';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Sari peste intro';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Sari peste final';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Sari peste rezumat';
 
   @override
   String get goLive => 'Direct';
@@ -1184,7 +1184,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get subtitleAccounts => 'Conturi de subtitrări';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'Conturi';
 
   @override
   String get notLoggedIn => 'Not logged in';

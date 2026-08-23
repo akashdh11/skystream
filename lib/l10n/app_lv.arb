@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Pārlūkot anime",
+  "exploreMovies": "Pārlūkot filmas",
+  "titlePosition": "Nosaukuma novietojums",
+  "titlePositionBelowPoster": "Zem plakāta",
+  "titlePositionInsidePoster": "Uz plakāta",
+  "githubProxy": "GitHub starpniekserveris",
+  "githubProxySubtitle": "Novirzīt paplašinājumu lejupielādes caur jsDelivr, lai apietu interneta pakalpojumu sniedzēja bloķēšanu.",
+  "upNext": "Tālāk",
+  "repositories": "Repozitoriji",
+  "noExtensionsInstalled": "Nav instalētu paplašinājumu",
+  "browseRepositoriesToInstall": "Atveriet cilni Repozitoriji, lai atrastu un instalētu paplašinājumus.",
+  "browseRepositories": "Pārlūkot repozitorijus",
+  "addRepoDescription": "Pievienojiet repozitorija URL vai īso kodu, lai atrastu un instalētu paplašinājumu spraudņus.",
+  "skipIntro": "Izlaist ievadu",
+  "skipOutro": "Izlaist noslēgumu",
+  "skipRecap": "Izlaist kopsavilkumu",
+  "accounts": "Konti"
 }

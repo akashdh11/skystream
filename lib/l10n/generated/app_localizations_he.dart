@@ -24,10 +24,10 @@ class AppLocalizationsHe extends AppLocalizations {
   String get explore => 'חקירה';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'גילוי אנימה';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'גילוי סרטים';
 
   @override
   String get library => 'ספרייה';
@@ -63,13 +63,13 @@ class AppLocalizationsHe extends AppLocalizations {
   String get defaultHomeScreen => 'מסך הבית המחדל';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'מיקום הכותרת';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'מתחת לפוסטר';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'בתוך הפוסטר';
 
   @override
   String get player => 'נגן';
@@ -111,11 +111,11 @@ class AppLocalizationsHe extends AppLocalizations {
   String get dohProvider => 'ספק DoH';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'פרוקסי GitHub';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'ניתוב הורדות של הרחבות דרך jsDelivr כדי לעקוף חסימות של הספק.';
 
   @override
   String get manageExtensions => 'ניהול הרחבות';
@@ -488,7 +488,7 @@ class AppLocalizationsHe extends AppLocalizations {
   String get playNow => 'נגן עכשיו';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'הבא בתור';
 
   @override
   String get deleteDownloadPrompt => 'למחוק הורדה?';
@@ -661,21 +661,21 @@ class AppLocalizationsHe extends AppLocalizations {
   String get installed => 'מותקן';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'מאגרים';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'לא מותקנות הרחבות';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'פתחו את לשונית המאגרים כדי לגלות ולהתקין הרחבות.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'עיון במאגרים';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'הוסיפו כתובת URL של מאגר או קוד קצר כדי לגלות ולהתקין תוספי הרחבה.';
 
   @override
   String updateTo(String version) {
@@ -1106,13 +1106,13 @@ class AppLocalizationsHe extends AppLocalizations {
   String get skip => 'דלג';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'דלג על הפתיח';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'דלג על הסיום';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'דלג על התקציר';
 
   @override
   String get goLive => 'לשידור חי';
@@ -1165,7 +1165,7 @@ class AppLocalizationsHe extends AppLocalizations {
   String get subtitleAccounts => 'חשבונות כתוביות';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'חשבונות';
 
   @override
   String get notLoggedIn => 'Not logged in';

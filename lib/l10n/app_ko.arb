@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "애니메이션 탐색",
+  "exploreMovies": "영화 탐색",
+  "titlePosition": "제목 위치",
+  "titlePositionBelowPoster": "포스터 아래",
+  "titlePositionInsidePoster": "포스터 안",
+  "githubProxy": "GitHub 프록시",
+  "githubProxySubtitle": "ISP 차단을 우회하도록 확장 프로그램 다운로드를 jsDelivr로 우회합니다.",
+  "upNext": "다음 화",
+  "repositories": "저장소",
+  "noExtensionsInstalled": "설치된 확장 프로그램 없음",
+  "browseRepositoriesToInstall": "저장소 탭에서 확장 프로그램을 찾아 설치하세요.",
+  "browseRepositories": "저장소 둘러보기",
+  "addRepoDescription": "저장소 URL 또는 단축 코드를 추가해 확장 플러그인을 찾아 설치하세요.",
+  "skipIntro": "오프닝 건너뛰기",
+  "skipOutro": "엔딩 건너뛰기",
+  "skipRecap": "줄거리 건너뛰기",
+  "accounts": "계정"
 }

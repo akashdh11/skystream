@@ -24,10 +24,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get explore => 'अन्वेषण करें';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'एनिमे खोजें';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'फ़िल्में खोजें';
 
   @override
   String get library => 'लाइब्रेरी';
@@ -63,13 +63,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get defaultHomeScreen => 'डिफ़ॉल्ट होम स्क्रीन';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'शीर्षक की स्थिति';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'पोस्टर के नीचे';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'पोस्टर के अंदर';
 
   @override
   String get player => 'प्लेयर';
@@ -111,11 +111,11 @@ class AppLocalizationsHi extends AppLocalizations {
   String get dohProvider => 'DoH प्रदाता';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'GitHub प्रॉक्सी';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'ISP ब्लॉक से बचने के लिए एक्सटेंशन डाउनलोड jsDelivr से भेजें।';
 
   @override
   String get manageExtensions => 'एक्सटेंशन प्रबंधित करें';
@@ -493,7 +493,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get playNow => 'अभी चलाएं';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'आगे';
 
   @override
   String get deleteDownloadPrompt => 'डाउनलोड हटाएं?';
@@ -672,21 +672,21 @@ class AppLocalizationsHi extends AppLocalizations {
   String get installed => 'इंस्टॉल किया गया';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'रिपॉजिटरी';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'कोई एक्सटेंशन इंस्टॉल नहीं है';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'एक्सटेंशन खोजने और इंस्टॉल करने के लिए रिपॉजिटरी टैब देखें।';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'रिपॉजिटरी ब्राउज़ करें';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'एक्सटेंशन प्लगइन खोजने और इंस्टॉल करने के लिए रिपॉजिटरी URL या शॉर्टकोड जोड़ें।';
 
   @override
   String updateTo(String version) {
@@ -1124,13 +1124,13 @@ class AppLocalizationsHi extends AppLocalizations {
   String get skip => 'छोड़ें';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'इंट्रो छोड़ें';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'आउट्रो छोड़ें';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'रीकैप छोड़ें';
 
   @override
   String get goLive => 'लाइव जाएं';
@@ -1183,7 +1183,7 @@ class AppLocalizationsHi extends AppLocalizations {
   String get subtitleAccounts => 'उपशीर्षक खाते';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'खाते';
 
   @override
   String get notLoggedIn => 'लॉग इन नहीं है';

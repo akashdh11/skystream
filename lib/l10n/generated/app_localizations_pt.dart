@@ -24,10 +24,10 @@ class AppLocalizationsPt extends AppLocalizations {
   String get explore => 'Explorar';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Explorar anime';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Explorar filmes';
 
   @override
   String get library => 'Biblioteca';
@@ -63,13 +63,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get defaultHomeScreen => 'Ecrã Inicial Padrão';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'Posição do título';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'Abaixo do poster';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'No poster';
 
   @override
   String get player => 'Reprodutor';
@@ -111,11 +111,11 @@ class AppLocalizationsPt extends AppLocalizations {
   String get dohProvider => 'Fornecedor DoH';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'Proxy do GitHub';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'Encaminhar as transferências de extensões através do jsDelivr para contornar bloqueios do operador.';
 
   @override
   String get manageExtensions => 'Gerir Extensões';
@@ -494,7 +494,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get playNow => 'Reproduzir Agora';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'A seguir';
 
   @override
   String get deleteDownloadPrompt => 'Apagar Transferência?';
@@ -671,21 +671,21 @@ class AppLocalizationsPt extends AppLocalizations {
   String get installed => 'Instalada';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'Repositórios';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Nenhuma extensão instalada';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Abra o separador Repositórios para descobrir e instalar extensões.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Explorar repositórios';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Adicione o URL de um repositório ou um código curto para descobrir e instalar plugins de extensão.';
 
   @override
   String updateTo(String version) {
@@ -1118,13 +1118,13 @@ class AppLocalizationsPt extends AppLocalizations {
   String get skip => 'Saltar';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Saltar introdução';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Saltar créditos';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Saltar resumo';
 
   @override
   String get goLive => 'Em Direto';
@@ -1177,7 +1177,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get subtitleAccounts => 'Contas de legendas';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'Contas';
 
   @override
   String get notLoggedIn => 'Não logado';
@@ -1336,6 +1336,12 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   String get explore => 'Explorar';
 
   @override
+  String get exploreAnime => 'Explorar animes';
+
+  @override
+  String get exploreMovies => 'Explorar filmes';
+
+  @override
   String get library => 'Biblioteca';
 
   @override
@@ -1367,6 +1373,15 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get defaultHomeScreen => 'Tela Inicial Padrão';
+
+  @override
+  String get titlePosition => 'Posição do título';
+
+  @override
+  String get titlePositionBelowPoster => 'Abaixo do pôster';
+
+  @override
+  String get titlePositionInsidePoster => 'No pôster';
 
   @override
   String get player => 'Player';
@@ -1406,6 +1421,13 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get dohProvider => 'Provedor DoH';
+
+  @override
+  String get githubProxy => 'Proxy do GitHub';
+
+  @override
+  String get githubProxySubtitle =>
+      'Roteia os downloads de extensões pelo jsDelivr para contornar bloqueios do provedor.';
 
   @override
   String get manageExtensions => 'Gerenciar Extensões';
@@ -1784,6 +1806,9 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   String get playNow => 'Reproduzir Agora';
 
   @override
+  String get upNext => 'A seguir';
+
+  @override
   String get deleteDownloadPrompt => 'Excluir Download?';
 
   @override
@@ -1956,6 +1981,23 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get installed => 'Instalado';
+
+  @override
+  String get repositories => 'Repositórios';
+
+  @override
+  String get noExtensionsInstalled => 'Nenhuma extensão instalada';
+
+  @override
+  String get browseRepositoriesToInstall =>
+      'Abra a aba Repositórios para descobrir e instalar extensões.';
+
+  @override
+  String get browseRepositories => 'Explorar repositórios';
+
+  @override
+  String get addRepoDescription =>
+      'Adicione a URL de um repositório ou um código curto para descobrir e instalar plugins de extensão.';
 
   @override
   String updateTo(String version) {
@@ -2388,6 +2430,15 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   String get skip => 'Pular';
 
   @override
+  String get skipIntro => 'Pular abertura';
+
+  @override
+  String get skipOutro => 'Pular encerramento';
+
+  @override
+  String get skipRecap => 'Pular resumo';
+
+  @override
   String get goLive => 'Ao Vivo';
 
   @override
@@ -2436,6 +2487,9 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get subtitleAccounts => 'Contas de legendas';
+
+  @override
+  String get accounts => 'Contas';
 
   @override
   String get notLoggedIn => 'Não logado';

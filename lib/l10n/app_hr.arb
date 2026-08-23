@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Istraži anime",
+  "exploreMovies": "Istraži filmove",
+  "titlePosition": "Položaj naslova",
+  "titlePositionBelowPoster": "Ispod plakata",
+  "titlePositionInsidePoster": "Na plakatu",
+  "githubProxy": "GitHub proxy",
+  "githubProxySubtitle": "Preusmjeri preuzimanja proširenja preko jsDelivra radi zaobilaženja blokada pružatelja.",
+  "upNext": "Slijedi",
+  "repositories": "Repozitoriji",
+  "noExtensionsInstalled": "Nema instaliranih proširenja",
+  "browseRepositoriesToInstall": "Otvorite karticu Repozitoriji za pronalaženje i instaliranje proširenja.",
+  "browseRepositories": "Pregledaj repozitorije",
+  "addRepoDescription": "Dodajte URL repozitorija ili kratki kôd za pronalaženje i instaliranje dodataka.",
+  "skipIntro": "Preskoči uvod",
+  "skipOutro": "Preskoči odjavnu špicu",
+  "skipRecap": "Preskoči sažetak",
+  "accounts": "Računi"
 }

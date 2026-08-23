@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Anime felfedezése",
+  "exploreMovies": "Filmek felfedezése",
+  "titlePosition": "Cím helye",
+  "titlePositionBelowPoster": "A poszter alatt",
+  "titlePositionInsidePoster": "A poszteren",
+  "githubProxy": "GitHub proxy",
+  "githubProxySubtitle": "A bővítmények letöltése a jsDelivren keresztül, a szolgáltatói tiltások megkerüléséhez.",
+  "upNext": "Következik",
+  "repositories": "Tárolók",
+  "noExtensionsInstalled": "Nincs telepített bővítmény",
+  "browseRepositoriesToInstall": "Nyisd meg a Tárolók lapot bővítmények kereséséhez és telepítéséhez.",
+  "browseRepositories": "Tárolók böngészése",
+  "addRepoDescription": "Adj meg egy tároló URL-t vagy rövid kódot bővítmények kereséséhez és telepítéséhez.",
+  "skipIntro": "Főcím átugrása",
+  "skipOutro": "Stáblista átugrása",
+  "skipRecap": "Összefoglaló átugrása",
+  "accounts": "Fiókok"
 }

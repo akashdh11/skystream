@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Khám phá anime",
+  "exploreMovies": "Khám phá phim",
+  "titlePosition": "Vị trí tiêu đề",
+  "titlePositionBelowPoster": "Dưới áp phích",
+  "titlePositionInsidePoster": "Trong áp phích",
+  "githubProxy": "Proxy GitHub",
+  "githubProxySubtitle": "Định tuyến tải xuống tiện ích mở rộng qua jsDelivr để vượt chặn của nhà mạng.",
+  "upNext": "Tiếp theo",
+  "repositories": "Kho lưu trữ",
+  "noExtensionsInstalled": "Chưa cài tiện ích mở rộng nào",
+  "browseRepositoriesToInstall": "Mở tab Kho lưu trữ để tìm và cài đặt tiện ích mở rộng.",
+  "browseRepositories": "Duyệt kho lưu trữ",
+  "addRepoDescription": "Thêm URL kho lưu trữ hoặc mã rút gọn để tìm và cài đặt plugin mở rộng.",
+  "skipIntro": "Bỏ qua giới thiệu",
+  "skipOutro": "Bỏ qua kết thúc",
+  "skipRecap": "Bỏ qua tóm tắt",
+  "accounts": "Tài khoản"
 }

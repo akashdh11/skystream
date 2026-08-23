@@ -24,10 +24,10 @@ class AppLocalizationsKn extends AppLocalizations {
   String get explore => 'ಅನ್ವೇಷಿಸಿ';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'ಅನಿಮೆ ಅನ್ವೇಷಿಸಿ';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'ಚಲನಚಿತ್ರಗಳನ್ನು ಅನ್ವೇಷಿಸಿ';
 
   @override
   String get library => 'ಸಂಗ್ರಹ';
@@ -63,13 +63,13 @@ class AppLocalizationsKn extends AppLocalizations {
   String get defaultHomeScreen => 'ಡೀಫಾಲ್ಟ್ ಮುಖಪುಟ';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'ಶೀರ್ಷಿಕೆಯ ಸ್ಥಾನ';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'ಪೋಸ್ಟರ್ ಕೆಳಗೆ';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'ಪೋಸ್ಟರ್ ಒಳಗೆ';
 
   @override
   String get player => 'ಪ್ಲೇಯರ್';
@@ -111,11 +111,11 @@ class AppLocalizationsKn extends AppLocalizations {
   String get dohProvider => 'DoH ಪ್ರೊವೈಡರ್';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'GitHub ಪ್ರಾಕ್ಸಿ';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'ISP ನಿರ್ಬಂಧಗಳನ್ನು ತಪ್ಪಿಸಲು ವಿಸ್ತರಣೆ ಡೌನ್‌ಲೋಡ್‌ಗಳನ್ನು jsDelivr ಮೂಲಕ ಕಳುಹಿಸಿ.';
 
   @override
   String get manageExtensions => 'ವಿಸ್ತರಣೆಗಳನ್ನು ನಿರ್ವಹಿಸಿ';
@@ -499,7 +499,7 @@ class AppLocalizationsKn extends AppLocalizations {
   String get playNow => 'ಈಗಲೇ ಪ್ಲೇ ಮಾಡಿ';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'ಮುಂದೆ';
 
   @override
   String get deleteDownloadPrompt => 'ಡೌನ್‌ಲೋಡ್ ಅಳಿಸಬೇಕೆ?';
@@ -681,21 +681,21 @@ class AppLocalizationsKn extends AppLocalizations {
   String get installed => 'ಇನ್‌ಸ್ಟಾಲ್ ಆಗಿದೆ';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'ರೆಪೊಸಿಟರಿಗಳು';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'ಯಾವುದೇ ವಿಸ್ತರಣೆ ಅನುಸ್ಥಾಪಿಸಿಲ್ಲ';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'ವಿಸ್ತರಣೆಗಳನ್ನು ಹುಡುಕಿ ಅನುಸ್ಥಾಪಿಸಲು ರೆಪೊಸಿಟರಿಗಳ ಟ್ಯಾಬ್ ನೋಡಿ.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'ರೆಪೊಸಿಟರಿಗಳನ್ನು ವೀಕ್ಷಿಸಿ';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'ವಿಸ್ತರಣೆ ಪ್ಲಗಿನ್‌ಗಳನ್ನು ಹುಡುಕಿ ಅನುಸ್ಥಾಪಿಸಲು ರೆಪೊಸಿಟರಿ URL ಅಥವಾ ಶಾರ್ಟ್‌ಕೋಡ್ ಸೇರಿಸಿ.';
 
   @override
   String updateTo(String version) {
@@ -1135,13 +1135,13 @@ class AppLocalizationsKn extends AppLocalizations {
   String get skip => 'ಬಿಟ್ಟುಬಿಡಿ';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'ಪ್ರಾರಂಭ ಬಿಟ್ಟುಬಿಡಿ';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'ಅಂತ್ಯ ಬಿಟ್ಟುಬಿಡಿ';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'ಸಾರಾಂಶ ಬಿಟ್ಟುಬಿಡಿ';
 
   @override
   String get goLive => 'ಲೈವ್ ಹೋಗಿ';
@@ -1194,7 +1194,7 @@ class AppLocalizationsKn extends AppLocalizations {
   String get subtitleAccounts => 'ಉಪಶೀರ್ಷಿಕೆ ಖಾತೆಗಳು';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'ಖಾತೆಗಳು';
 
   @override
   String get notLoggedIn => 'ಲಾಗಿನ್ ಆಗಿಲ್ಲ';

@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "גילוי אנימה",
+  "exploreMovies": "גילוי סרטים",
+  "titlePosition": "מיקום הכותרת",
+  "titlePositionBelowPoster": "מתחת לפוסטר",
+  "titlePositionInsidePoster": "בתוך הפוסטר",
+  "githubProxy": "פרוקסי GitHub",
+  "githubProxySubtitle": "ניתוב הורדות של הרחבות דרך jsDelivr כדי לעקוף חסימות של הספק.",
+  "upNext": "הבא בתור",
+  "repositories": "מאגרים",
+  "noExtensionsInstalled": "לא מותקנות הרחבות",
+  "browseRepositoriesToInstall": "פתחו את לשונית המאגרים כדי לגלות ולהתקין הרחבות.",
+  "browseRepositories": "עיון במאגרים",
+  "addRepoDescription": "הוסיפו כתובת URL של מאגר או קוד קצר כדי לגלות ולהתקין תוספי הרחבה.",
+  "skipIntro": "דלג על הפתיח",
+  "skipOutro": "דלג על הסיום",
+  "skipRecap": "דלג על התקציר",
+  "accounts": "חשבונות"
 }

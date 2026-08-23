@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Utforska anime",
+  "exploreMovies": "Utforska filmer",
+  "titlePosition": "Titelposition",
+  "titlePositionBelowPoster": "Under affischen",
+  "titlePositionInsidePoster": "På affischen",
+  "githubProxy": "GitHub-proxy",
+  "githubProxySubtitle": "Dirigera hämtningar av tillägg via jsDelivr för att kringgå operatörsblockeringar.",
+  "upNext": "Nästa",
+  "repositories": "Utvecklingskataloger",
+  "noExtensionsInstalled": "Inga tillägg installerade",
+  "browseRepositoriesToInstall": "Öppna fliken Utvecklingskataloger för att hitta och installera tillägg.",
+  "browseRepositories": "Bläddra bland kataloger",
+  "addRepoDescription": "Lägg till en katalog-URL eller kortkod för att hitta och installera tilläggsplugin.",
+  "skipIntro": "Hoppa över intro",
+  "skipOutro": "Hoppa över eftertexter",
+  "skipRecap": "Hoppa över sammanfattning",
+  "accounts": "Konton"
 }

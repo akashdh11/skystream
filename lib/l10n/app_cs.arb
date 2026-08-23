@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Prozkoumat anime",
+  "exploreMovies": "Prozkoumat filmy",
+  "titlePosition": "Pozice názvu",
+  "titlePositionBelowPoster": "Pod plakátem",
+  "titlePositionInsidePoster": "Na plakátu",
+  "githubProxy": "Proxy GitHubu",
+  "githubProxySubtitle": "Směrovat stahování rozšíření přes jsDelivr a obejít tak blokování poskytovatelem.",
+  "upNext": "Následuje",
+  "repositories": "Repozitáře",
+  "noExtensionsInstalled": "Nejsou nainstalována žádná rozšíření",
+  "browseRepositoriesToInstall": "Otevřete kartu Repozitáře a objevte a nainstalujte rozšíření.",
+  "browseRepositories": "Procházet repozitáře",
+  "addRepoDescription": "Přidejte URL repozitáře nebo zkrácený kód a objevte a nainstalujte pluginy rozšíření.",
+  "skipIntro": "Přeskočit úvod",
+  "skipOutro": "Přeskočit závěr",
+  "skipRecap": "Přeskočit shrnutí",
+  "accounts": "Účty"
 }

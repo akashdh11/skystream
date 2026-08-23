@@ -24,10 +24,10 @@ class AppLocalizationsUr extends AppLocalizations {
   String get explore => 'دریافت کریں';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'اینیمے دریافت کریں';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'فلمیں دریافت کریں';
 
   @override
   String get library => 'لائبریری';
@@ -63,13 +63,13 @@ class AppLocalizationsUr extends AppLocalizations {
   String get defaultHomeScreen => 'ڈیفالٹ ہوم اسکرین';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'عنوان کی جگہ';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'پوسٹر کے نیچے';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'پوسٹر کے اندر';
 
   @override
   String get player => 'پلیئر';
@@ -111,11 +111,11 @@ class AppLocalizationsUr extends AppLocalizations {
   String get dohProvider => 'DoH فراہم کنندہ';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'GitHub پراکسی';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'آئی ایس پی کی پابندیوں سے بچنے کے لیے ایکسٹینشن ڈاؤن لوڈز jsDelivr کے ذریعے بھیجیں۔';
 
   @override
   String get manageExtensions => 'ایکٹینشنز کا انتظام کریں';
@@ -495,7 +495,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get playNow => 'ابھی چلائیں';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'اگلا';
 
   @override
   String get deleteDownloadPrompt => 'ڈاؤن لوڈ ختم کریں؟';
@@ -675,21 +675,21 @@ class AppLocalizationsUr extends AppLocalizations {
   String get installed => 'انسٹال شدہ';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'ریپوزٹریز';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'کوئی ایکسٹینشن انسٹال نہیں';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'ایکسٹینشنز تلاش کرنے اور انسٹال کرنے کے لیے ریپوزٹریز ٹیب دیکھیں۔';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'ریپوزٹریز دیکھیں';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'ایکسٹینشن پلگ اِن تلاش کرنے اور انسٹال کرنے کے لیے ریپوزٹری URL یا شارٹ کوڈ شامل کریں۔';
 
   @override
   String updateTo(String version) {
@@ -1134,13 +1134,13 @@ class AppLocalizationsUr extends AppLocalizations {
   String get skip => 'اسکپ';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'ابتدائیہ چھوڑیں';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'اختتامیہ چھوڑیں';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'خلاصہ چھوڑیں';
 
   @override
   String get goLive => 'لائیو جائیں';
@@ -1193,7 +1193,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get subtitleAccounts => 'سب ٹائٹل اکاؤنٹس';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'اکاؤنٹس';
 
   @override
   String get notLoggedIn => 'Not logged in';

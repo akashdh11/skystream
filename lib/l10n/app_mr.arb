@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "अ‍ॅनिमे शोधा",
+  "exploreMovies": "चित्रपट शोधा",
+  "titlePosition": "शीर्षकाचे स्थान",
+  "titlePositionBelowPoster": "पोस्टरच्या खाली",
+  "titlePositionInsidePoster": "पोस्टरमध्ये",
+  "githubProxy": "GitHub प्रॉक्सी",
+  "githubProxySubtitle": "ISP अडथळे टाळण्यासाठी विस्तार डाउनलोड jsDelivr मार्गे पाठवा.",
+  "upNext": "पुढे",
+  "repositories": "रिपॉझिटरीज",
+  "noExtensionsInstalled": "कोणतेही विस्तार स्थापित नाहीत",
+  "browseRepositoriesToInstall": "विस्तार शोधण्यासाठी आणि स्थापित करण्यासाठी रिपॉझिटरीज टॅब पहा.",
+  "browseRepositories": "रिपॉझिटरीज ब्राउझ करा",
+  "addRepoDescription": "विस्तार प्लगइन शोधण्यासाठी आणि स्थापित करण्यासाठी रिपॉझिटरी URL किंवा शॉर्टकोड जोडा.",
+  "skipIntro": "प्रस्तावना वगळा",
+  "skipOutro": "शेवट वगळा",
+  "skipRecap": "सारांश वगळा",
+  "accounts": "खाती"
 }

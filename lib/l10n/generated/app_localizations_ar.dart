@@ -24,10 +24,10 @@ class AppLocalizationsAr extends AppLocalizations {
   String get explore => 'استكشاف';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'استكشاف الأنمي';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'استكشاف الأفلام';
 
   @override
   String get library => 'المكتبة';
@@ -63,13 +63,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get defaultHomeScreen => 'الشاشة الرئيسية الافتراضية';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'موضع العنوان';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'أسفل الملصق';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'داخل الملصق';
 
   @override
   String get player => 'المشغل';
@@ -111,11 +111,11 @@ class AppLocalizationsAr extends AppLocalizations {
   String get dohProvider => 'مزود DoH';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'وكيل GitHub';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'توجيه تنزيلات الإضافات عبر jsDelivr لتجاوز حظر مزوّد الخدمة.';
 
   @override
   String get manageExtensions => 'إدارة الإضافات';
@@ -494,7 +494,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get playNow => 'تشغيل الآن';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'التالي';
 
   @override
   String get deleteDownloadPrompt => 'حذف التنزيل؟';
@@ -671,21 +671,21 @@ class AppLocalizationsAr extends AppLocalizations {
   String get installed => 'مثبت';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'المستودعات';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'لا توجد إضافات مثبتة';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'تصفّح تبويب المستودعات لاكتشاف الإضافات وتثبيتها.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'تصفّح المستودعات';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'أضف رابط مستودع أو رمزًا مختصرًا لاكتشاف إضافات البرنامج وتثبيتها.';
 
   @override
   String updateTo(String version) {
@@ -1121,13 +1121,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get skip => 'تخطي';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'تخطي المقدمة';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'تخطي النهاية';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'تخطي الملخص';
 
   @override
   String get goLive => 'البث المباشر';
@@ -1180,7 +1180,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get subtitleAccounts => 'حسابات الترجمة';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'الحسابات';
 
   @override
   String get notLoggedIn => 'غير مسجّل الدخول';
@@ -1338,6 +1338,12 @@ class AppLocalizationsArApc extends AppLocalizationsAr {
   String get explore => 'استكشاف';
 
   @override
+  String get exploreAnime => 'استكشاف الأنمي';
+
+  @override
+  String get exploreMovies => 'استكشاف الأفلام';
+
+  @override
   String get library => 'المكتبة';
 
   @override
@@ -1369,6 +1375,15 @@ class AppLocalizationsArApc extends AppLocalizationsAr {
 
   @override
   String get defaultHomeScreen => 'الشاشة الرئيسية الافتراضية';
+
+  @override
+  String get titlePosition => 'موضع العنوان';
+
+  @override
+  String get titlePositionBelowPoster => 'تحت الملصق';
+
+  @override
+  String get titlePositionInsidePoster => 'جوّا الملصق';
 
   @override
   String get player => 'المشغل';
@@ -1408,6 +1423,13 @@ class AppLocalizationsArApc extends AppLocalizationsAr {
 
   @override
   String get dohProvider => 'مزود DoH';
+
+  @override
+  String get githubProxy => 'وكيل GitHub';
+
+  @override
+  String get githubProxySubtitle =>
+      'مرّر تنزيلات الإضافات عبر jsDelivr لتخطي حظر مزوّد الإنترنت.';
 
   @override
   String get manageExtensions => 'إدارة الإضافات';
@@ -1780,6 +1802,9 @@ class AppLocalizationsArApc extends AppLocalizationsAr {
   String get playNow => 'شغل هلق';
 
   @override
+  String get upNext => 'اللي جاي';
+
+  @override
   String get deleteDownloadPrompt => 'حذف التحميل؟';
 
   @override
@@ -1947,6 +1972,23 @@ class AppLocalizationsArApc extends AppLocalizationsAr {
 
   @override
   String get installed => 'مثبت';
+
+  @override
+  String get repositories => 'المستودعات';
+
+  @override
+  String get noExtensionsInstalled => 'ما في إضافات مثبتة';
+
+  @override
+  String get browseRepositoriesToInstall =>
+      'افتح تبويب المستودعات لتلاقي إضافات وتثبتها.';
+
+  @override
+  String get browseRepositories => 'تصفّح المستودعات';
+
+  @override
+  String get addRepoDescription =>
+      'ضيف رابط مستودع أو رمز مختصر لتلاقي إضافات وتثبتها.';
 
   @override
   String updateTo(String version) {
@@ -2383,6 +2425,15 @@ class AppLocalizationsArApc extends AppLocalizationsAr {
   String get skip => 'تخطي';
 
   @override
+  String get skipIntro => 'تخطي المقدمة';
+
+  @override
+  String get skipOutro => 'تخطي النهاية';
+
+  @override
+  String get skipRecap => 'تخطي الملخص';
+
+  @override
   String get goLive => 'مباشر';
 
   @override
@@ -2431,6 +2482,9 @@ class AppLocalizationsArApc extends AppLocalizationsAr {
 
   @override
   String get subtitleAccounts => 'حسابات الترجمة';
+
+  @override
+  String get accounts => 'الحسابات';
 
   @override
   String get notLoggedIn => 'غير مسجّل الدخول';

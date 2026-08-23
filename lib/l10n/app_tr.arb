@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Anime keşfet",
+  "exploreMovies": "Film keşfet",
+  "titlePosition": "Başlık konumu",
+  "titlePositionBelowPoster": "Afişin altında",
+  "titlePositionInsidePoster": "Afişin içinde",
+  "githubProxy": "GitHub vekil sunucusu",
+  "githubProxySubtitle": "Servis sağlayıcı engellerini aşmak için eklenti indirmelerini jsDelivr üzerinden yönlendir.",
+  "upNext": "Sırada",
+  "repositories": "Depolar",
+  "noExtensionsInstalled": "Yüklü eklenti yok",
+  "browseRepositoriesToInstall": "Eklentileri keşfetmek ve yüklemek için Depolar sekmesine göz atın.",
+  "browseRepositories": "Depolara göz at",
+  "addRepoDescription": "Eklenti eklerini keşfetmek ve yüklemek için bir depo URL'si veya kısa kod ekleyin.",
+  "skipIntro": "Girişi atla",
+  "skipOutro": "Kapanışı atla",
+  "skipRecap": "Özeti atla",
+  "accounts": "Hesaplar"
 }

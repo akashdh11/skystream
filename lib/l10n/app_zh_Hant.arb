@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "探索動畫",
+  "exploreMovies": "探索電影",
+  "titlePosition": "標題位置",
+  "titlePositionBelowPoster": "海報下方",
+  "titlePositionInsidePoster": "海報內",
+  "githubProxy": "GitHub 代理",
+  "githubProxySubtitle": "透過 jsDelivr 轉送擴充功能下載，以繞過電信業者封鎖。",
+  "upNext": "即將播放",
+  "repositories": "儲存庫",
+  "noExtensionsInstalled": "尚未安裝擴充功能",
+  "browseRepositoriesToInstall": "開啟「儲存庫」分頁，探索並安裝擴充功能。",
+  "browseRepositories": "瀏覽儲存庫",
+  "addRepoDescription": "新增儲存庫 URL 或短代碼，以探索並安裝擴充外掛。",
+  "skipIntro": "略過片頭",
+  "skipOutro": "略過片尾",
+  "skipRecap": "略過前情提要",
+  "accounts": "帳戶"
 }

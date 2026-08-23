@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "அனிமேவை உலாவுக",
+  "exploreMovies": "திரைப்படங்களை உலாவுக",
+  "titlePosition": "தலைப்பு இடம்",
+  "titlePositionBelowPoster": "போஸ்டருக்குக் கீழே",
+  "titlePositionInsidePoster": "போஸ்டருக்குள்",
+  "githubProxy": "GitHub ப்ராக்ஸி",
+  "githubProxySubtitle": "ISP தடைகளைத் தவிர்க்க நீட்சி பதிவிறக்கங்களை jsDelivr வழியாக அனுப்பவும்.",
+  "upNext": "அடுத்து",
+  "repositories": "களஞ்சியங்கள்",
+  "noExtensionsInstalled": "நீட்சிகள் எதுவும் நிறுவப்படவில்லை",
+  "browseRepositoriesToInstall": "நீட்சிகளைக் கண்டறிந்து நிறுவ களஞ்சியங்கள் தாவலைப் பார்க்கவும்.",
+  "browseRepositories": "களஞ்சியங்களை உலாவுக",
+  "addRepoDescription": "நீட்சி செருகுநிரல்களைக் கண்டறிந்து நிறுவ களஞ்சிய URL அல்லது குறுங்குறியீட்டைச் சேர்க்கவும்.",
+  "skipIntro": "தொடக்கத்தைத் தவிர்",
+  "skipOutro": "முடிவைத் தவிர்",
+  "skipRecap": "சுருக்கத்தைத் தவிர்",
+  "accounts": "கணக்குகள்"
 }

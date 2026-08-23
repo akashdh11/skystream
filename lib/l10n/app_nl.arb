@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Anime ontdekken",
+  "exploreMovies": "Films ontdekken",
+  "titlePosition": "Titelpositie",
+  "titlePositionBelowPoster": "Onder de poster",
+  "titlePositionInsidePoster": "In de poster",
+  "githubProxy": "GitHub-proxy",
+  "githubProxySubtitle": "Downloads van extensies via jsDelivr leiden om blokkades van de provider te omzeilen.",
+  "upNext": "Hierna",
+  "repositories": "Repository's",
+  "noExtensionsInstalled": "Geen extensies geïnstalleerd",
+  "browseRepositoriesToInstall": "Open het tabblad Repository's om extensies te ontdekken en te installeren.",
+  "browseRepositories": "Repository's verkennen",
+  "addRepoDescription": "Voeg een repository-URL of shortcode toe om extensieplug-ins te ontdekken en te installeren.",
+  "skipIntro": "Intro overslaan",
+  "skipOutro": "Aftiteling overslaan",
+  "skipRecap": "Samenvatting overslaan",
+  "accounts": "Accounts"
 }

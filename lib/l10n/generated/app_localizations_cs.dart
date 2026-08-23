@@ -24,10 +24,10 @@ class AppLocalizationsCs extends AppLocalizations {
   String get explore => 'Prozkoumat';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Prozkoumat anime';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Prozkoumat filmy';
 
   @override
   String get library => 'Knihovna';
@@ -63,13 +63,13 @@ class AppLocalizationsCs extends AppLocalizations {
   String get defaultHomeScreen => 'Výchozí domovská obrazovka';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'Pozice názvu';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'Pod plakátem';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'Na plakátu';
 
   @override
   String get player => 'Přehrávač';
@@ -111,11 +111,11 @@ class AppLocalizationsCs extends AppLocalizations {
   String get dohProvider => 'Poskytovatel DoH';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'Proxy GitHubu';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'Směrovat stahování rozšíření přes jsDelivr a obejít tak blokování poskytovatelem.';
 
   @override
   String get manageExtensions => 'Spravovat rozšíření';
@@ -493,7 +493,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get playNow => 'Přehrát nyní';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'Následuje';
 
   @override
   String get deleteDownloadPrompt => 'Smazat stažení?';
@@ -669,21 +669,21 @@ class AppLocalizationsCs extends AppLocalizations {
   String get installed => 'Nainstalováno';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'Repozitáře';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Nejsou nainstalována žádná rozšíření';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Otevřete kartu Repozitáře a objevte a nainstalujte rozšíření.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Procházet repozitáře';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Přidejte URL repozitáře nebo zkrácený kód a objevte a nainstalujte pluginy rozšíření.';
 
   @override
   String updateTo(String version) {
@@ -1119,13 +1119,13 @@ class AppLocalizationsCs extends AppLocalizations {
   String get skip => 'Přeskočit';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Přeskočit úvod';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Přeskočit závěr';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Přeskočit shrnutí';
 
   @override
   String get goLive => 'Živě';
@@ -1178,7 +1178,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get subtitleAccounts => 'Účty titulků';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'Účty';
 
   @override
   String get notLoggedIn => 'Not logged in';

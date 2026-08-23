@@ -24,10 +24,10 @@ class AppLocalizationsUk extends AppLocalizations {
   String get explore => 'Дослідити';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Огляд аніме';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Огляд фільмів';
 
   @override
   String get library => 'Бібліотека';
@@ -63,13 +63,13 @@ class AppLocalizationsUk extends AppLocalizations {
   String get defaultHomeScreen => 'Головний екран за замовчуванням';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'Розташування назви';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'Під постером';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'На постері';
 
   @override
   String get player => 'Плеєр';
@@ -111,11 +111,11 @@ class AppLocalizationsUk extends AppLocalizations {
   String get dohProvider => 'Провайдер DoH';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'Проксі GitHub';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'Спрямовувати завантаження розширень через jsDelivr, щоб обійти блокування провайдера.';
 
   @override
   String get manageExtensions => 'Керування розширеннями';
@@ -495,7 +495,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get playNow => 'Дивитися зараз';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'Далі';
 
   @override
   String get deleteDownloadPrompt => 'Видалити завантаження?';
@@ -672,21 +672,21 @@ class AppLocalizationsUk extends AppLocalizations {
   String get installed => 'Встановлено';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'Репозиторії';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Розширення не встановлено';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Відкрийте вкладку «Репозиторії», щоб знайти та встановити розширення.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Огляд репозиторіїв';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Додайте URL репозиторію або короткий код, щоб знайти та встановити плагіни розширень.';
 
   @override
   String updateTo(String version) {
@@ -1129,13 +1129,13 @@ class AppLocalizationsUk extends AppLocalizations {
   String get skip => 'Пропустити';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Пропустити заставку';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Пропустити титри';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Пропустити огляд';
 
   @override
   String get goLive => 'В ефір';
@@ -1188,7 +1188,7 @@ class AppLocalizationsUk extends AppLocalizations {
   String get subtitleAccounts => 'Акаунти субтитрів';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'Облікові записи';
 
   @override
   String get notLoggedIn => 'Not logged in';

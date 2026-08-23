@@ -24,10 +24,10 @@ class AppLocalizationsDe extends AppLocalizations {
   String get explore => 'Erkunden';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Anime entdecken';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Filme entdecken';
 
   @override
   String get library => 'Bibliothek';
@@ -63,13 +63,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get defaultHomeScreen => 'Standard-Startbildschirm';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'Titelposition';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'Unter dem Poster';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'Im Poster';
 
   @override
   String get player => 'Player';
@@ -111,11 +111,11 @@ class AppLocalizationsDe extends AppLocalizations {
   String get dohProvider => 'DoH-Anbieter';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'GitHub-Proxy';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'Erweiterungs-Downloads über jsDelivr leiten, um Sperren des Anbieters zu umgehen.';
 
   @override
   String get manageExtensions => 'Erweiterungen verwalten';
@@ -496,7 +496,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get playNow => 'Jetzt abspielen';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'Als Nächstes';
 
   @override
   String get deleteDownloadPrompt => 'Download löschen?';
@@ -679,18 +679,18 @@ class AppLocalizationsDe extends AppLocalizations {
   String get repositories => 'Repositories';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Keine Erweiterungen installiert';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Öffne den Tab „Repositories“, um Erweiterungen zu entdecken und zu installieren.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Repositories durchsuchen';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Füge eine Repository-URL oder einen Kurzcode hinzu, um Erweiterungs-Plugins zu entdecken und zu installieren.';
 
   @override
   String updateTo(String version) {
@@ -1135,13 +1135,13 @@ class AppLocalizationsDe extends AppLocalizations {
   String get skip => 'Überspringen';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Intro überspringen';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Outro überspringen';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Rückblick überspringen';
 
   @override
   String get goLive => 'Live gehen';
@@ -1194,7 +1194,7 @@ class AppLocalizationsDe extends AppLocalizations {
   String get subtitleAccounts => 'Untertitel-Konten';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'Konten';
 
   @override
   String get notLoggedIn => 'Nicht angemeldet';

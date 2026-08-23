@@ -24,10 +24,10 @@ class AppLocalizationsEl extends AppLocalizations {
   String get explore => 'Εξερεύνηση';
 
   @override
-  String get exploreAnime => 'Explore Anime';
+  String get exploreAnime => 'Εξερεύνηση anime';
 
   @override
-  String get exploreMovies => 'Explore Movies';
+  String get exploreMovies => 'Εξερεύνηση ταινιών';
 
   @override
   String get library => 'Βιβλιοθήκη';
@@ -63,13 +63,13 @@ class AppLocalizationsEl extends AppLocalizations {
   String get defaultHomeScreen => 'Προεπιλεγμένη αρχική οθόνη';
 
   @override
-  String get titlePosition => 'Title Position';
+  String get titlePosition => 'Θέση τίτλου';
 
   @override
-  String get titlePositionBelowPoster => 'Below Poster';
+  String get titlePositionBelowPoster => 'Κάτω από την αφίσα';
 
   @override
-  String get titlePositionInsidePoster => 'Inside Poster';
+  String get titlePositionInsidePoster => 'Μέσα στην αφίσα';
 
   @override
   String get player => 'Πρόγραμμα αναπαραγωγής';
@@ -111,11 +111,11 @@ class AppLocalizationsEl extends AppLocalizations {
   String get dohProvider => 'Πάροχος DoH';
 
   @override
-  String get githubProxy => 'GitHub Proxy';
+  String get githubProxy => 'Διακομιστής μεσολάβησης GitHub';
 
   @override
   String get githubProxySubtitle =>
-      'Route extension downloads through jsDelivr to bypass ISP blocks.';
+      'Δρομολόγηση των λήψεων επεκτάσεων μέσω jsDelivr για παράκαμψη αποκλεισμών του παρόχου.';
 
   @override
   String get manageExtensions => 'Διαχείριση επεκτάσεων';
@@ -497,7 +497,7 @@ class AppLocalizationsEl extends AppLocalizations {
   String get playNow => 'Προβολή τώρα';
 
   @override
-  String get upNext => 'Up Next';
+  String get upNext => 'Ακολουθεί';
 
   @override
   String get deleteDownloadPrompt => 'Διαγραφή λήψης;';
@@ -676,21 +676,21 @@ class AppLocalizationsEl extends AppLocalizations {
   String get installed => 'Εγκαταστάθηκε';
 
   @override
-  String get repositories => 'Repositories';
+  String get repositories => 'Αποθετήρια';
 
   @override
-  String get noExtensionsInstalled => 'No Extensions Installed';
+  String get noExtensionsInstalled => 'Δεν έχουν εγκατασταθεί επεκτάσεις';
 
   @override
   String get browseRepositoriesToInstall =>
-      'Browse the Repositories tab to discover and install extensions.';
+      'Ανοίξτε την καρτέλα «Αποθετήρια» για να βρείτε και να εγκαταστήσετε επεκτάσεις.';
 
   @override
-  String get browseRepositories => 'Browse Repositories';
+  String get browseRepositories => 'Περιήγηση αποθετηρίων';
 
   @override
   String get addRepoDescription =>
-      'Add a repository URL or shortcode to discover and install extension plugins.';
+      'Προσθέστε ένα URL αποθετηρίου ή έναν σύντομο κωδικό για να βρείτε και να εγκαταστήσετε πρόσθετα.';
 
   @override
   String updateTo(String version) {
@@ -1136,13 +1136,13 @@ class AppLocalizationsEl extends AppLocalizations {
   String get skip => 'Παράλειψη';
 
   @override
-  String get skipIntro => 'Skip Intro';
+  String get skipIntro => 'Παράλειψη εισαγωγής';
 
   @override
-  String get skipOutro => 'Skip Outro';
+  String get skipOutro => 'Παράλειψη τελικών τίτλων';
 
   @override
-  String get skipRecap => 'Skip Recap';
+  String get skipRecap => 'Παράλειψη ανακεφαλαίωσης';
 
   @override
   String get goLive => 'Ζωντανά';
@@ -1195,7 +1195,7 @@ class AppLocalizationsEl extends AppLocalizations {
   String get subtitleAccounts => 'Λογαριασμοί υποτίτλων';
 
   @override
-  String get accounts => 'Accounts';
+  String get accounts => 'Λογαριασμοί';
 
   @override
   String get notLoggedIn => 'Not logged in';

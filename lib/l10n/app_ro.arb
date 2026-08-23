@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Explorează anime",
+  "exploreMovies": "Explorează filme",
+  "titlePosition": "Poziția titlului",
+  "titlePositionBelowPoster": "Sub poster",
+  "titlePositionInsidePoster": "Pe poster",
+  "githubProxy": "Proxy GitHub",
+  "githubProxySubtitle": "Rutează descărcările de extensii prin jsDelivr pentru a ocoli blocajele furnizorului.",
+  "upNext": "Urmează",
+  "repositories": "Depozite",
+  "noExtensionsInstalled": "Nicio extensie instalată",
+  "browseRepositoriesToInstall": "Deschide fila Depozite pentru a descoperi și instala extensii.",
+  "browseRepositories": "Explorează depozitele",
+  "addRepoDescription": "Adaugă URL-ul unui depozit sau un cod scurt pentru a descoperi și instala pluginuri de extensie.",
+  "skipIntro": "Sari peste intro",
+  "skipOutro": "Sari peste final",
+  "skipRecap": "Sari peste rezumat",
+  "accounts": "Conturi"
 }

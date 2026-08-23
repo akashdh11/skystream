@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Истражи аниме",
+  "exploreMovies": "Истражи филмови",
+  "titlePosition": "Позиција на насловот",
+  "titlePositionBelowPoster": "Под постерот",
+  "titlePositionInsidePoster": "Во постерот",
+  "githubProxy": "GitHub прокси",
+  "githubProxySubtitle": "Насочи ги преземањата на екстензии преку jsDelivr за да ги заобиколиш блокадите на операторот.",
+  "upNext": "Следно",
+  "repositories": "Складишта",
+  "noExtensionsInstalled": "Нема инсталирани екстензии",
+  "browseRepositoriesToInstall": "Отвори го јазичето „Складишта“ за да откриеш и инсталираш екстензии.",
+  "browseRepositories": "Прегледај складишта",
+  "addRepoDescription": "Додај URL на складиште или краток код за да откриеш и инсталираш приклучоци.",
+  "skipIntro": "Прескокни вовед",
+  "skipOutro": "Прескокни крај",
+  "skipRecap": "Прескокни резиме",
+  "accounts": "Сметки"
 }

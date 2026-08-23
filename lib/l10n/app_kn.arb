@@ -405,8 +405,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "ಅನಿಮೆ ಅನ್ವೇಷಿಸಿ",
+  "exploreMovies": "ಚಲನಚಿತ್ರಗಳನ್ನು ಅನ್ವೇಷಿಸಿ",
+  "titlePosition": "ಶೀರ್ಷಿಕೆಯ ಸ್ಥಾನ",
+  "titlePositionBelowPoster": "ಪೋಸ್ಟರ್ ಕೆಳಗೆ",
+  "titlePositionInsidePoster": "ಪೋಸ್ಟರ್ ಒಳಗೆ",
+  "githubProxy": "GitHub ಪ್ರಾಕ್ಸಿ",
+  "githubProxySubtitle": "ISP ನಿರ್ಬಂಧಗಳನ್ನು ತಪ್ಪಿಸಲು ವಿಸ್ತರಣೆ ಡೌನ್‌ಲೋಡ್‌ಗಳನ್ನು jsDelivr ಮೂಲಕ ಕಳುಹಿಸಿ.",
+  "upNext": "ಮುಂದೆ",
+  "repositories": "ರೆಪೊಸಿಟರಿಗಳು",
+  "noExtensionsInstalled": "ಯಾವುದೇ ವಿಸ್ತರಣೆ ಅನುಸ್ಥಾಪಿಸಿಲ್ಲ",
+  "browseRepositoriesToInstall": "ವಿಸ್ತರಣೆಗಳನ್ನು ಹುಡುಕಿ ಅನುಸ್ಥಾಪಿಸಲು ರೆಪೊಸಿಟರಿಗಳ ಟ್ಯಾಬ್ ನೋಡಿ.",
+  "browseRepositories": "ರೆಪೊಸಿಟರಿಗಳನ್ನು ವೀಕ್ಷಿಸಿ",
+  "addRepoDescription": "ವಿಸ್ತರಣೆ ಪ್ಲಗಿನ್‌ಗಳನ್ನು ಹುಡುಕಿ ಅನುಸ್ಥಾಪಿಸಲು ರೆಪೊಸಿಟರಿ URL ಅಥವಾ ಶಾರ್ಟ್‌ಕೋಡ್ ಸೇರಿಸಿ.",
+  "skipIntro": "ಪ್ರಾರಂಭ ಬಿಟ್ಟುಬಿಡಿ",
+  "skipOutro": "ಅಂತ್ಯ ಬಿಟ್ಟುಬಿಡಿ",
+  "skipRecap": "ಸಾರಾಂಶ ಬಿಟ್ಟುಬಿಡಿ",
+  "accounts": "ಖಾತೆಗಳು"
 }

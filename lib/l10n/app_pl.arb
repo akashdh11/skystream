@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Przeglądaj anime",
+  "exploreMovies": "Przeglądaj filmy",
+  "titlePosition": "Pozycja tytułu",
+  "titlePositionBelowPoster": "Pod plakatem",
+  "titlePositionInsidePoster": "Na plakacie",
+  "githubProxy": "Proxy GitHuba",
+  "githubProxySubtitle": "Kieruj pobieranie rozszerzeń przez jsDelivr, aby ominąć blokady dostawcy internetu.",
+  "upNext": "Dalej",
+  "repositories": "Repozytoria",
+  "noExtensionsInstalled": "Brak zainstalowanych rozszerzeń",
+  "browseRepositoriesToInstall": "Otwórz kartę Repozytoria, aby znaleźć i zainstalować rozszerzenia.",
+  "browseRepositories": "Przeglądaj repozytoria",
+  "addRepoDescription": "Dodaj adres URL repozytorium lub krótki kod, aby znaleźć i zainstalować wtyczki rozszerzeń.",
+  "skipIntro": "Pomiń intro",
+  "skipOutro": "Pomiń napisy",
+  "skipRecap": "Pomiń streszczenie",
+  "accounts": "Konta"
 }

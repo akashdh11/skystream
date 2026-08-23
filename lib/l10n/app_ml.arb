@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "അനിമേ കണ്ടെത്തുക",
+  "exploreMovies": "സിനിമകൾ കണ്ടെത്തുക",
+  "titlePosition": "ശീർഷക സ്ഥാനം",
+  "titlePositionBelowPoster": "പോസ്റ്ററിന് താഴെ",
+  "titlePositionInsidePoster": "പോസ്റ്ററിനുള്ളിൽ",
+  "githubProxy": "GitHub പ്രോക്സി",
+  "githubProxySubtitle": "ISP തടസ്സങ്ങൾ ഒഴിവാക്കാൻ എക്സ്റ്റൻഷൻ ഡൗൺലോഡുകൾ jsDelivr വഴി അയയ്ക്കുക.",
+  "upNext": "അടുത്തത്",
+  "repositories": "റിപ്പോസിറ്ററികൾ",
+  "noExtensionsInstalled": "എക്സ്റ്റൻഷനുകളൊന്നും ഇൻസ്റ്റാൾ ചെയ്തിട്ടില്ല",
+  "browseRepositoriesToInstall": "എക്സ്റ്റൻഷനുകൾ കണ്ടെത്തി ഇൻസ്റ്റാൾ ചെയ്യാൻ റിപ്പോസിറ്ററി ടാബ് നോക്കുക.",
+  "browseRepositories": "റിപ്പോസിറ്ററികൾ കാണുക",
+  "addRepoDescription": "എക്സ്റ്റൻഷൻ പ്ലഗിനുകൾ കണ്ടെത്തി ഇൻസ്റ്റാൾ ചെയ്യാൻ ഒരു റിപ്പോസിറ്ററി URL അല്ലെങ്കിൽ ഷോർട്ട്കോഡ് ചേർക്കുക.",
+  "skipIntro": "ഇൻട്രോ ഒഴിവാക്കുക",
+  "skipOutro": "ഔട്രോ ഒഴിവാക്കുക",
+  "skipRecap": "സംഗ്രഹം ഒഴിവാക്കുക",
+  "accounts": "അക്കൗണ്ടുകൾ"
 }

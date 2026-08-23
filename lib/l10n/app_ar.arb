@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "استكشاف الأنمي",
+  "exploreMovies": "استكشاف الأفلام",
+  "titlePosition": "موضع العنوان",
+  "titlePositionBelowPoster": "أسفل الملصق",
+  "titlePositionInsidePoster": "داخل الملصق",
+  "githubProxy": "وكيل GitHub",
+  "githubProxySubtitle": "توجيه تنزيلات الإضافات عبر jsDelivr لتجاوز حظر مزوّد الخدمة.",
+  "upNext": "التالي",
+  "repositories": "المستودعات",
+  "noExtensionsInstalled": "لا توجد إضافات مثبتة",
+  "browseRepositoriesToInstall": "تصفّح تبويب المستودعات لاكتشاف الإضافات وتثبيتها.",
+  "browseRepositories": "تصفّح المستودعات",
+  "addRepoDescription": "أضف رابط مستودع أو رمزًا مختصرًا لاكتشاف إضافات البرنامج وتثبيتها.",
+  "skipIntro": "تخطي المقدمة",
+  "skipOutro": "تخطي النهاية",
+  "skipRecap": "تخطي الملخص",
+  "accounts": "الحسابات"
 }

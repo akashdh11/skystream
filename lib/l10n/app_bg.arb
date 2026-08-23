@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Разгледай аниме",
+  "exploreMovies": "Разгледай филми",
+  "titlePosition": "Позиция на заглавието",
+  "titlePositionBelowPoster": "Под постера",
+  "titlePositionInsidePoster": "Върху постера",
+  "githubProxy": "GitHub прокси",
+  "githubProxySubtitle": "Насочвайте изтеглянията на разширения през jsDelivr, за да заобиколите блокировки от доставчика.",
+  "upNext": "Следва",
+  "repositories": "Хранилища",
+  "noExtensionsInstalled": "Няма инсталирани разширения",
+  "browseRepositoriesToInstall": "Отворете раздела „Хранилища“, за да откриете и инсталирате разширения.",
+  "browseRepositories": "Разгледай хранилищата",
+  "addRepoDescription": "Добавете URL на хранилище или кратък код, за да откриете и инсталирате плъгини.",
+  "skipIntro": "Пропусни началото",
+  "skipOutro": "Пропусни финала",
+  "skipRecap": "Пропусни резюмето",
+  "accounts": "Профили"
 }

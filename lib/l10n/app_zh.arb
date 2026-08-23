@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "探索动漫",
+  "exploreMovies": "探索电影",
+  "titlePosition": "标题位置",
+  "titlePositionBelowPoster": "海报下方",
+  "titlePositionInsidePoster": "海报内",
+  "githubProxy": "GitHub 代理",
+  "githubProxySubtitle": "通过 jsDelivr 转发扩展下载，以绕过运营商封锁。",
+  "upNext": "即将播放",
+  "repositories": "仓库",
+  "noExtensionsInstalled": "未安装扩展",
+  "browseRepositoriesToInstall": "打开“仓库”标签页，发现并安装扩展。",
+  "browseRepositories": "浏览仓库",
+  "addRepoDescription": "添加仓库 URL 或短代码，以发现并安装扩展插件。",
+  "skipIntro": "跳过片头",
+  "skipOutro": "跳过片尾",
+  "skipRecap": "跳过前情回顾",
+  "accounts": "账户"
 }

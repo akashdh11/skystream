@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "অ্যানিমে অন্বেষণ",
+  "exploreMovies": "সিনেমা অন্বেষণ",
+  "titlePosition": "শিরোনামের অবস্থান",
+  "titlePositionBelowPoster": "পোস্টারের নিচে",
+  "titlePositionInsidePoster": "পোস্টারের ভিতরে",
+  "githubProxy": "GitHub প্রক্সি",
+  "githubProxySubtitle": "ISP ব্লক এড়াতে এক্সটেনশন ডাউনলোড jsDelivr-এর মাধ্যমে পাঠান।",
+  "upNext": "এরপরে",
+  "repositories": "রিপোজিটরি",
+  "noExtensionsInstalled": "কোনো এক্সটেনশন ইনস্টল করা নেই",
+  "browseRepositoriesToInstall": "এক্সটেনশন খুঁজে ইনস্টল করতে রিপোজিটরি ট্যাব দেখুন।",
+  "browseRepositories": "রিপোজিটরি ব্রাউজ করুন",
+  "addRepoDescription": "এক্সটেনশন প্লাগইন খুঁজে ইনস্টল করতে একটি রিপোজিটরি URL বা শর্টকোড যোগ করুন।",
+  "skipIntro": "ইন্ট্রো এড়িয়ে যান",
+  "skipOutro": "আউট্রো এড়িয়ে যান",
+  "skipRecap": "রিক্যাপ এড়িয়ে যান",
+  "accounts": "অ্যাকাউন্ট"
 }

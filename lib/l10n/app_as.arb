@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "এনিমে অন্বেষণ কৰক",
+  "exploreMovies": "চলচ্চিত্ৰ অন্বেষণ কৰক",
+  "titlePosition": "শিৰোনামৰ অৱস্থান",
+  "titlePositionBelowPoster": "পʼষ্টাৰৰ তলত",
+  "titlePositionInsidePoster": "পʼষ্টাৰৰ ভিতৰত",
+  "githubProxy": "GitHub প্ৰক্সি",
+  "githubProxySubtitle": "ISP অৱৰোধ এৰাবলৈ এক্সটেনচন ডাউনলোড jsDelivr-ৰ যোগেদি পঠিয়াওক।",
+  "upNext": "পিছত",
+  "repositories": "ৰিপʼজিটৰি",
+  "noExtensionsInstalled": "কোনো এক্সটেনচন ইনষ্টল কৰা নাই",
+  "browseRepositoriesToInstall": "এক্সটেনচন বিচাৰি ইনষ্টল কৰিবলৈ ৰিপʼজিটৰি টেব চাওক।",
+  "browseRepositories": "ৰিপʼজিটৰি চাওক",
+  "addRepoDescription": "এক্সটেনচন প্লাগইন বিচাৰি ইনষ্টল কৰিবলৈ এটা ৰিপʼজিটৰি URL বা শ্বৰ্টক'ড যোগ কৰক।",
+  "skipIntro": "আৰম্ভণি এৰক",
+  "skipOutro": "সামৰণি এৰক",
+  "skipRecap": "পুনৰালোচনা এৰক",
+  "accounts": "একাউণ্ট"
 }

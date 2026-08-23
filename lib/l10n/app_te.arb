@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "యానిమేని అన్వేషించండి",
+  "exploreMovies": "సినిమాలను అన్వేషించండి",
+  "titlePosition": "శీర్షిక స్థానం",
+  "titlePositionBelowPoster": "పోస్టర్ కింద",
+  "titlePositionInsidePoster": "పోస్టర్ లోపల",
+  "githubProxy": "GitHub ప్రాక్సీ",
+  "githubProxySubtitle": "ISP నిరోధాలను దాటవేయడానికి పొడిగింపు డౌన్‌లోడ్‌లను jsDelivr ద్వారా పంపండి.",
+  "upNext": "తదుపరి",
+  "repositories": "రిపాజిటరీలు",
+  "noExtensionsInstalled": "ఏ పొడిగింపులూ ఇన్‌స్టాల్ కాలేదు",
+  "browseRepositoriesToInstall": "పొడిగింపులను కనుగొని ఇన్‌స్టాల్ చేయడానికి రిపాజిటరీల ట్యాబ్ చూడండి.",
+  "browseRepositories": "రిపాజిటరీలను చూడండి",
+  "addRepoDescription": "పొడిగింపు ప్లగిన్‌లను కనుగొని ఇన్‌స్టాల్ చేయడానికి రిపాజిటరీ URL లేదా షార్ట్‌కోడ్ జోడించండి.",
+  "skipIntro": "ప్రారంభాన్ని దాటవేయి",
+  "skipOutro": "ముగింపును దాటవేయి",
+  "skipRecap": "సారాంశాన్ని దాటవేయి",
+  "accounts": "ఖాతాలు"
 }

@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Агляд анімэ",
+  "exploreMovies": "Агляд фільмаў",
+  "titlePosition": "Пазіцыя назвы",
+  "titlePositionBelowPoster": "Пад пастарам",
+  "titlePositionInsidePoster": "Унутры пастара",
+  "githubProxy": "Проксі GitHub",
+  "githubProxySubtitle": "Накіроўваць спампоўку пашырэнняў праз jsDelivr, каб абыйсці блакіроўкі правайдара.",
+  "upNext": "Далей",
+  "repositories": "Рэпазіторыі",
+  "noExtensionsInstalled": "Пашырэнні не ўсталяваныя",
+  "browseRepositoriesToInstall": "Адкрыйце ўкладку «Рэпазіторыі», каб знайсці і ўсталяваць пашырэнні.",
+  "browseRepositories": "Агляд рэпазіторыяў",
+  "addRepoDescription": "Дадайце URL рэпазіторыя або кароткі код, каб знайсці і ўсталяваць плагіны пашырэнняў.",
+  "skipIntro": "Прапусціць уступ",
+  "skipOutro": "Прапусціць канцоўку",
+  "skipRecap": "Прапусціць агляд",
+  "accounts": "Уліковыя запісы"
 }

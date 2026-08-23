@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Огляд аніме",
+  "exploreMovies": "Огляд фільмів",
+  "titlePosition": "Розташування назви",
+  "titlePositionBelowPoster": "Під постером",
+  "titlePositionInsidePoster": "На постері",
+  "githubProxy": "Проксі GitHub",
+  "githubProxySubtitle": "Спрямовувати завантаження розширень через jsDelivr, щоб обійти блокування провайдера.",
+  "upNext": "Далі",
+  "repositories": "Репозиторії",
+  "noExtensionsInstalled": "Розширення не встановлено",
+  "browseRepositoriesToInstall": "Відкрийте вкладку «Репозиторії», щоб знайти та встановити розширення.",
+  "browseRepositories": "Огляд репозиторіїв",
+  "addRepoDescription": "Додайте URL репозиторію або короткий код, щоб знайти та встановити плагіни розширень.",
+  "skipIntro": "Пропустити заставку",
+  "skipOutro": "Пропустити титри",
+  "skipRecap": "Пропустити огляд",
+  "accounts": "Облікові записи"
 }

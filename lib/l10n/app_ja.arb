@@ -598,8 +598,23 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "アニメを探す",
+  "exploreMovies": "映画を探す",
+  "titlePosition": "タイトルの位置",
+  "titlePositionBelowPoster": "ポスターの下",
+  "titlePositionInsidePoster": "ポスター内",
+  "githubProxy": "GitHub プロキシ",
+  "githubProxySubtitle": "拡張機能のダウンロードを jsDelivr 経由にして ISP のブロックを回避します。",
+  "upNext": "次のエピソード",
+  "repositories": "リポジトリ",
+  "noExtensionsInstalled": "拡張機能がインストールされていません",
+  "browseRepositoriesToInstall": "「リポジトリ」タブから拡張機能を探してインストールできます。",
+  "browseRepositories": "リポジトリを見る",
+  "addRepoDescription": "リポジトリの URL またはショートコードを追加して、拡張プラグインを探してインストールします。",
+  "skipIntro": "オープニングをスキップ",
+  "skipOutro": "エンディングをスキップ",
+  "skipRecap": "あらすじをスキップ",
+  "accounts": "アカウント"
 }

@@ -601,8 +601,20 @@
   "showResize": "Resize button",
   "showRotate": "Rotate button",
   "showPlaybackSpeed": "Playback speed button",
-  "showEpisodes": "Episodes button"
-,
-  "playerControlsSubtitle": "Show or hide player control buttons"
-
+  "showEpisodes": "Episodes button",
+  "playerControlsSubtitle": "Show or hide player control buttons",
+  "exploreAnime": "Jelajahi Anime",
+  "exploreMovies": "Jelajahi Film",
+  "githubProxy": "Proksi GitHub",
+  "githubProxySubtitle": "Alihkan unduhan ekstensi melalui jsDelivr untuk melewati pemblokiran ISP.",
+  "upNext": "Berikutnya",
+  "repositories": "Repositori",
+  "noExtensionsInstalled": "Tidak Ada Ekstensi Terpasang",
+  "browseRepositoriesToInstall": "Buka tab Repositori untuk menemukan dan memasang ekstensi.",
+  "browseRepositories": "Jelajahi Repositori",
+  "addRepoDescription": "Tambahkan URL repositori atau kode pendek untuk menemukan dan memasang plugin ekstensi.",
+  "skipIntro": "Lewati Intro",
+  "skipOutro": "Lewati Outro",
+  "skipRecap": "Lewati Rekap",
+  "accounts": "Akun"
 }
