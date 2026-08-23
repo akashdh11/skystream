@@ -154,11 +154,11 @@ class _DeveloperOptionsScreenState
   }
 
   Future<void> _pickLocalVideo(BuildContext context) async {
-    final result = await FilePicker.pickFiles(type: FileType.video);
+    final picked = await FilePicker.pickFile(type: FileType.video);
 
-    if (result != null && result.files.single.path != null && context.mounted) {
-      final path = result.files.single.path!;
-      final name = result.files.single.name;
+    if (picked?.path != null && context.mounted) {
+      final path = picked!.path!;
+      final name = picked.name;
 
       unawaited(
         PlayerRoute(
@@ -244,11 +244,11 @@ class _DeveloperOptionsScreenState
   }
 
   Future<void> _pickTorrentFile(BuildContext context) async {
-    final result = await FilePicker.pickFiles(type: FileType.any);
+    final picked = await FilePicker.pickFile(type: FileType.any);
 
-    if (result != null && result.files.single.path != null && context.mounted) {
-      final path = result.files.single.path!;
-      final name = result.files.single.name;
+    if (picked?.path != null && context.mounted) {
+      final path = picked!.path!;
+      final name = picked.name;
 
       unawaited(
         PlayerRoute(

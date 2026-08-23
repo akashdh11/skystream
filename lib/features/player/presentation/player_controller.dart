@@ -5188,12 +5188,12 @@ class PlayerController extends Notifier<PlayerState> {
 
     String? path = filePath;
     if (path == null) {
-      final result = await FilePicker.pickFiles(
+      final picked = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: ['srt', 'vtt', 'ass', 'ssa'],
       );
-      if (result != null && result.files.single.path != null) {
-        path = result.files.single.path!;
+      if (picked?.path != null) {
+        path = picked!.path!;
       }
     }
 
