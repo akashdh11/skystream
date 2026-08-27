@@ -398,14 +398,14 @@ class NuvioEngineHttp {
       });
     }
 
-    try {
+    Future<Map<String, dynamic>> doFetch({bool persistent = true}) async {
       var uri = Uri.parse(rawUrl);
       var redirects = 0;
       while (true) {
         if (_closed) return {errorKey: 'client closed'};
         final request = await _client.openUrl(method, uri);
         request.followRedirects = false;
-        request.persistentConnection = true;
+        request.persistentConnection = persistent;
         if (!headers.keys.any((k) => k.toLowerCase() == 'user-agent')) {
           request.headers.set('user-agent', NuvioEngine.defaultUserAgent);
         }
@@ -474,6 +474,24 @@ class NuvioEngineHttp {
           'headers': responseHeaders,
           'body': text,
         };
+      }
+    }
+
+    try {
+      return await doFetch(persistent: true);
+    } on HandshakeException {
+      try {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        return await doFetch(persistent: false);
+      } catch (retryError) {
+        return {errorKey: retryError.toString()};
+      }
+    } on SocketException {
+      try {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        return await doFetch(persistent: false);
+      } catch (retryError) {
+        return {errorKey: retryError.toString()};
       }
     } catch (error) {
       return {errorKey: error.toString()};

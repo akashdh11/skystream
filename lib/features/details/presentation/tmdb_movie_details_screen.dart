@@ -277,7 +277,7 @@ class _TmdbMovieDetailsScreenState
               child: FilledButton.icon(
                 onPressed: () => _openPluginSources(data, isMovie),
                 icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Play from plugins'),
+                label: const Text('Play from Nuvio plugins'),
               ),
             ),
             if (!isMovie) ...[
@@ -597,7 +597,7 @@ class _TmdbMovieDetailsScreenState
                   child: FilledButton.icon(
                     onPressed: () => _openPluginSources(data, isMovie),
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Play from plugins'),
+                    label: const Text('Play from Nuvio plugins'),
                   ),
                 ),
                 ProviderSearchSection(

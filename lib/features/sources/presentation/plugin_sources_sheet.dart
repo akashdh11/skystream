@@ -4,29 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/network/link_probe_service.dart';
-import '../../../core/utils/source_text.dart';
 import '../../../core/domain/entity/multimedia_item.dart';
-import '../../../core/extensions/extension_manager.dart';
+import '../../../core/network/link_probe_service.dart';
 import '../../../core/nuvio/data/nuvio_stream_service.dart';
 import '../../../core/nuvio/models/nuvio_models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/download_service.dart';
-import '../../stream/data/stream_aggregator.dart';
-import '../../stream/data/stream_browser_provider.dart'
-    show streamAggregatorProvider;
-import '../../stream/data/stream_source.dart';
+import '../../../core/utils/source_text.dart';
 import 'source_sheet_widgets.dart';
 
-/// Plugin-powered sources sheet used from Explore / TMDB details.
+/// Nuvio-powered sources sheet used from Explore / TMDB details.
 ///
-/// Two plugin systems feed this one list:
-/// * **SkyStream plugins** — the JS providers behind "Available Sources (BETA)"
-/// * **Nuvio plugins** — scraper repositories in Nuvio's format, run on the
-///   same device with `getStreams(tmdbId, mediaType, season, episode)`
-///
-/// Stremio add-ons are deliberately *not* here: they have their own tab, sheet
-/// and pipeline.
+/// Runs scraper repositories in Nuvio's format on background isolates with
+/// `getStreams(tmdbId, mediaType, season, episode)`.
 class PluginSourcesSheet extends ConsumerStatefulWidget {
   final MultimediaItem target;
   final Episode? episode;
@@ -59,41 +49,30 @@ class PluginSourcesSheet extends ConsumerStatefulWidget {
   ConsumerState<PluginSourcesSheet> createState() => _PluginSourcesSheetState();
 }
 
-/// One row: either a SkyStream plugin link or a Nuvio scraper link.
+/// One row wrapping a resolved Nuvio scraper link.
 class _Row {
-  final AggregatedStream? plugin;
-  final NuvioStreamResult? nuvio;
+  final NuvioStreamResult nuvio;
 
-  const _Row.fromPlugin(AggregatedStream this.plugin) : nuvio = null;
-  const _Row.fromNuvio(NuvioStreamResult this.nuvio) : plugin = null;
+  const _Row(this.nuvio);
 
-  bool get isNuvio => nuvio != null;
+  String get url => nuvio.url;
 
-  String get url => isNuvio ? nuvio!.url : plugin!.stream.url;
+  String get providerName => nuvio.scraperName;
 
-  String get providerName =>
-      isNuvio ? nuvio!.scraperName : plugin!.providerName;
-
-  /// One consistent line for both systems: quality-adjacent facts first, then
-  /// whatever the provider called it, all cleaned the same way.
+  /// Consistent detail line: size, language, seeders, and stream name.
   String get detail => buildSourceDetail(
-    isNuvio
-        ? [
-            nuvio!.size,
-            nuvio!.language,
-            nuvio!.seeders == null ? null : '${nuvio!.seeders} seeds',
-            nuvio!.name ?? nuvio!.title,
-          ]
-        : [plugin!.stream.displaySource],
+    [
+      nuvio.size,
+      nuvio.language,
+      nuvio.seeders == null ? null : '${nuvio.seeders} seeds',
+      nuvio.name ?? nuvio.title,
+    ],
     fallback: providerName,
   );
 
-  Map<String, String>? get headers =>
-      isNuvio ? nuvio!.headers : plugin!.stream.headers;
+  Map<String, String>? get headers => nuvio.headers;
 
-  bool get isTorrent => isNuvio
-      ? nuvio!.isTorrent
-      : plugin!.stream.url.startsWith('magnet:');
+  bool get isTorrent => nuvio.isTorrent;
 
   bool get canDownload => url.startsWith('http') && !isTorrent;
 
@@ -101,48 +80,33 @@ class _Row {
   static final RegExp _uhd = RegExp(r'\b(4k|uhd|2160)\b', caseSensitive: false);
 
   int get qualityScore {
-    if (!isNuvio) return plugin!.qualityScore;
-    final text = '${nuvio!.quality ?? ''} ${nuvio!.title} ${nuvio!.url}';
+    final text = '${nuvio.quality ?? ''} ${nuvio.title} ${nuvio.url}';
     if (_uhd.hasMatch(text)) return 2160;
     final match = _res.firstMatch(text);
     return match == null ? 0 : (int.tryParse(match.group(1)!) ?? 0);
   }
 
   String get qualityLabel {
-    if (!isNuvio) return plugin!.qualityLabel;
     final score = qualityScore;
     if (score >= 2160) return '4K';
     if (score > 0) return '${score}p';
-    final quality = nuvio!.quality?.trim();
+    final quality = nuvio.quality?.trim();
     return (quality == null || quality.isEmpty) ? 'Auto' : quality;
   }
 
-  bool get isHdr => isNuvio
-      ? RegExp(
-          r'\b(hdr10\+?|hdr|dolby\s*vision|dovi)\b',
-          caseSensitive: false,
-        ).hasMatch('${nuvio!.quality ?? ''} ${nuvio!.title}')
-      : plugin!.isHdr;
+  bool get isHdr => RegExp(
+    r'\b(hdr10\+?|hdr|dolby\s*vision|dovi)\b',
+    caseSensitive: false,
+  ).hasMatch('${nuvio.quality ?? ''} ${nuvio.title}');
 
-  String get key => isNuvio
-      ? 'nuvio:${nuvio!.scraperId}:${nuvio!.url}'
-      : 'plugin:${plugin!.providerId}:${plugin!.stream.url}';
+  String get key => 'nuvio:${nuvio.scraperId}:${nuvio.url}';
 
-  StreamResult toStreamResult() => isNuvio
-      ? nuvio!.toStreamResult()
-      : plugin!.stream.copyWith(
-          providerName: plugin!.providerName,
-          source: plugin!.stream.source,
-        );
+  StreamResult toStreamResult() => nuvio.toStreamResult();
 }
 
 class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
-  StreamSubscription<StreamAggregateResult>? _pluginSub;
   StreamSubscription<NuvioProgress>? _nuvioSub;
 
-  StreamAggregateResult _pluginResult = const StreamAggregateResult(
-    isLoading: true,
-  );
   NuvioProgress _nuvioResult = const NuvioProgress(isLoading: true);
   bool _showDiagnostics = false;
 
@@ -150,8 +114,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
   final Set<String> _probing = {};
 
   late SourcesMode _mode;
-  /// Title / TMDB id the user typed in "Search manually", used instead of the
-  /// TMDB metadata when a plugin lists the film under a different name.
+
+  /// Title / TMDB id the user typed in "Search manually".
   String? _titleOverride;
   String? _tmdbOverride;
   final Set<String> _providerFilter = {};
@@ -164,7 +128,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     super.initState();
     _mode = widget.mode;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startPlugins();
       _startNuvio();
     });
   }
@@ -172,31 +135,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
   @override
   void dispose() {
     _disposed = true;
-    _pluginSub?.cancel();
     _nuvioSub?.cancel();
     super.dispose();
-  }
-
-  MultimediaItem get _searchTarget => _titleOverride == null
-      ? widget.target
-      : widget.target.copyWith(title: _titleOverride);
-
-  void _startPlugins() {
-    final manager = ref.read(extensionManagerProvider.notifier);
-    final aggregator = ref.read(streamAggregatorProvider);
-    final target = _searchTarget;
-    final stream = widget.episode == null
-        ? aggregator.aggregateForMovie(manager: manager, target: target)
-        : aggregator.aggregateForEpisode(
-            manager: manager,
-            target: target,
-            episode: widget.episode!,
-          );
-    _pluginSub = stream.listen((result) {
-      if (_disposed) return;
-      setState(() => _pluginResult = result);
-      _scheduleProbes();
-    });
   }
 
   void _startNuvio() {
@@ -225,12 +165,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
         });
   }
 
-  /// Re-runs the search with a title the user types.
-  ///
-  /// Plugins index films under their own names (regional titles, release
-  /// names, "Part 2" vs "Chapter 2"), so the TMDB title can miss even when the
-  /// plugin has the film. A pasted TMDB id or `tmdb:123` re-points the Nuvio
-  /// scrapers as well.
+  /// Re-runs the search with a title or TMDB id the user types.
   Future<void> _searchManually() async {
     final controller = TextEditingController(
       text: _titleOverride ?? widget.target.title,
@@ -238,14 +173,13 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     final value = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Search plugins manually'),
+        title: const Text('Search Nuvio scrapers manually'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Type the title a plugin would use. A TMDB id (or tmdb:123) '
-              'also re-points the Nuvio scrapers.',
+              'Type a title or TMDB id (or tmdb:123) to re-point the Nuvio scrapers.',
             ),
             const SizedBox(height: 12),
             TextField(
@@ -291,20 +225,14 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
         _titleOverride = value;
         _tmdbOverride = null;
       }
-      _pluginResult = const StreamAggregateResult(isLoading: true);
       _nuvioResult = const NuvioProgress(isLoading: true);
       _probes.clear();
       _probing.clear();
     });
-    await _pluginSub?.cancel();
     await _nuvioSub?.cancel();
-    _startPlugins();
     _startNuvio();
   }
 
-  /// Link checking runs for **every** row, SkyStream and Nuvio alike — the
-  /// old sixteen-row cap meant most of a long list never got a
-  /// working/dead badge. Six at a time keeps it off the network's back.
   static const int _maxParallelProbes = 6;
 
   void _scheduleProbes() {
@@ -322,7 +250,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
             _probes[url] = result;
             _probing.remove(url);
           });
-          // Free slot: keep working down the list.
           _scheduleProbes();
         }),
       );
@@ -331,8 +258,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
 
   List<_Row> get _allRows {
     final rows = <_Row>[
-      for (final stream in _pluginResult.streams) _Row.fromPlugin(stream),
-      for (final stream in _nuvioResult.streams) _Row.fromNuvio(stream),
+      for (final stream in _nuvioResult.streams) _Row(stream),
     ];
     rows.sort((a, b) {
       final byQuality = b.qualityScore.compareTo(a.qualityScore);
@@ -357,21 +283,17 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     return true;
   }).toList();
 
-  bool get _isLoading => _pluginResult.isLoading || _nuvioResult.isLoading;
+  bool get _isLoading => _nuvioResult.isLoading;
 
   void _play(_Row row) {
     final ordered = <_Row>[row, ..._visible.where((r) => r.key != row.key)];
     final streams = [for (final r in ordered) r.toStreamResult()];
 
-    final item = row.isNuvio
-        ? widget.target
-        : row.plugin!.detailedItem;
-    final episode = row.isNuvio ? widget.episode : row.plugin!.episode;
-    final videoUrl = row.isNuvio
-        ? (widget.target.url.isNotEmpty
-              ? widget.target.url
-              : 'tmdb:${widget.target.tmdbId}')
-        : row.plugin!.episodeUrl;
+    final item = widget.target;
+    final episode = widget.episode;
+    final videoUrl = widget.target.url.isNotEmpty
+        ? widget.target.url
+        : 'tmdb:${widget.target.tmdbId}';
 
     Navigator.of(context).pop();
     unawaited(
@@ -396,8 +318,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     }
 
     final service = ref.read(downloadServiceProvider);
-    final item = row.isNuvio ? widget.target : row.plugin!.detailedItem;
-    final episode = row.isNuvio ? widget.episode : row.plugin!.episode;
+    final item = widget.target;
+    final episode = widget.episode;
 
     try {
       final saveDir = await service.getDownloadPath(item, episode: episode);
@@ -418,7 +340,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
         directory: saveDir,
         item: item,
         episode: episode,
-        trackingUrl: row.isNuvio ? row.url : row.plugin!.episodeUrl,
+        trackingUrl: row.url,
         headers: row.headers,
       );
 
@@ -433,7 +355,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
           ),
         ),
       );
-      if (started && mounted) Navigator.of(context).maybePop();
+      if (started && mounted) unawaited(Navigator.of(context).maybePop());
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -442,29 +364,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     }
   }
 
-  /// What each SkyStream plugin actually matched.
-  ///
-  /// Plugins search by title, so a wrong match is the usual reason a film has
-  /// links that turn out to be a different film. Showing the matched title
-  /// makes that visible — and "Search with a different title" fixes it.
-  Map<String, String> get _skystreamMatches {
-    final titles = <String, String>{};
-    final counts = <String, int>{};
-    for (final stream in _pluginResult.streams) {
-      final provider = stream.providerName;
-      counts[provider] = (counts[provider] ?? 0) + 1;
-      final matched = stream.detailedItem.title.trim();
-      if (matched.isNotEmpty) titles.putIfAbsent(provider, () => matched);
-    }
-    return {
-      for (final provider in counts.keys)
-        provider:
-            '${titles[provider] ?? 'matched'} · ${counts[provider]} links',
-    };
-  }
-
-  /// Per-plugin outcome, so "why did only three plugins answer?" has an
-  /// answer in the app instead of needing a rebuild to find out.
+  /// Per-scraper outcome diagnostics.
   Widget _diagnosticsPanel(ThemeData theme, ColorScheme cs) {
     final statuses = _nuvioResult.statuses.toList()
       ..sort((a, b) => a.scraperName.compareTo(b.scraperName));
@@ -479,27 +379,11 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_skystreamMatches.isNotEmpty) ...[
-            Text(
-              'SkyStream plugins · ${_skystreamMatches.length}',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            for (final entry in _skystreamMatches.entries)
-              Text(
-                '${entry.key}: ${entry.value}',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            const SizedBox(height: 8),
-          ],
           Row(
             children: [
               Expanded(
                 child: Text(
-                  'Nuvio plugins · ${statuses.length}',
+                  'Nuvio scrapers · ${statuses.length}',
                   style: theme.textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -518,7 +402,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
             ],
           ),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 160),
+            constraints: const BoxConstraints(maxHeight: 120),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -544,19 +428,12 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
 
   String _diagnosticsReport() {
     final buffer = StringBuffer()
-      ..writeln('SkyStream sources diagnostics')
+      ..writeln('Nuvio sources diagnostics')
       ..writeln('title: ${widget.target.title} (tmdb ${widget.target.tmdbId})')
       ..writeln(
-        'skystream plugins: ${_pluginResult.streams.length} links, '
-        '${_pluginResult.completedCount}/${_pluginResult.totalCount} done',
-      )
-      ..writeln(
-        'nuvio plugins: ${_nuvioResult.streams.length} links, '
+        'nuvio scrapers: ${_nuvioResult.streams.length} links, '
         '${_nuvioResult.completedCount}/${_nuvioResult.totalCount} done',
       );
-    for (final entry in _skystreamMatches.entries) {
-      buffer.writeln('- ${entry.key} matched ${entry.value}');
-    }
     for (final status in _nuvioResult.statuses) {
       buffer.writeln(
         '- ${status.scraperName}: ${status.outcome.name}'
@@ -583,8 +460,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
 
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.82,
-      minChildSize: 0.45,
+      initialChildSize: 0.85,
+      minChildSize: 0.55,
       maxChildSize: 0.96,
       builder: (context, scrollController) {
         return DecoratedBox(
@@ -605,14 +482,14 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                 ),
               ),
               SourceSheetHeader(
-                title: 'Available Sources',
+                title: 'Nuvio Sources',
                 subtitle: _titleOverride == null && _tmdbOverride == null
                     ? subtitle
                     : 'Searching for "${_titleOverride ?? 'tmdb:$_tmdbOverride'}"',
-                trailing: const SourceTag(text: 'PLUGINS', color: Colors.teal),
+                trailing: const SourceTag(text: 'NUVIO', color: Colors.teal),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 2),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: TextButton.icon(
@@ -648,18 +525,15 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
                         _isLoading
-                            ? 'Searching plugins… '
-                                  '${_pluginResult.completedCount + _nuvioResult.completedCount}'
-                                  '/${_pluginResult.totalCount + _nuvioResult.totalCount}'
-                            : '${_allRows.length} links · '
-                                  '${_pluginResult.streams.length} SkyStream · '
-                                  '$nuvioCount Nuvio',
+                            ? 'Searching Nuvio scrapers… '
+                                  '${_nuvioResult.completedCount}/${_nuvioResult.totalCount}'
+                            : '$nuvioCount Nuvio links',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: _isLoading ? cs.primary : cs.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
@@ -670,21 +544,15 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                       SizedBox(
                         width: 90,
                         child: LinearProgressIndicator(
-                          value:
-                              (_pluginResult.totalCount +
-                                      _nuvioResult.totalCount) ==
-                                  0
+                          value: _nuvioResult.totalCount == 0
                               ? null
-                              : (_pluginResult.completedCount +
-                                        _nuvioResult.completedCount) /
-                                    (_pluginResult.totalCount +
-                                        _nuvioResult.totalCount),
+                              : _nuvioResult.completedCount /
+                                    _nuvioResult.totalCount,
                           minHeight: 4,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       )
-                    else if (_nuvioResult.hasWork ||
-                        _pluginResult.streams.isNotEmpty)
+                    else if (_nuvioResult.hasWork)
                       TextButton.icon(
                         onPressed: () => setState(
                           () => _showDiagnostics = !_showDiagnostics,
@@ -745,7 +613,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                         child: Padding(
                           padding: const EdgeInsets.all(24),
                           child: _isLoading
-                              ? const Text('Searching installed plugins…')
+                              ? const Text('Searching active Nuvio scrapers…')
                               : Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -758,11 +626,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                                     Text(
                                       _allRows.isNotEmpty
                                           ? 'No links match the current filters.'
-                                          : (_pluginResult.error ??
-                                                'No links found for this title. '
-                                                    'Install SkyStream plugins '
-                                                    'or a Nuvio plugin '
-                                                    'repository.'),
+                                          : 'No links found for this title. '
+                                                'Ensure active Nuvio scraper repositories are installed.',
                                       textAlign: TextAlign.center,
                                       style: theme.textTheme.bodyMedium
                                           ?.copyWith(
@@ -896,8 +761,8 @@ class _SourceRow extends StatelessWidget {
                           ),
                         ),
                         SourceTag(
-                          text: row.isNuvio ? 'NUVIO' : 'SKYSTREAM',
-                          color: row.isNuvio ? cs.tertiary : cs.secondary,
+                          text: 'NUVIO',
+                          color: cs.tertiary,
                         ),
                         if (row.isHdr)
                           SourceTag(text: 'HDR', color: cs.tertiary),
@@ -918,10 +783,14 @@ class _SourceRow extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Text(
-                          row.providerName,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: cs.onSurfaceVariant,
+                        Flexible(
+                          child: Text(
+                            row.providerName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
                           ),
                         ),
                         if (size != null) ...[
@@ -934,7 +803,9 @@ class _SourceRow extends StatelessWidget {
                           ),
                         ],
                         const SizedBox(width: 8),
-                        ProbeBadge(probe: probe, probing: probing),
+                        Flexible(
+                          child: ProbeBadge(probe: probe, probing: probing),
+                        ),
                       ],
                     ),
                   ],

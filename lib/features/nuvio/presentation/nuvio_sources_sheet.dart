@@ -167,7 +167,7 @@ class _NuvioSourcesSheetState extends ConsumerState<NuvioSourcesSheet> {
           ),
         ),
       );
-      if (started && mounted) Navigator.of(context).maybePop();
+      if (started && mounted) unawaited(Navigator.of(context).maybePop());
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -337,16 +337,26 @@ class _NuvioSourcesSheetState extends ConsumerState<NuvioSourcesSheet> {
                         ),
                       ],
                     ),
-                    for (final status in _result.statuses)
-                      Text(
-                        '${status.addonLabel}: '
-                        '${status.outcome == NuvioScraperOutcome.links ? '${status.linkCount} links' : (status.message ?? status.outcome.name)}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: status.outcome == NuvioScraperOutcome.failed
-                              ? cs.error
-                              : cs.onSurfaceVariant,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 160),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (final status in _result.statuses)
+                              Text(
+                                '${status.addonLabel}: '
+                                '${status.outcome == NuvioScraperOutcome.links ? '${status.linkCount} links' : (status.message ?? status.outcome.name)}',
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: status.outcome == NuvioScraperOutcome.failed
+                                      ? cs.error
+                                      : cs.onSurfaceVariant,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
+                    ),
                   ],
                 ),
               ),
