@@ -61,15 +61,12 @@ class _Row {
   String get providerName => nuvio.scraperName;
 
   /// Consistent detail line: size, language, seeders, and stream name.
-  String get detail => buildSourceDetail(
-    [
-      nuvio.size,
-      nuvio.language,
-      nuvio.seeders == null ? null : '${nuvio.seeders} seeds',
-      nuvio.name ?? nuvio.title,
-    ],
-    fallback: providerName,
-  );
+  String get detail => buildSourceDetail([
+    nuvio.size,
+    nuvio.language,
+    nuvio.seeders == null ? null : '${nuvio.seeders} seeds',
+    nuvio.name ?? nuvio.title,
+  ], fallback: providerName);
 
   Map<String, String>? get headers => nuvio.headers;
 
@@ -77,7 +74,10 @@ class _Row {
 
   bool get canDownload => url.startsWith('http') && !isTorrent;
 
-  static final RegExp _res = RegExp(r'(\d{3,4})\s*[pi]\b', caseSensitive: false);
+  static final RegExp _res = RegExp(
+    r'(\d{3,4})\s*[pi]\b',
+    caseSensitive: false,
+  );
   static final RegExp _uhd = RegExp(r'\b(4k|uhd|2160)\b', caseSensitive: false);
 
   int get qualityScore {
@@ -466,7 +466,9 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: isFocused ? Colors.white : Colors.transparent,
+                            color: isFocused
+                                ? Colors.white
+                                : Colors.transparent,
                             width: 1.5,
                           ),
                           color: isFocused
@@ -855,10 +857,7 @@ class _DpadActionButton extends StatelessWidget {
     );
 
     if (onKeyEvent != null) {
-      return Focus(
-        onKeyEvent: onKeyEvent,
-        child: dpadButton,
-      );
+      return Focus(onKeyEvent: onKeyEvent, child: dpadButton);
     }
     return dpadButton;
   }
@@ -956,155 +955,162 @@ class _SourceRowState extends State<_SourceRow> {
         onSelect: downloadMode && row.canDownload ? onDownload : onPlay,
         child: const SizedBox.shrink(),
         builder: (context, state, _) {
-        final isFocused = state.focused;
-        return Material(
-          color: isFocused
-              ? cs.surfaceContainerHighest
-              : cs.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-          child: InkWell(
-            onTap: downloadMode && row.canDownload ? onDownload : onPlay,
+          final isFocused = state.focused;
+          return Material(
+            color: isFocused
+                ? cs.surfaceContainerHighest
+                : cs.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(16),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: isFocused
-                      ? Colors.white
-                      : (isBest
-                            ? cs.primary.withValues(alpha: 0.8)
-                            : Colors.transparent),
-                  width: isFocused ? 2 : (isBest ? 1.5 : 0),
+            child: InkWell(
+              onTap: downloadMode && row.canDownload ? onDownload : onPlay,
+              borderRadius: BorderRadius.circular(16),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 21,
-                    backgroundColor: _avatarColor(),
-                    child: Text(
-                      letter,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 17,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isFocused
+                        ? Colors.white
+                        : (isBest
+                              ? cs.primary.withValues(alpha: 0.8)
+                              : Colors.transparent),
+                    width: isFocused ? 2 : (isBest ? 1.5 : 0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 21,
+                      backgroundColor: _avatarColor(),
+                      child: Text(
+                        letter,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              resolution,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SourceTag(
-                              text: 'NUVIO',
-                              color: cs.tertiary,
-                            ),
-                            if (row.isHdr)
-                              SourceTag(text: 'HDR', color: cs.tertiary),
-                            if (row.isTorrent)
-                              SourceTag(text: 'TORRENT', color: cs.primary),
-                            if (isBest)
-                              SourceTag(text: 'BEST', color: cs.primary),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          row.detail,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Flexible(
-                              child: Text(
-                                row.providerName,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: cs.onSurfaceVariant,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                resolution,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
+                              SourceTag(text: 'NUVIO', color: cs.tertiary),
+                              if (row.isHdr)
+                                SourceTag(text: 'HDR', color: cs.tertiary),
+                              if (row.isTorrent)
+                                SourceTag(text: 'TORRENT', color: cs.primary),
+                              if (isBest)
+                                SourceTag(text: 'BEST', color: cs.primary),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            row.detail,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
                             ),
-                            if (size != null) ...[
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  row.providerName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              if (size != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  size,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
                               const SizedBox(width: 8),
-                              Text(
-                                size,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: cs.onSurfaceVariant,
+                              Flexible(
+                                child: ProbeBadge(
+                                  probe: probe,
+                                  probing: probing,
                                 ),
                               ),
                             ],
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: ProbeBadge(probe: probe, probing: probing),
-                            ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  _DpadActionButton(
-                    focusNode: _playFocusNode,
-                    icon: Icons.play_arrow_rounded,
-                    tooltip: 'Play',
-                    onPressed: onPlay,
-                    color: cs.primary,
-                    onKeyEvent: (node, event) {
-                      if (event is KeyDownEvent) {
-                        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-                          _cardFocusNode.requestFocus();
+                    const SizedBox(width: 4),
+                    _DpadActionButton(
+                      focusNode: _playFocusNode,
+                      icon: Icons.play_arrow_rounded,
+                      tooltip: 'Play',
+                      onPressed: onPlay,
+                      color: cs.primary,
+                      onKeyEvent: (node, event) {
+                        if (event is KeyDownEvent) {
+                          if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowLeft) {
+                            _cardFocusNode.requestFocus();
+                            return KeyEventResult.handled;
+                          }
+                          if (event.logicalKey ==
+                                  LogicalKeyboardKey.arrowRight &&
+                              row.canDownload) {
+                            _downloadFocusNode.requestFocus();
+                            return KeyEventResult.handled;
+                          }
+                        }
+                        return KeyEventResult.ignored;
+                      },
+                    ),
+                    _DpadActionButton(
+                      focusNode: _downloadFocusNode,
+                      icon: Icons.download_rounded,
+                      tooltip: row.canDownload
+                          ? 'Download'
+                          : 'Stream-only link',
+                      onPressed: row.canDownload ? onDownload : null,
+                      onKeyEvent: (node, event) {
+                        if (event is KeyDownEvent &&
+                            event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                          _playFocusNode.requestFocus();
                           return KeyEventResult.handled;
                         }
-                        if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-                            row.canDownload) {
-                          _downloadFocusNode.requestFocus();
-                          return KeyEventResult.handled;
-                        }
-                      }
-                      return KeyEventResult.ignored;
-                    },
-                  ),
-                  _DpadActionButton(
-                    focusNode: _downloadFocusNode,
-                    icon: Icons.download_rounded,
-                    tooltip: row.canDownload ? 'Download' : 'Stream-only link',
-                    onPressed: row.canDownload ? onDownload : null,
-                    onKeyEvent: (node, event) {
-                      if (event is KeyDownEvent &&
-                          event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-                        _playFocusNode.requestFocus();
-                        return KeyEventResult.handled;
-                      }
-                      return KeyEventResult.ignored;
-                    },
-                  ),
-                ],
+                        return KeyEventResult.ignored;
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        );
-      },
-    ),
-  );
-}
+          );
+        },
+      ),
+    );
+  }
 }

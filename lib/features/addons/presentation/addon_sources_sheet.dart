@@ -102,15 +102,17 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
         });
   }
 
-  List<AddonStreamSource> get _visible => _result.streams.where((s) {
-    if (_hdOnly && s.qualityScore < 1080) return false;
-    return switch (_kind) {
-      _KindFilter.all => true,
-      _KindFilter.direct => s.isDirect,
-      _KindFilter.torrent => s.isTorrent,
-      _KindFilter.external => s.isExternal,
-    };
-  }).toList(growable: false);
+  List<AddonStreamSource> get _visible => _result.streams
+      .where((s) {
+        if (_hdOnly && s.qualityScore < 1080) return false;
+        return switch (_kind) {
+          _KindFilter.all => true,
+          _KindFilter.direct => s.isDirect,
+          _KindFilter.torrent => s.isTorrent,
+          _KindFilter.external => s.isExternal,
+        };
+      })
+      .toList(growable: false);
 
   /// Rows that can actually be handed to a player (everything except deep
   /// links into other apps).
@@ -174,9 +176,7 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
     if (!mounted) return;
     if (streams.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This source has no playable link.'),
-        ),
+        const SnackBar(content: Text('This source has no playable link.')),
       );
       return;
     }
@@ -275,7 +275,9 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
       if (started && mounted) Navigator.of(context).maybePop();
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Download failed: $error')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Download failed: $error')),
+      );
     }
   }
 
@@ -612,7 +614,10 @@ class _SourceRow extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: isBest
-                ? Border.all(color: cs.primary.withValues(alpha: 0.8), width: 1.5)
+                ? Border.all(
+                    color: cs.primary.withValues(alpha: 0.8),
+                    width: 1.5,
+                  )
                 : null,
           ),
           child: Row(
@@ -752,7 +757,6 @@ class _Tag extends StatelessWidget {
     );
   }
 }
-
 
 /// Source kinds a user can filter by.
 enum _KindFilter {

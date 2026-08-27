@@ -66,13 +66,15 @@ void main() {
 
     test('decode thrift escalates the skip levels', () {
       expect(
-        const VlcDecodingConfig(decodeThrift: VlcDecodeThrift.light)
-            .toOptions(),
+        const VlcDecodingConfig(
+          decodeThrift: VlcDecodeThrift.light,
+        ).toOptions(),
         <String>['--avcodec-skiploopfilter=1', '--avcodec-skip-frame=0'],
       );
       expect(
-        const VlcDecodingConfig(decodeThrift: VlcDecodeThrift.aggressive)
-            .toOptions(),
+        const VlcDecodingConfig(
+          decodeThrift: VlcDecodeThrift.aggressive,
+        ).toOptions(),
         <String>['--avcodec-skiploopfilter=3', '--avcodec-skip-frame=1'],
       );
     });
@@ -104,12 +106,15 @@ void main() {
         color: Color(0xCCFF8800),
         outlineColor: Color(0xFF000000),
       );
-      expect(style.toOptions(), containsAll(<String>[
-        '--freetype-color=${0xFF8800}',
-        '--freetype-opacity=204',
-        '--freetype-outline-color=0',
-        '--freetype-outline-opacity=255',
-      ]));
+      expect(
+        style.toOptions(),
+        containsAll(<String>[
+          '--freetype-color=${0xFF8800}',
+          '--freetype-opacity=204',
+          '--freetype-outline-color=0',
+          '--freetype-outline-opacity=255',
+        ]),
+      );
     });
 
     test('emits the negated flag for false booleans', () {
@@ -131,22 +136,25 @@ void main() {
         alignment: VlcSubtitleAlignment.center,
         outlineThickness: 4,
       );
-      expect(style.toOptions(), containsAll(<String>[
-        '--freetype-font=Roboto',
-        '--freetype-rel-fontsize=16',
-        '--sub-margin=40',
-        '--freetype-text-align=center',
-        '--freetype-outline-thickness=4',
-      ]));
+      expect(
+        style.toOptions(),
+        containsAll(<String>[
+          '--freetype-font=Roboto',
+          '--freetype-rel-fontsize=16',
+          '--sub-margin=40',
+          '--freetype-text-align=center',
+          '--freetype-outline-thickness=4',
+        ]),
+      );
     });
   });
 
   group('VlcPlayerConfig', () {
     test('quiet and no-title are the defaults', () {
-      expect(
-        const VlcPlayerConfig().toOptions(),
-        <String>['--no-video-title-show', '--quiet'],
-      );
+      expect(const VlcPlayerConfig().toOptions(), <String>[
+        '--no-video-title-show',
+        '--quiet',
+      ]);
     });
 
     test('verbose replaces quiet', () {

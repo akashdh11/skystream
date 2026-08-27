@@ -91,28 +91,27 @@ void main() {
       addedAt: DateTime.now(),
     );
 
-    final meta = await client.meta(
-      cinemeta,
-      type: 'movie',
-      id: items.first.id,
-    );
+    final meta = await client.meta(cinemeta, type: 'movie', id: items.first.id);
     expect(meta, isNotNull);
     expect(meta!.name, isNotEmpty);
   });
 
-  test('it provides catalogs only — it can never return streaming links', () async {
-    final manifest = await client.fetchManifest(host);
-    expect(manifest.hasResource('catalog'), isTrue);
-    expect(
-      manifest.hasResource('stream'),
-      isFalse,
-      reason:
-          'Streaming Catalogs is a catalog add-on: it lists what is on '
-          'Netflix/Disney+/HBO but serves no playable links. Pair it with a '
-          'stream add-on (Torrentio, MediaFusion, Comet) or WatchHub for '
-          'deep links into the services.',
-    );
-  });
+  test(
+    'it provides catalogs only — it can never return streaming links',
+    () async {
+      final manifest = await client.fetchManifest(host);
+      expect(manifest.hasResource('catalog'), isTrue);
+      expect(
+        manifest.hasResource('stream'),
+        isFalse,
+        reason:
+            'Streaming Catalogs is a catalog add-on: it lists what is on '
+            'Netflix/Disney+/HBO but serves no playable links. Pair it with a '
+            'stream add-on (Torrentio, MediaFusion, Comet) or WatchHub for '
+            'deep links into the services.',
+      );
+    },
+  );
 
   test('WatchHub supplies the streaming-service deep links instead', () async {
     final manifest = await client.fetchManifest(
@@ -125,11 +124,7 @@ void main() {
       manifest: manifest,
       addedAt: DateTime.now(),
     );
-    final streams = await client.streams(
-      addon,
-      type: 'movie',
-      id: 'tt0111161',
-    );
+    final streams = await client.streams(addon, type: 'movie', id: 'tt0111161');
     expect(streams, isNotEmpty);
     expect(streams.every((s) => s.isExternal), isTrue);
     expect(streams.first.launchUrl, isNotNull);

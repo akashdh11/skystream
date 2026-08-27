@@ -62,7 +62,8 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
                   },
                 ),
               ),
-              onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
+              onSubmitted: (value) =>
+                  Navigator.pop(dialogContext, value.trim()),
             ),
           ],
         ),
@@ -72,7 +73,8 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            onPressed: () =>
+                Navigator.pop(dialogContext, controller.text.trim()),
             child: const Text('Add'),
           ),
         ],
@@ -177,7 +179,9 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
                   runSpacing: 8,
                   children: [
                     FilledButton.icon(
-                      onPressed: _busy ? null : () => unawaited(_addRepository()),
+                      onPressed: _busy
+                          ? null
+                          : () => unawaited(_addRepository()),
                       icon: _busy
                           ? const SizedBox(
                               width: 16,
@@ -196,7 +200,9 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.system_update_alt_rounded),
                         label: Text(
@@ -568,7 +574,10 @@ class _ScraperTileState extends ConsumerState<_ScraperTile> {
     final unsupported = !scraper.isSupportedOn(NuvioRepository.platformName);
 
     final chips = <String>[
-      scraper.supportedTypes.map(NuvioScraperInfo.normalizeType).toSet().join('/'),
+      scraper.supportedTypes
+          .map(NuvioScraperInfo.normalizeType)
+          .toSet()
+          .join('/'),
       if (scraper.contentLanguage.isNotEmpty)
         scraper.contentLanguage.take(3).join(', '),
       if (scraper.formats.isNotEmpty) scraper.formats.take(3).join('/'),

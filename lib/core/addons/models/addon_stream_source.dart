@@ -36,36 +36,74 @@ class AddonSubtitleTrack {
 
   static String prettyLanguage(String code) {
     const names = <String, String>{
-      'en': 'English', 'eng': 'English',
-      'es': 'Spanish', 'spa': 'Spanish',
-      'fr': 'French', 'fre': 'French', 'fra': 'French',
-      'de': 'German', 'ger': 'German', 'deu': 'German',
-      'it': 'Italian', 'ita': 'Italian',
-      'pt': 'Portuguese', 'por': 'Portuguese',
-      'ru': 'Russian', 'rus': 'Russian',
-      'ar': 'Arabic', 'ara': 'Arabic',
-      'hi': 'Hindi', 'hin': 'Hindi',
-      'ur': 'Urdu', 'urd': 'Urdu',
-      'bn': 'Bengali', 'ben': 'Bengali',
-      'ta': 'Tamil', 'tam': 'Tamil',
-      'te': 'Telugu', 'tel': 'Telugu',
-      'tr': 'Turkish', 'tur': 'Turkish',
-      'ja': 'Japanese', 'jpn': 'Japanese',
-      'ko': 'Korean', 'kor': 'Korean',
-      'zh': 'Chinese', 'chi': 'Chinese', 'zho': 'Chinese',
-      'nl': 'Dutch', 'dut': 'Dutch', 'nld': 'Dutch',
-      'pl': 'Polish', 'pol': 'Polish',
-      'sv': 'Swedish', 'swe': 'Swedish',
-      'fa': 'Persian', 'per': 'Persian', 'fas': 'Persian',
-      'id': 'Indonesian', 'ind': 'Indonesian',
-      'vi': 'Vietnamese', 'vie': 'Vietnamese',
-      'th': 'Thai', 'tha': 'Thai',
-      'uk': 'Ukrainian', 'ukr': 'Ukrainian',
-      'el': 'Greek', 'gre': 'Greek', 'ell': 'Greek',
-      'he': 'Hebrew', 'heb': 'Hebrew',
-      'cs': 'Czech', 'cze': 'Czech', 'ces': 'Czech',
-      'ro': 'Romanian', 'rum': 'Romanian', 'ron': 'Romanian',
-      'hu': 'Hungarian', 'hun': 'Hungarian',
+      'en': 'English',
+      'eng': 'English',
+      'es': 'Spanish',
+      'spa': 'Spanish',
+      'fr': 'French',
+      'fre': 'French',
+      'fra': 'French',
+      'de': 'German',
+      'ger': 'German',
+      'deu': 'German',
+      'it': 'Italian',
+      'ita': 'Italian',
+      'pt': 'Portuguese',
+      'por': 'Portuguese',
+      'ru': 'Russian',
+      'rus': 'Russian',
+      'ar': 'Arabic',
+      'ara': 'Arabic',
+      'hi': 'Hindi',
+      'hin': 'Hindi',
+      'ur': 'Urdu',
+      'urd': 'Urdu',
+      'bn': 'Bengali',
+      'ben': 'Bengali',
+      'ta': 'Tamil',
+      'tam': 'Tamil',
+      'te': 'Telugu',
+      'tel': 'Telugu',
+      'tr': 'Turkish',
+      'tur': 'Turkish',
+      'ja': 'Japanese',
+      'jpn': 'Japanese',
+      'ko': 'Korean',
+      'kor': 'Korean',
+      'zh': 'Chinese',
+      'chi': 'Chinese',
+      'zho': 'Chinese',
+      'nl': 'Dutch',
+      'dut': 'Dutch',
+      'nld': 'Dutch',
+      'pl': 'Polish',
+      'pol': 'Polish',
+      'sv': 'Swedish',
+      'swe': 'Swedish',
+      'fa': 'Persian',
+      'per': 'Persian',
+      'fas': 'Persian',
+      'id': 'Indonesian',
+      'ind': 'Indonesian',
+      'vi': 'Vietnamese',
+      'vie': 'Vietnamese',
+      'th': 'Thai',
+      'tha': 'Thai',
+      'uk': 'Ukrainian',
+      'ukr': 'Ukrainian',
+      'el': 'Greek',
+      'gre': 'Greek',
+      'ell': 'Greek',
+      'he': 'Hebrew',
+      'heb': 'Hebrew',
+      'cs': 'Czech',
+      'cze': 'Czech',
+      'ces': 'Czech',
+      'ro': 'Romanian',
+      'rum': 'Romanian',
+      'ron': 'Romanian',
+      'hu': 'Hungarian',
+      'hun': 'Hungarian',
     };
     final key = code.trim().toLowerCase();
     final match = names[key];
@@ -171,11 +209,7 @@ class AddonStreamSource {
       addonId: addonId,
       addonName: addonName,
       // Direct links occasionally hide inside behaviorHints (see ARVIO).
-      url: _firstHttpUrl([
-        json['url'],
-        hints['directUrl'],
-        hints['url'],
-      ]),
+      url: _firstHttpUrl([json['url'], hints['directUrl'], hints['url']]),
       infoHash: (json['infoHash'] as String?)?.toLowerCase(),
       fileIdx: (json['fileIdx'] as num?)?.toInt(),
       ytId: json['ytId'] as String?,
@@ -228,15 +262,17 @@ class AddonStreamSource {
     _ => null,
   };
 
-  String get _text => [
-    name ?? '',
-    title ?? '',
-    description ?? '',
-    filename ?? '',
-  ].join(' ');
+  String get _text =>
+      [name ?? '', title ?? '', description ?? '', filename ?? ''].join(' ');
 
-  static final RegExp _res = RegExp(r'(\d{3,4})\s*[pi]\b', caseSensitive: false);
-  static final RegExp _uhd = RegExp(r'\b(4k|uhd|2160p?)\b', caseSensitive: false);
+  static final RegExp _res = RegExp(
+    r'(\d{3,4})\s*[pi]\b',
+    caseSensitive: false,
+  );
+  static final RegExp _uhd = RegExp(
+    r'\b(4k|uhd|2160p?)\b',
+    caseSensitive: false,
+  );
   static final RegExp _qhd = RegExp(r'\b(2k|1440p?)\b', caseSensitive: false);
   static final RegExp _hdr = RegExp(
     r'\b(hdr10\+?|hdr|dolby\s*vision|dovi|dv)\b',
@@ -270,9 +306,10 @@ class AddonStreamSource {
 
   bool get isHdr => _hdr.hasMatch(_text);
   bool get isCam => _cam.hasMatch(_text);
-  bool get isCachedDebrid =>
-      RegExp(r'\[(rd|pm|ad|dl|oc|tb|ed)\+\]', caseSensitive: false)
-          .hasMatch(_text);
+  bool get isCachedDebrid => RegExp(
+    r'\[(rd|pm|ad|dl|oc|tb|ed)\+\]',
+    caseSensitive: false,
+  ).hasMatch(_text);
 
   int? get seeders {
     final match = _seeders.firstMatch(_text);

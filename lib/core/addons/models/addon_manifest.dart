@@ -234,7 +234,9 @@ class AddonManifest {
     if (rawCatalogs is List) {
       for (final entry in rawCatalogs) {
         if (entry is Map) {
-          final catalog = AddonCatalog.fromJson(Map<String, dynamic>.from(entry));
+          final catalog = AddonCatalog.fromJson(
+            Map<String, dynamic>.from(entry),
+          );
           if (catalog.type.isNotEmpty && catalog.id.isNotEmpty) {
             catalogs.add(catalog);
           }
@@ -272,8 +274,7 @@ class AddonManifest {
     'behaviorHints': behaviorHints.toJson(),
   };
 
-  bool hasResource(String resource) =>
-      resources.any((r) => r.name == resource);
+  bool hasResource(String resource) => resources.any((r) => r.name == resource);
 
   AddonResource? resource(String name) {
     for (final r in resources) {
@@ -335,7 +336,8 @@ class AddonManifest {
     final lower = id.toLowerCase();
     return prefixes.any((prefix) {
       final p = prefix.toLowerCase();
-      return lower.startsWith(p) || (!p.endsWith(':') && lower.startsWith('$p:'));
+      return lower.startsWith(p) ||
+          (!p.endsWith(':') && lower.startsWith('$p:'));
     });
   }
 }
@@ -356,14 +358,11 @@ class ManagedAddon {
     required this.addedAt,
   });
 
-  String get id => manifest?.id.isNotEmpty ?? false
-      ? manifest!.id
-      : manifestUrl;
+  String get id =>
+      manifest?.id.isNotEmpty ?? false ? manifest!.id : manifestUrl;
 
   String get displayName =>
-      manifest?.name ??
-      Uri.tryParse(manifestUrl)?.host ??
-      'Add-on';
+      manifest?.name ?? Uri.tryParse(manifestUrl)?.host ?? 'Add-on';
 
   bool get isActive => enabled && manifest != null;
 

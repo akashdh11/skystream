@@ -554,7 +554,6 @@ class _EmptyHint extends StatelessWidget {
   }
 }
 
-
 /// Compact "this row failed" strip with a retry, so a broken add-on is visible
 /// instead of an empty screen.
 class _RowProblem extends StatelessWidget {

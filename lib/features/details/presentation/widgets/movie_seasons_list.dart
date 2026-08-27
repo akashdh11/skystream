@@ -377,7 +377,9 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                           bannerUrl: widget.bannerUrl,
                           description: widget.overview,
                           contentType: MultimediaContentType.series,
-                          year: int.tryParse((widget.releaseDateFull ?? '').split('-').first),
+                          year: int.tryParse(
+                            (widget.releaseDateFull ?? '').split('-').first,
+                          ),
                           tmdbId: widget.movieId,
                           imdbId: widget.imdbId,
                         );
@@ -649,7 +651,9 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                           bannerUrl: widget.bannerUrl,
                           description: widget.overview,
                           contentType: MultimediaContentType.series,
-                          year: int.tryParse((widget.releaseDateFull ?? '').split('-').first),
+                          year: int.tryParse(
+                            (widget.releaseDateFull ?? '').split('-').first,
+                          ),
                           tmdbId: widget.movieId,
                           imdbId: widget.imdbId,
                         );

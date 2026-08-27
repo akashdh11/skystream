@@ -348,7 +348,9 @@ class _NuvioSourcesSheetState extends ConsumerState<NuvioSourcesSheet> {
                                 '${status.addonLabel}: '
                                 '${status.outcome == NuvioScraperOutcome.links ? '${status.linkCount} links' : (status.message ?? status.outcome.name)}',
                                 style: theme.textTheme.labelSmall?.copyWith(
-                                  color: status.outcome == NuvioScraperOutcome.failed
+                                  color:
+                                      status.outcome ==
+                                          NuvioScraperOutcome.failed
                                       ? cs.error
                                       : cs.onSurfaceVariant,
                                 ),

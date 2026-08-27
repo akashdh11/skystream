@@ -47,11 +47,10 @@ class AggregatedStream {
     return stream.source.isEmpty ? 'Source' : stream.source;
   }
 
-  bool get isHdr =>
-      RegExp(
-        r'\b(hdr10\+?|hdr|dolby\s*vision|dovi|dv)\b',
-        caseSensitive: false,
-      ).hasMatch('${stream.source} ${stream.url}');
+  bool get isHdr => RegExp(
+    r'\b(hdr10\+?|hdr|dolby\s*vision|dovi|dv)\b',
+    caseSensitive: false,
+  ).hasMatch('${stream.source} ${stream.url}');
 
   /// True when the link is an adaptive manifest — these usually carry multiple
   /// renditions, so they're worth surfacing even without a quality tag.

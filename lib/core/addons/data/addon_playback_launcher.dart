@@ -42,7 +42,11 @@ class AddonStreamConverter {
               ? null
               : [
                   for (final sub in source.subtitles)
-                    SubtitleFile(url: sub.url, label: sub.label, lang: sub.lang),
+                    SubtitleFile(
+                      url: sub.url,
+                      label: sub.label,
+                      lang: sub.lang,
+                    ),
                 ],
         ),
       );

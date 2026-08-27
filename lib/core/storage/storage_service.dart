@@ -193,8 +193,10 @@ class StorageService {
   }
 
   int getDownloadChunks() {
-    return (_settingsBox.get('download_chunks', defaultValue: 1) as int)
-        .clamp(1, 8);
+    return (_settingsBox.get('download_chunks', defaultValue: 1) as int).clamp(
+      1,
+      8,
+    );
   }
 
   Future<void> setTitlePosition(String position) async {

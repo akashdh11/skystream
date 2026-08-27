@@ -346,8 +346,7 @@ class NuvioPosterCard extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (sheetContext) =>
-          _EpisodePicker(title: title, seasons: seasons),
+      builder: (sheetContext) => _EpisodePicker(title: title, seasons: seasons),
     );
   }
 
@@ -592,75 +591,75 @@ class _PluginsTabState extends ConsumerState<_PluginsTab> {
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
           child: Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.key_rounded, color: cs.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'TMDB API key (for Nuvio)',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.key_rounded, color: cs.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'TMDB API key (for Nuvio)',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
-                    if (effective.isNotEmpty)
-                      const Icon(
-                        Icons.check_circle_rounded,
-                        color: Colors.green,
-                        size: 20,
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Used by the Nuvio browser and passed to Nuvio plugins, '
-                  'which look titles up by TMDB id. Separate from the app-wide '
-                  'key in Settings — leave empty to reuse that one.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
+                      if (effective.isNotEmpty)
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          color: Colors.green,
+                          size: 20,
+                        ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _keyController,
-                  decoration: const InputDecoration(
-                    labelText: 'TMDB API key',
-                    hintText: 'v3 API key from themoviedb.org',
-                    border: OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                ),
-                if (_status != null) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
-                    _status!,
+                    'Used by the Nuvio browser and passed to Nuvio plugins, '
+                    'which look titles up by TMDB id. Separate from the app-wide '
+                    'key in Settings — leave empty to reuse that one.',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: cs.onSurfaceVariant,
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _keyController,
+                    decoration: const InputDecoration(
+                      labelText: 'TMDB API key',
+                      hintText: 'v3 API key from themoviedb.org',
+                      border: OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                  if (_status != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _status!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: _saving ? null : () => unawaited(_saveKey()),
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_rounded),
+                    label: const Text('Save key'),
+                  ),
                 ],
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: _saving ? null : () => unawaited(_saveKey()),
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.save_rounded),
-                  label: const Text('Save key'),
-                ),
-              ],
+              ),
             ),
-          ),
           ),
         ),
         // Repository management lives right below the key it needs.

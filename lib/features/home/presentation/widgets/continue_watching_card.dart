@@ -7,7 +7,8 @@ import '../../../../core/domain/entity/multimedia_item.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:skystream/core/router/app_router.dart';
-import 'package:skystream/core/addons/models/addon_meta.dart' show kAddonItemSource;
+import 'package:skystream/core/addons/models/addon_meta.dart'
+    show kAddonItemSource;
 import 'package:skystream/core/utils/image_fallbacks.dart';
 import 'package:skystream/core/utils/layout_constants.dart';
 import '../../../../core/extensions/extension_manager.dart';

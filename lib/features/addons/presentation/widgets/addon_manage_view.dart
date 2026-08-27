@@ -68,7 +68,8 @@ const List<AddonPreset> kAddonPresets = [
   AddonPreset(
     name: 'Streaming Catalogs',
     description: 'Netflix, Disney+, HBO… catalogs (browse only, no streams)',
-    url: 'https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/manifest.json',
+    url:
+        'https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/manifest.json',
     icon: Icons.grid_view_rounded,
   ),
 ];
@@ -88,7 +89,9 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _busy.add(url));
     try {
-      final addon = await ref.read(addonRepositoryProvider.notifier).install(url);
+      final addon = await ref
+          .read(addonRepositoryProvider.notifier)
+          .install(url);
       messenger.showSnackBar(
         SnackBar(content: Text('Installed ${addon.displayName}')),
       );
@@ -176,7 +179,9 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
       ),
     );
     if (confirmed ?? false) {
-      await ref.read(addonRepositoryProvider.notifier).remove(addon.manifestUrl);
+      await ref
+          .read(addonRepositoryProvider.notifier)
+          .remove(addon.manifestUrl);
     }
   }
 
@@ -204,7 +209,10 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.dashboard_customize_rounded, color: cs.primary),
+                      Icon(
+                        Icons.dashboard_customize_rounded,
+                        color: cs.primary,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -268,7 +276,8 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
                   tooltip: preset.description,
                   onPressed: _busy.contains(preset.url)
                       ? null
-                      : () => unawaited(_install(preset.url, label: preset.name)),
+                      : () =>
+                            unawaited(_install(preset.url, label: preset.name)),
                 ),
             ],
           ),
@@ -347,7 +356,8 @@ class _AddonTile extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final manifest = addon.manifest;
-    final resources = manifest?.resources.map((r) => r.name).toList() ?? const [];
+    final resources =
+        manifest?.resources.map((r) => r.name).toList() ?? const [];
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -471,7 +481,6 @@ class _AddonTile extends StatelessWidget {
     );
   }
 }
-
 
 /// Debrid account card.
 ///
@@ -650,5 +659,3 @@ class _DebridCardState extends ConsumerState<_DebridCard> {
     );
   }
 }
-
-

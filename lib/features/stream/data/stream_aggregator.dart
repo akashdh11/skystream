@@ -150,15 +150,13 @@ class StreamAggregator {
   Stream<StreamAggregateResult> aggregateForMovie({
     required ExtensionManager manager,
     required MultimediaItem target,
-  }) =>
-      _aggregate(manager: manager, target: target, episode: null);
+  }) => _aggregate(manager: manager, target: target, episode: null);
 
   Stream<StreamAggregateResult> aggregateForEpisode({
     required ExtensionManager manager,
     required MultimediaItem target,
     required Episode episode,
-  }) =>
-      _aggregate(manager: manager, target: target, episode: episode);
+  }) => _aggregate(manager: manager, target: target, episode: episode);
 
   Stream<StreamAggregateResult> _aggregate({
     required ExtensionManager manager,
@@ -218,9 +216,9 @@ class StreamAggregator {
             .timeout(_perProviderTimeout);
 
         final providerStreams = episode == null
-            ? await provider.loadStreams(details.url).timeout(
-                _perProviderTimeout,
-              )
+            ? await provider
+                  .loadStreams(details.url)
+                  .timeout(_perProviderTimeout)
             : await _loadEpisodeStreams(
                 provider,
                 details,

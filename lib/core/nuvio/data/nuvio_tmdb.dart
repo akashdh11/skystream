@@ -224,7 +224,8 @@ class NuvioTmdbService {
     final bucket = type == 'tv' ? 'tv_results' : 'movie_results';
     final results = data[bucket] is List && (data[bucket] as List).isNotEmpty
         ? data[bucket] as List
-        : (data['movie_results'] is List && (data['movie_results'] as List).isNotEmpty
+        : (data['movie_results'] is List &&
+                  (data['movie_results'] as List).isNotEmpty
               ? data['movie_results'] as List
               : data['tv_results'] as List? ?? const []);
     if (results.isEmpty) return null;

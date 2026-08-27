@@ -78,7 +78,9 @@ Future<AddonCatalogResult> addonCatalogItems(
   for (final candidate in addons) {
     if (candidate.manifestUrl == addonUrl) addon = candidate;
   }
-  addon ??= addonUrl == BuiltInAddons.cinemetaUrl ? BuiltInAddons.cinemeta : null;
+  addon ??= addonUrl == BuiltInAddons.cinemetaUrl
+      ? BuiltInAddons.cinemeta
+      : null;
   if (addon == null) {
     return const AddonCatalogResult(error: 'Add-on is no longer installed.');
   }

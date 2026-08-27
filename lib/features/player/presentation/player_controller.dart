@@ -1531,7 +1531,8 @@ class PlayerController extends Notifier<PlayerState> {
 
     final position = _currentPosition;
     final startedAt = _bufferingStartPosition;
-    if (startedAt != null && (position - startedAt).abs() > const Duration(seconds: 1)) {
+    if (startedAt != null &&
+        (position - startedAt).abs() > const Duration(seconds: 1)) {
       // Playback moved on its own — treat this as a fresh buffering window.
       _bufferingSince = DateTime.now();
       _bufferingStartPosition = position;
@@ -1563,9 +1564,7 @@ class PlayerController extends Notifier<PlayerState> {
         kind: PlaybackUiPhaseKind.bufferingRuntime,
         detail: 'Reconnecting to the source…',
       );
-      _beginStallRecovery(
-        perform: changeStream(current, resetPosition: false),
-      );
+      _beginStallRecovery(perform: changeStream(current, resetPosition: false));
       return;
     }
 
@@ -3036,7 +3035,9 @@ class PlayerController extends Notifier<PlayerState> {
     final stream = state.streams[index];
     final rawProviderName = stream.providerName.isNotEmpty
         ? stream.providerName
-        : (_item.provider ?? ref.read(activeProviderProvider)?.name ?? "Unknown");
+        : (_item.provider ??
+              ref.read(activeProviderProvider)?.name ??
+              "Unknown");
     final providerName = _getProviderDisplayName(rawProviderName);
     final subtitles = _effectiveExternalSubtitles(stream.subtitles);
     final attemptTotal = state.sourceAttempts.isEmpty
@@ -3362,7 +3363,9 @@ class PlayerController extends Notifier<PlayerState> {
 
     final rawPName = stream.providerName.isNotEmpty
         ? stream.providerName
-        : (_item.provider ?? ref.read(activeProviderProvider)?.name ?? 'Unknown');
+        : (_item.provider ??
+              ref.read(activeProviderProvider)?.name ??
+              'Unknown');
     final pName = _getProviderDisplayName(rawPName);
 
     // Capture current position before we switch engines/streams.

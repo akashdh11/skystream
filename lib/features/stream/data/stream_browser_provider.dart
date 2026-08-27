@@ -60,9 +60,7 @@ class StreamBrowserState {
     return StreamBrowserState(
       movies: movies ?? this.movies,
       series: series ?? this.series,
-      searchResults: clearSearch
-          ? null
-          : (searchResults ?? this.searchResults),
+      searchResults: clearSearch ? null : (searchResults ?? this.searchResults),
       query: query ?? this.query,
       tabIndex: tabIndex ?? this.tabIndex,
     );

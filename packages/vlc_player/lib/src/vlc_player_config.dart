@@ -280,8 +280,7 @@ class VlcSubtitleStyle {
       if (fontFamily != null && fontFamily!.isNotEmpty)
         '--freetype-font=$fontFamily',
       if (fontSize != null) '--freetype-fontsize=$fontSize',
-      if (relativeFontSize != null)
-        '--freetype-rel-fontsize=$relativeFontSize',
+      if (relativeFontSize != null) '--freetype-rel-fontsize=$relativeFontSize',
       if (color != null) ...<String>[
         '--freetype-color=${_rgb(color!)}',
         '--freetype-opacity=${_alpha(color!)}',
@@ -297,8 +296,7 @@ class VlcSubtitleStyle {
         '--freetype-shadow-color=${_rgb(shadowColor!)}',
         '--freetype-shadow-opacity=${_alpha(shadowColor!)}',
       ],
-      if (shadowDistance != null)
-        '--freetype-shadow-distance=$shadowDistance',
+      if (shadowDistance != null) '--freetype-shadow-distance=$shadowDistance',
       if (backgroundColor != null) ...<String>[
         '--freetype-background-color=${_rgb(backgroundColor!)}',
         '--freetype-background-opacity=${_alpha(backgroundColor!)}',

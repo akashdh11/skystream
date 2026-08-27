@@ -640,12 +640,7 @@ class _TmdbMovieDetailsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Cross-plugin stream launcher + provider results
-                _buildPlayFromPluginsButton(
-                  data,
-                  isMovie,
-                  theme,
-                  cs,
-                ),
+                _buildPlayFromPluginsButton(data, isMovie, theme, cs),
                 ProviderSearchSection(
                   query: title,
                   parentMediaType: isMovie ? 'movie' : 'tv',

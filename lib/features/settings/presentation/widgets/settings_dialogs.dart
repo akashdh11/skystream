@@ -2426,9 +2426,7 @@ void showTmdbApiKeyDialog(BuildContext context, WidgetRef ref) {
               return;
             }
 
-            await ref
-                .read(generalSettingsProvider.notifier)
-                .setTmdbApiKey(key);
+            await ref.read(generalSettingsProvider.notifier).setTmdbApiKey(key);
 
             // Force the TMDB-backed screens to refetch with the new key.
             ref.invalidate(streamBrowserProvider);
@@ -2463,9 +2461,7 @@ void showTmdbApiKeyDialog(BuildContext context, WidgetRef ref) {
                   const SizedBox(height: 12),
                   InkWell(
                     onTap: () => launchUrl(
-                      Uri.parse(
-                        'https://www.themoviedb.org/settings/api',
-                      ),
+                      Uri.parse('https://www.themoviedb.org/settings/api'),
                       mode: LaunchMode.externalApplication,
                     ),
                     child: Padding(
@@ -2507,8 +2503,7 @@ void showTmdbApiKeyDialog(BuildContext context, WidgetRef ref) {
             ),
             actions: [
               TextButton(
-                onPressed:
-                    isChecking ? null : () => Navigator.pop<void>(ctx),
+                onPressed: isChecking ? null : () => Navigator.pop<void>(ctx),
                 child: Text(l10n.cancel),
               ),
               TextButton(

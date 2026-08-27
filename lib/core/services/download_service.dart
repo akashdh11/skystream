@@ -153,9 +153,9 @@ class DownloadService {
               Config.holdingQueue,
               (
                 _ref
-                        .read(storageServiceProvider)
-                        .getDownloadConcurrency()
-                        .clamp(1, 10),
+                    .read(storageServiceProvider)
+                    .getDownloadConcurrency()
+                    .clamp(1, 10),
                 2,
                 1,
               ),
@@ -503,9 +503,7 @@ class DownloadService {
     await storage.setDownloadConcurrency(maxConcurrent);
     await storage.setDownloadChunks(chunks);
     await FileDownloader().configure(
-      globalConfig: [
-        (Config.holdingQueue, (maxConcurrent.clamp(1, 10), 2, 1)),
-      ],
+      globalConfig: [(Config.holdingQueue, (maxConcurrent.clamp(1, 10), 2, 1))],
     );
   }
 
@@ -645,8 +643,7 @@ class DownloadService {
     // Path Logic:
     // Android/Desktop: use BaseDirectory.root with absolute path.
     // iOS: use BaseDirectory.applicationDocuments with relative path for sandbox safety.
-    final customDir =
-        _ref.read(storageServiceProvider).getDownloadDirectory();
+    final customDir = _ref.read(storageServiceProvider).getDownloadDirectory();
     final hasCustomDir = customDir != null && customDir.trim().isNotEmpty;
     BaseDirectory baseDir;
     String taskDirectory;
