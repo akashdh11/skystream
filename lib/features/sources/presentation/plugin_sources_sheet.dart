@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dpad/dpad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -167,48 +168,11 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
 
   /// Re-runs the search with a title or TMDB id the user types.
   Future<void> _searchManually() async {
-    final controller = TextEditingController(
-      text: _titleOverride ?? widget.target.title,
-    );
     final value = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Search Nuvio scrapers manually'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Type a title or TMDB id (or tmdb:123) to re-point the Nuvio scrapers.',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Title or TMDB id',
-              ),
-              onSubmitted: (text) => Navigator.pop(dialogContext, text.trim()),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          if (_titleOverride != null || _tmdbOverride != null)
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, ''),
-              child: const Text('Reset'),
-            ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('Search'),
-          ),
-        ],
+      builder: (dialogContext) => _ManualSearchDialog(
+        initialText: _titleOverride ?? widget.target.title,
+        hasOverride: _titleOverride != null || _tmdbOverride != null,
       ),
     );
     if (value == null || !mounted) return;
@@ -492,14 +456,34 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 2),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => unawaited(_searchManually()),
-                    icon: const Icon(Icons.search_rounded, size: 16),
-                    label: Text(
-                      _titleOverride == null && _tmdbOverride == null
-                          ? 'Search with a different title'
-                          : 'Change search title',
-                    ),
+                  child: DpadFocusable(
+                    onSelect: () => unawaited(_searchManually()),
+                    child: const SizedBox.shrink(),
+                    builder: (context, state, _) {
+                      final isFocused = state.focused;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isFocused ? Colors.white : Colors.transparent,
+                            width: 1.5,
+                          ),
+                          color: isFocused
+                              ? cs.primary.withValues(alpha: 0.15)
+                              : Colors.transparent,
+                        ),
+                        child: TextButton.icon(
+                          onPressed: () => unawaited(_searchManually()),
+                          icon: const Icon(Icons.search_rounded, size: 16),
+                          label: Text(
+                            _titleOverride == null && _tmdbOverride == null
+                                ? 'Search with a different title'
+                                : 'Change search title',
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -666,7 +650,221 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
   }
 }
 
-class _SourceRow extends StatelessWidget {
+/// DPad-navigable manual search dialog that allows moving seamlessly from
+/// the text input down to the action buttons.
+class _ManualSearchDialog extends StatefulWidget {
+  final String initialText;
+  final bool hasOverride;
+
+  const _ManualSearchDialog({
+    required this.initialText,
+    required this.hasOverride,
+  });
+
+  @override
+  State<_ManualSearchDialog> createState() => _ManualSearchDialogState();
+}
+
+class _ManualSearchDialogState extends State<_ManualSearchDialog> {
+  late final TextEditingController _controller;
+  late final FocusNode _textFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+    _textFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _textFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Search Nuvio scrapers manually'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Type a title or TMDB id (or tmdb:123) to re-point the Nuvio scrapers.',
+          ),
+          const SizedBox(height: 14),
+          Focus(
+            onKeyEvent: (node, event) {
+              if (event is KeyDownEvent &&
+                  event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                node.nextFocus();
+                return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            child: TextField(
+              controller: _controller,
+              focusNode: _textFocusNode,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Title or TMDB id',
+              ),
+              onSubmitted: (text) => Navigator.pop(context, text.trim()),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        _DpadDialogButton(
+          label: 'Cancel',
+          onPressed: () => Navigator.pop(context),
+          isPrimary: false,
+        ),
+        if (widget.hasOverride)
+          _DpadDialogButton(
+            label: 'Reset',
+            onPressed: () => Navigator.pop(context, ''),
+            isPrimary: false,
+          ),
+        _DpadDialogButton(
+          label: 'Search',
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
+          isPrimary: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _DpadDialogButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final bool isPrimary;
+
+  const _DpadDialogButton({
+    required this.label,
+    required this.onPressed,
+    required this.isPrimary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return DpadFocusable(
+      onSelect: onPressed,
+      child: const SizedBox.shrink(),
+      builder: (context, state, _) {
+        final isFocused = state.focused;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isFocused ? Colors.white : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: isPrimary
+              ? FilledButton(
+                  onPressed: onPressed,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: isFocused ? cs.primary : null,
+                  ),
+                  child: Text(label),
+                )
+              : TextButton(
+                  onPressed: onPressed,
+                  style: TextButton.styleFrom(
+                    backgroundColor: isFocused
+                        ? cs.surfaceContainerHighest
+                        : Colors.transparent,
+                  ),
+                  child: Text(label),
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _DpadActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final FocusNode? focusNode;
+  final KeyEventResult Function(FocusNode, KeyEvent)? onKeyEvent;
+
+  const _DpadActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.color,
+    this.focusNode,
+    this.onKeyEvent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final enabled = onPressed != null;
+
+    if (!enabled) {
+      return ExcludeFocus(
+        child: IconButton(
+          tooltip: tooltip,
+          onPressed: null,
+          icon: Icon(icon, color: cs.onSurface.withValues(alpha: 0.3)),
+        ),
+      );
+    }
+
+    final dpadButton = DpadFocusable(
+      focusNode: focusNode,
+      onSelect: onPressed,
+      child: const SizedBox.shrink(),
+      builder: (context, state, _) {
+        final isFocused = state.focused;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isFocused
+                ? (color ?? cs.primary).withValues(alpha: 0.25)
+                : Colors.transparent,
+            border: Border.all(
+              color: isFocused ? Colors.white : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: IconButton(
+            tooltip: tooltip,
+            onPressed: onPressed,
+            icon: Icon(
+              icon,
+              color: isFocused ? Colors.white : (color ?? cs.onSurface),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (onKeyEvent != null) {
+      return Focus(
+        onKeyEvent: onKeyEvent,
+        child: dpadButton,
+      );
+    }
+    return dpadButton;
+  }
+}
+
+class _SourceRow extends StatefulWidget {
   final _Row row;
   final LinkProbeResult? probe;
   final bool probing;
@@ -687,6 +885,31 @@ class _SourceRow extends StatelessWidget {
     this.autofocus = false,
   });
 
+  @override
+  State<_SourceRow> createState() => _SourceRowState();
+}
+
+class _SourceRowState extends State<_SourceRow> {
+  late final FocusNode _cardFocusNode;
+  late final FocusNode _playFocusNode;
+  late final FocusNode _downloadFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _cardFocusNode = FocusNode();
+    _playFocusNode = FocusNode();
+    _downloadFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _cardFocusNode.dispose();
+    _playFocusNode.dispose();
+    _downloadFocusNode.dispose();
+    super.dispose();
+  }
+
   Color _avatarColor() {
     const palette = [
       Color(0xFF7C6BF5),
@@ -697,134 +920,191 @@ class _SourceRow extends StatelessWidget {
       Color(0xFFEC407A),
       Color(0xFFFFC107),
     ];
-    return palette[row.providerName.hashCode.abs() % palette.length];
+    return palette[widget.row.providerName.hashCode.abs() % palette.length];
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final row = widget.row;
+    final probe = widget.probe;
+    final probing = widget.probing;
+    final isBest = widget.isBest;
+    final downloadMode = widget.downloadMode;
+    final onPlay = widget.onPlay;
+    final onDownload = widget.onDownload;
+
     final letter = row.providerName.isEmpty
         ? '?'
         : row.providerName.substring(0, 1).toUpperCase();
     final resolution = probe?.resolutionLabel ?? row.qualityLabel;
     final size = probe?.sizeLabel;
 
-    return Material(
-      color: cs.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: downloadMode && row.canDownload ? onDownload : onPlay,
-        autofocus: autofocus,
-        focusColor: cs.primary.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          _playFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: DpadFocusable(
+        focusNode: _cardFocusNode,
+        autofocus: widget.autofocus,
+        onSelect: downloadMode && row.canDownload ? onDownload : onPlay,
+        child: const SizedBox.shrink(),
+        builder: (context, state, _) {
+        final isFocused = state.focused;
+        return Material(
+          color: isFocused
+              ? cs.surfaceContainerHighest
+              : cs.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            onTap: downloadMode && row.canDownload ? onDownload : onPlay,
             borderRadius: BorderRadius.circular(16),
-            border: isBest
-                ? Border.all(
-                    color: cs.primary.withValues(alpha: 0.8),
-                    width: 1.5,
-                  )
-                : null,
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 21,
-                backgroundColor: _avatarColor(),
-                child: Text(
-                  letter,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17,
-                  ),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isFocused
+                      ? Colors.white
+                      : (isBest
+                            ? cs.primary.withValues(alpha: 0.8)
+                            : Colors.transparent),
+                  width: isFocused ? 2 : (isBest ? 1.5 : 0),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          resolution,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SourceTag(
-                          text: 'NUVIO',
-                          color: cs.tertiary,
-                        ),
-                        if (row.isHdr)
-                          SourceTag(text: 'HDR', color: cs.tertiary),
-                        if (row.isTorrent)
-                          SourceTag(text: 'TORRENT', color: cs.primary),
-                        if (isBest) SourceTag(text: 'BEST', color: cs.primary),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      row.detail,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 21,
+                    backgroundColor: _avatarColor(),
+                    child: Text(
+                      letter,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 17,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Flexible(
-                          child: Text(
-                            row.providerName,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              resolution,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
+                            SourceTag(
+                              text: 'NUVIO',
+                              color: cs.tertiary,
+                            ),
+                            if (row.isHdr)
+                              SourceTag(text: 'HDR', color: cs.tertiary),
+                            if (row.isTorrent)
+                              SourceTag(text: 'TORRENT', color: cs.primary),
+                            if (isBest)
+                              SourceTag(text: 'BEST', color: cs.primary),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          row.detail,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
-                        if (size != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            size,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                row.providerName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: ProbeBadge(probe: probe, probing: probing),
+                            if (size != null) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                size,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: ProbeBadge(probe: probe, probing: probing),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 4),
+                  _DpadActionButton(
+                    focusNode: _playFocusNode,
+                    icon: Icons.play_arrow_rounded,
+                    tooltip: 'Play',
+                    onPressed: onPlay,
+                    color: cs.primary,
+                    onKeyEvent: (node, event) {
+                      if (event is KeyDownEvent) {
+                        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                          _cardFocusNode.requestFocus();
+                          return KeyEventResult.handled;
+                        }
+                        if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
+                            row.canDownload) {
+                          _downloadFocusNode.requestFocus();
+                          return KeyEventResult.handled;
+                        }
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                  ),
+                  _DpadActionButton(
+                    focusNode: _downloadFocusNode,
+                    icon: Icons.download_rounded,
+                    tooltip: row.canDownload ? 'Download' : 'Stream-only link',
+                    onPressed: row.canDownload ? onDownload : null,
+                    onKeyEvent: (node, event) {
+                      if (event is KeyDownEvent &&
+                          event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                        _playFocusNode.requestFocus();
+                        return KeyEventResult.handled;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                  ),
+                ],
               ),
-              IconButton(
-                tooltip: 'Play',
-                onPressed: onPlay,
-                icon: const Icon(Icons.play_arrow_rounded),
-              ),
-              IconButton(
-                tooltip: row.canDownload ? 'Download' : 'Stream-only link',
-                onPressed: row.canDownload ? onDownload : null,
-                icon: const Icon(Icons.download_rounded),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  );
+}
 }
