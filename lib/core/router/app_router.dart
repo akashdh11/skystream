@@ -141,10 +141,12 @@ class SettingsBranchData extends StatefulShellBranchData {
 }
 
 class SettingsRoute extends GoRouteData with $SettingsRoute {
-  const SettingsRoute();
+  final String? category;
+  const SettingsRoute({this.category});
+
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      const SettingsScreen();
+      SettingsScreen(initialCategory: category);
 }
 
 // --- Sub-routes of Settings ---

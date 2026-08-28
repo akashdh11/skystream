@@ -251,7 +251,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
                     return CardsWrapper(
                       onTap: () {
                         if (isStremio) {
-                          const AddonsRoute().push<void>(context);
+                          const SettingsRoute(category: 'addons').go(context);
                         } else {
                           unawaited(
                             showDialog<void>(

@@ -36,14 +36,40 @@ enum SettingsCategory {
 }
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  final String? initialCategory;
+  const SettingsScreen({super.key, this.initialCategory});
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  SettingsCategory _selectedCategory = SettingsCategory.general;
+  late SettingsCategory _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = _parseCategory(widget.initialCategory);
+  }
+
+  @override
+  void didUpdateWidget(covariant SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCategory != oldWidget.initialCategory &&
+        widget.initialCategory != null) {
+      setState(() {
+        _selectedCategory = _parseCategory(widget.initialCategory);
+      });
+    }
+  }
+
+  SettingsCategory _parseCategory(String? name) {
+    if (name == null) return SettingsCategory.general;
+    return SettingsCategory.values.firstWhere(
+      (c) => c.name.toLowerCase() == name.toLowerCase(),
+      orElse: () => SettingsCategory.general,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

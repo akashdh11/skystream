@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/addons/data/addon_client.dart';
 import '../../../core/addons/data/addon_repository.dart';
@@ -99,39 +98,8 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
             ),
             child: Row(
               children: [
-                if (!widget.isEmbedded) ...[
-                  CardsWrapper(
-                    scaleFactor: 1.05,
-                    borderRadius: BorderRadius.circular(50),
-                    onTap: () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.of(context).pop();
-                      } else {
-                        context.pop();
-                      }
-                    },
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withValues(alpha: 0.4),
-                      ),
-                      child: Icon(
-                        Icons.arrow_back_rounded,
-                        color: Theme.of(context).colorScheme.onSurface,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                ],
                 Text(
-                  'Stremio Settings',
+                  'Stremio Add-ons',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -170,38 +138,10 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
       );
     }
 
-    // Mobile layout: AppBar with TabBar
+    // Mobile layout: Standard AppBar with TabBar
     return Scaffold(
       appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: CardsWrapper(
-            borderRadius: BorderRadius.circular(50),
-            onTap: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              } else {
-                context.pop();
-              }
-            },
-            child: Container(
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context)
-                    .colorScheme
-                    .surfaceContainerHighest
-                    .withValues(alpha: 0.4),
-              ),
-              child: Icon(
-                Icons.arrow_back_rounded,
-                color: Theme.of(context).colorScheme.onSurface,
-                size: 20,
-              ),
-            ),
-          ),
-        ),
-        title: const Text('Stremio Settings'),
+        title: const Text('Stremio Add-ons'),
         bottom: TabBar(
           controller: _tabController,
           indicatorSize: TabBarIndicatorSize.label,

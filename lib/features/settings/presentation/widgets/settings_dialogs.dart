@@ -57,6 +57,8 @@ String getHomeScreenLabel(String route, AppLocalizations l10n) {
       return l10n.explore;
     case '/search':
       return l10n.search;
+    case '/nuvio':
+      return 'Nuvio';
     case '/library':
       return l10n.library;
     default:
@@ -76,7 +78,7 @@ void showDefaultHomeScreenDialog(
     {'label': l10n.explore, 'route': '/explore'},
     {'label': l10n.search, 'route': '/search'},
     {'label': 'Nuvio', 'route': '/nuvio'},
-    {'label': 'Add-ons', 'route': '/addons'},
+    {'label': l10n.library, 'route': '/library'},
   ];
 
   showDialog<void>(

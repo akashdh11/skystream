@@ -219,7 +219,7 @@ class ExploreHeaderBar extends ConsumerWidget {
                 scaleFactor: 1.01,
                 onTap: () {
                   if (isStremio) {
-                    const AddonsRoute().push<void>(context);
+                    const SettingsRoute(category: 'addons').go(context);
                   } else {
                     unawaited(
                       showDialog<void>(
