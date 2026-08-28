@@ -49,6 +49,7 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
   late final ScrollController _scrollController;
   late final ScrollController _episodesScrollController;
   int _selectedRangeIndex = 0;
+  bool _isSeasonDropdownFocused = false;
 
   @override
   void initState() {
@@ -119,61 +120,74 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                 ),
               ),
               const SizedBox(width: 20),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    return DropdownButton<int>(
-                      value: ref
-                          .watch(
-                            tmdbDetailsControllerProvider(
-                              widget.movieId,
-                              source: widget.source,
-                            ),
+              Focus(
+                onFocusChange: (focused) {
+                  setState(() {
+                    _isSeasonDropdownFocused = focused;
+                  });
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(8),
+                    border: _isSeasonDropdownFocused
+                        ? Border.all(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2,
                           )
-                          .selectedSeason,
-                      dropdownColor: Theme.of(
-                        context,
-                      ).colorScheme.surfaceContainer,
-                      underline: const SizedBox(),
-                      style: TextStyle(color: widget.textColor),
-                      icon: Icon(
-                        Icons.arrow_drop_down,
-                        color: widget.textColor,
-                      ),
-                      items: widget.seasons.map<DropdownMenuItem<int>>((s) {
-                        final num = s.seasonNumber;
-                        final count = s.episodeCount;
-                        return DropdownMenuItem(
-                          value: num,
-                          child: Text(
-                            AppLocalizations.of(
-                              context,
-                            )!.seasonWithEpisodes(num, count),
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedRangeIndex = 0;
-                          });
-                          ref
-                              .read(
-                                tmdbDetailsControllerProvider(
-                                  widget.movieId,
-                                  source: widget.source,
-                                ).notifier,
-                              )
-                              .fetchEpisodes(val, source: widget.source);
-                        }
-                      },
-                    );
-                  },
+                        : null,
+                  ),
+                  child: Consumer(
+                    builder: (context, ref, _) {
+                      return DropdownButton<int>(
+                        value: ref
+                            .watch(
+                              tmdbDetailsControllerProvider(
+                                widget.movieId,
+                                source: widget.source,
+                              ),
+                            )
+                            .selectedSeason,
+                        dropdownColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainer,
+                        underline: const SizedBox(),
+                        style: TextStyle(color: widget.textColor),
+                        icon: Icon(
+                          Icons.arrow_drop_down,
+                          color: widget.textColor,
+                        ),
+                        items: widget.seasons.map<DropdownMenuItem<int>>((s) {
+                          final num = s.seasonNumber;
+                          final count = s.episodeCount;
+                          return DropdownMenuItem(
+                            value: num,
+                            child: Text(
+                              AppLocalizations.of(
+                                context,
+                              )!.seasonWithEpisodes(num, count),
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() {
+                              _selectedRangeIndex = 0;
+                            });
+                            ref
+                                .read(
+                                  tmdbDetailsControllerProvider(
+                                    widget.movieId,
+                                    source: widget.source,
+                                  ).notifier,
+                                )
+                                .fetchEpisodes(val, source: widget.source);
+                          }
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ],
