@@ -24,8 +24,13 @@ import '../../explore/presentation/widgets/media_horizontal_list.dart';
 /// Stremio Add-ons settings destination — management and discovery.
 class AddonsScreen extends ConsumerStatefulWidget {
   final int initialTab;
+  final bool isEmbedded;
 
-  const AddonsScreen({super.key, this.initialTab = 0});
+  const AddonsScreen({
+    super.key,
+    this.initialTab = 0,
+    this.isEmbedded = false,
+  });
 
   @override
   ConsumerState<AddonsScreen> createState() => _AddonsScreenState();
@@ -82,78 +87,86 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
     final isTv = profile?.isTv == true || context.isTv;
     final isWidescreen = isTv || context.isTabletOrLarger;
 
+    final content = Column(
+      children: [
+        // Inline header matching library and widescreen dashboard screens
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Container(
+            height: LayoutConstants.dashboardHeaderHeight,
+            padding: const EdgeInsets.symmetric(
+              horizontal: LayoutConstants.dashboardContentPadding,
+            ),
+            child: Row(
+              children: [
+                if (!widget.isEmbedded) ...[
+                  CardsWrapper(
+                    scaleFactor: 1.05,
+                    borderRadius: BorderRadius.circular(50),
+                    onTap: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      } else {
+                        context.pop();
+                      }
+                    },
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.4),
+                      ),
+                      child: Icon(
+                        Icons.arrow_back_rounded,
+                        color: Theme.of(context).colorScheme.onSurface,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                ],
+                Text(
+                  'Stremio Settings',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                // Tab chips
+                _buildTabChips(context),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child: PageView(
+            controller: _pageController,
+            onPageChanged: (index) {
+              _tabController.animateTo(index);
+            },
+            physics: const BouncingScrollPhysics(),
+            children: const [
+              AddonManageView(),
+              _DiscoverTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isEmbedded) {
+      return content;
+    }
+
     if (isWidescreen) {
       return Scaffold(
         backgroundColor: Colors.transparent,
-        body: Column(
-          children: [
-            // Inline header matching library and widescreen dashboard screens
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Container(
-                height: LayoutConstants.dashboardHeaderHeight,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: LayoutConstants.dashboardContentPadding,
-                ),
-                child: Row(
-                  children: [
-                    CardsWrapper(
-                      scaleFactor: 1.05,
-                      borderRadius: BorderRadius.circular(50),
-                      onTap: () {
-                        if (Navigator.of(context).canPop()) {
-                          Navigator.of(context).pop();
-                        } else {
-                          context.pop();
-                        }
-                      },
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest
-                              .withValues(alpha: 0.4),
-                        ),
-                        child: Icon(
-                          Icons.arrow_back_rounded,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Text(
-                      'Stremio Settings',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    // Tab chips
-                    _buildTabChips(context),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  _tabController.animateTo(index);
-                },
-                physics: const BouncingScrollPhysics(),
-                children: const [
-                  AddonManageView(),
-                  _DiscoverTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
+        body: content,
       );
     }
 

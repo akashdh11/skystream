@@ -68,7 +68,7 @@ Future<void> showExploreModeSelectorDialog(
                 ),
                 _ModeOptionTile(
                   value: ExploreModeType.stremio,
-                  icon: Icons.extension_outlined,
+                  icon: Icons.dashboard_customize_outlined,
                   title: 'Stremio Add-ons',
                   subtitle:
                       'Explore catalogs from your installed Stremio add-ons',

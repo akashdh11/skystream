@@ -272,7 +272,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
                                 ).colorScheme.onSurface.withValues(alpha: 0.1),
                           radius: 18,
                           child: Icon(
-                            isStremio ? Icons.extension_rounded : Icons.tune,
+                            isStremio
+                                ? Icons.dashboard_customize_rounded
+                                : Icons.tune,
                             color: Theme.of(context).colorScheme.onSurface,
                             size: 18,
                           ),

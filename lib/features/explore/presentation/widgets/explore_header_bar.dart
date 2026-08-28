@@ -245,7 +245,9 @@ class ExploreHeaderBar extends ConsumerWidget {
                             ),
                     ),
                     child: Icon(
-                      isStremio ? Icons.extension_rounded : Icons.tune,
+                      isStremio
+                          ? Icons.dashboard_customize_rounded
+                          : Icons.tune,
                       color: theme.colorScheme.onSurface,
                       size: 18,
                     ),
