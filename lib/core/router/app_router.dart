@@ -41,8 +41,8 @@ part 'app_router.g.dart';
     TypedStatefulShellBranch<NuvioBranchData>(
       routes: [TypedGoRoute<NuvioRoute>(path: '/nuvio')],
     ),
-    TypedStatefulShellBranch<AddonsBranchData>(
-      routes: [TypedGoRoute<AddonsRoute>(path: '/addons')],
+    TypedStatefulShellBranch<LibraryBranchData>(
+      routes: [TypedGoRoute<LibraryRoute>(path: '/library')],
     ),
     TypedStatefulShellBranch<SettingsBranchData>(
       routes: [
@@ -113,15 +113,27 @@ class NuvioRoute extends GoRouteData with $NuvioRoute {
       const NuvioScreen();
 }
 
-class AddonsBranchData extends StatefulShellBranchData {
-  const AddonsBranchData();
+class LibraryBranchData extends StatefulShellBranchData {
+  const LibraryBranchData();
 }
 
-class AddonsRoute extends GoRouteData with $AddonsRoute {
-  const AddonsRoute();
+class LibraryRoute extends GoRouteData with $LibraryRoute {
+  final int? tab;
+  const LibraryRoute({this.tab});
+
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      const AddonsScreen();
+      LibraryScreen(initialTab: tab ?? 0);
+}
+
+@TypedGoRoute<AddonsRoute>(path: '/addons')
+class AddonsRoute extends GoRouteData with $AddonsRoute {
+  final int? initialTab;
+  const AddonsRoute({this.initialTab});
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      AddonsScreen(initialTab: initialTab ?? 0);
 }
 
 class SettingsBranchData extends StatefulShellBranchData {
@@ -276,16 +288,7 @@ class PlayerRoute extends GoRouteData with $PlayerRoute {
   }
 }
 
-/// Library is no longer a tab: Settings opens Downloads / Bookmarks here.
-@TypedGoRoute<LibraryRoute>(path: '/library')
-class LibraryRoute extends GoRouteData with $LibraryRoute {
-  const LibraryRoute({this.tab = 0});
-  final int tab;
 
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      LibraryScreen(initialTab: tab);
-}
 
 @TypedGoRoute<AddonDetailRoute>(path: '/addon-detail')
 class AddonDetailRoute extends GoRouteData with $AddonDetailRoute {

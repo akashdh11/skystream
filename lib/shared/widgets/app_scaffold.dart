@@ -54,7 +54,7 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
         return 2;
       case '/nuvio':
         return 3;
-      case '/addons':
+      case '/library':
         return 4;
       case '/settings':
         return 5;

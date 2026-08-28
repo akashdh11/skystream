@@ -133,9 +133,9 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
       (Icons.explore_outlined, Icons.explore, l10n.explore),
       (Icons.bolt_outlined, Icons.bolt, 'Nuvio'),
       (
-        Icons.dashboard_customize_outlined,
-        Icons.dashboard_customize,
-        'Add-ons',
+        Icons.video_library_outlined,
+        Icons.video_library,
+        l10n.library,
       ),
       (Icons.settings_outlined, Icons.settings, l10n.settings),
     ];
