@@ -272,7 +272,7 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
           ),
         ),
       );
-      if (started && mounted) Navigator.of(context).maybePop();
+      if (started && mounted) await Navigator.of(context).maybePop();
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
