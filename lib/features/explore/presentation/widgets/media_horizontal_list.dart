@@ -19,6 +19,7 @@ class MediaHorizontalList extends StatefulWidget {
   final void Function(MultimediaItem)? onTap;
   final bool showViewAll;
   final String? heroTagPrefix;
+  final VoidCallback? onViewAll;
 
   const MediaHorizontalList({
     super.key,
@@ -28,6 +29,7 @@ class MediaHorizontalList extends StatefulWidget {
     this.onTap,
     this.showViewAll = true,
     this.heroTagPrefix,
+    this.onViewAll,
   });
 
   @override
@@ -208,6 +210,10 @@ class _MediaHorizontalListState extends State<MediaHorizontalList> {
               if (widget.showViewAll)
                 CardsWrapper(
                   onTap: () {
+                    if (widget.onViewAll != null) {
+                      widget.onViewAll!();
+                      return;
+                    }
                     ViewAllRoute(
                       $extra: ViewAllRouteExtra(
                         title: widget.title,
