@@ -1,6 +1,9 @@
+import 'package:collection/collection.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/config/tmdb_config.dart';
+import '../../settings/presentation/widgets/settings_dialogs.dart';
 import '../../../shared/widgets/cards_wrapper.dart';
 import '../data/explore_tmdb_provider.dart';
 import '../data/explore_mode_provider.dart';
@@ -381,8 +384,75 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
     );
   }
 
+  void _refreshAll() {
+    ref.invalidate(exploreHeroMovieProvider);
+    ref.invalidate(popularMoviesProvider);
+    ref.invalidate(popularTVProvider);
+    ref.invalidate(nowPlayingMoviesProvider);
+    ref.invalidate(onTheAirTVProvider);
+    ref.invalidate(topRatedMoviesProvider);
+    ref.invalidate(topRatedTVProvider);
+    ref.invalidate(airingTodayTVProvider);
+    ref.invalidate(genresProvider);
+  }
+
   Widget _buildScrollView(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    if (TmdbConfig.apiKey.isEmpty) {
+      return _buildNeedsKeyOrErrorState(
+        context,
+        icon: Icons.vpn_key_rounded,
+        title: 'TMDB API key needed',
+        subtitle:
+            'TMDB is used to discover movies and series on Explore. '
+            'Please configure a free TMDB API key in Settings or Nuvio plugins.',
+        showApiKeyButton: true,
+      );
+    }
+
     final heroMoviesAsync = ref.watch(exploreHeroMovieProvider);
+    final popularMoviesAsync = ref.watch(popularMoviesProvider);
+    final popularTVAsync = ref.watch(popularTVProvider);
+    final nowPlayingAsync = ref.watch(nowPlayingMoviesProvider);
+    final onTheAirAsync = ref.watch(onTheAirTVProvider);
+    final topRatedMoviesAsync = ref.watch(topRatedMoviesProvider);
+    final topRatedTVAsync = ref.watch(topRatedTVProvider);
+    final airingTodayAsync = ref.watch(airingTodayTVProvider);
+
+    final allSections = [
+      heroMoviesAsync,
+      popularMoviesAsync,
+      popularTVAsync,
+      nowPlayingAsync,
+      onTheAirAsync,
+      topRatedMoviesAsync,
+      topRatedTVAsync,
+      airingTodayAsync,
+    ];
+
+    final isAnyLoading = allSections.any((s) => s.isLoading);
+    final isAllFailedOrEmpty = !isAnyLoading &&
+        allSections.every((s) {
+          if (s.hasError) return true;
+          if (s.hasValue && (s.value?.isEmpty ?? true)) return true;
+          return false;
+        });
+
+    if (isAllFailedOrEmpty) {
+      final firstError =
+          allSections.firstWhereOrNull((s) => s.hasError)?.error;
+      return _buildNeedsKeyOrErrorState(
+        context,
+        icon: Icons.cloud_off_rounded,
+        title: l10n.siteNotReachable,
+        subtitle:
+            'Could not load Explore content. Check your internet connection or verify your TMDB API key.',
+        errorDetails: firstError?.toString(),
+        showApiKeyButton: true,
+      );
+    }
+
     final isNone = heroMoviesAsync.maybeWhen(
       data: (list) => list.isEmpty,
       error: (_, _) => true,
@@ -392,21 +462,109 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
         ? (MediaQuery.paddingOf(context).top + kToolbarHeight)
         : 0.0;
 
-    return CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-        if (topPadding > 0)
-          SliverToBoxAdapter(child: SizedBox(height: topPadding)),
-        ..._buildContentSlivers(context).map((sliver) {
-          return SliverSafeArea(
-            top: false,
-            bottom: false,
-            left: true,
-            right: true,
-            sliver: sliver,
-          );
-        }),
-      ],
+    return RefreshIndicator(
+      onRefresh: () async => _refreshAll(),
+      child: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          if (topPadding > 0)
+            SliverToBoxAdapter(child: SizedBox(height: topPadding)),
+          ..._buildContentSlivers(context).map((sliver) {
+            return SliverSafeArea(
+              top: false,
+              bottom: false,
+              left: true,
+              right: true,
+              sliver: sliver,
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNeedsKeyOrErrorState(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    String? errorDetails,
+    bool showApiKeyButton = false,
+  }) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 80,
+              color: theme.colorScheme.error,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (errorDetails != null && errorDetails.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: SelectableText(
+                  errorDetails,
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 32),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: _refreshAll,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: Text(l10n.retry),
+                ),
+                if (showApiKeyButton)
+                  ElevatedButton.icon(
+                    onPressed: () => showTmdbApiKeyDialog(context, ref),
+                    icon: const Icon(Icons.vpn_key_rounded),
+                    label: const Text('TMDB API Key'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: theme.colorScheme.secondaryContainer,
+                      foregroundColor: theme.colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
