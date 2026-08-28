@@ -410,6 +410,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
 
   void _refreshAll() {
     ref.invalidate(exploreHeroMovieProvider);
+    ref.invalidate(trendingTVProvider);
     ref.invalidate(popularMoviesProvider);
     ref.invalidate(popularTVProvider);
     ref.invalidate(nowPlayingMoviesProvider);
@@ -436,6 +437,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
     }
 
     final heroMoviesAsync = ref.watch(exploreHeroMovieProvider);
+    final trendingTVAsync = ref.watch(trendingTVProvider);
     final popularMoviesAsync = ref.watch(popularMoviesProvider);
     final popularTVAsync = ref.watch(popularTVProvider);
     final nowPlayingAsync = ref.watch(nowPlayingMoviesProvider);
@@ -446,6 +448,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
 
     final allSections = [
       heroMoviesAsync,
+      trendingTVAsync,
       popularMoviesAsync,
       popularTVAsync,
       nowPlayingAsync,
@@ -663,6 +666,15 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
           ref.watch(popularMoviesProvider),
           l10n.popularMovies,
           ViewAllCategory.popularMovies,
+        ),
+      ),
+
+      SliverToBoxAdapter(
+        child: _buildSection(
+          context,
+          ref.watch(trendingTVProvider),
+          'Trending TV Shows',
+          ViewAllCategory.trendingTV,
         ),
       ),
 

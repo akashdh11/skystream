@@ -259,6 +259,23 @@ class TmdbService {
     page: page,
   );
 
+  Future<List<MultimediaItem>> getTrendingTV({
+    String language = 'en-US',
+    int? genreId,
+    int? year,
+    double? minRating,
+    int page = 1,
+  }) => _fetchWithFilterFallback(
+    discoverPath: '/discover/tv',
+    directPath: '/trending/tv/week',
+    sortBy: 'popularity.desc',
+    language: language,
+    genreId: genreId,
+    year: year,
+    minRating: minRating,
+    page: page,
+  );
+
   Future<List<MultimediaItem>> getOnTheAirTV({
     String language = 'en-US',
     int? genreId,

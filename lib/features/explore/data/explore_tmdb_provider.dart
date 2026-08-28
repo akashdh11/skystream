@@ -131,6 +131,19 @@ Future<List<MultimediaItem>> topRatedMovies(Ref ref) async {
 }
 
 @riverpod
+Future<List<MultimediaItem>> trendingTV(Ref ref) async {
+  final service = ref.watch(tmdbServiceProvider);
+  final lang = ref.watch(languageProvider);
+  final filters = ref.watch(exploreFilterProvider);
+  return service.getTrendingTV(
+    language: lang,
+    genreId: filters.selectedGenre?.id,
+    year: filters.selectedYear,
+    minRating: filters.minRating,
+  );
+}
+
+@riverpod
 Future<List<MultimediaItem>> popularTV(Ref ref) async {
   final service = ref.watch(tmdbServiceProvider);
   final lang = ref.watch(languageProvider);
