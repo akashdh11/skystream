@@ -481,3 +481,107 @@ class _CustomButtonState extends State<CustomButton> {
     );
   }
 }
+
+/// A Switch widget with clean D-pad focus border and thumb tick-mark icon.
+class CustomSwitch extends StatefulWidget {
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+  final FocusNode? focusNode;
+  final bool autofocus;
+
+  const CustomSwitch({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.focusNode,
+    this.autofocus = false,
+  });
+
+  @override
+  State<CustomSwitch> createState() => _CustomSwitchState();
+}
+
+class _CustomSwitchState extends State<CustomSwitch> {
+  late FocusNode _focusNode;
+  bool _isFocused = false;
+  late final VoidCallback _focusListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = widget.focusNode ?? FocusNode();
+    _focusListener = () {
+      if (mounted) setState(() => _isFocused = _focusNode.hasFocus);
+    };
+    _focusNode.addListener(_focusListener);
+  }
+
+  @override
+  void didUpdateWidget(covariant CustomSwitch oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.focusNode != oldWidget.focusNode) {
+      _focusNode.removeListener(_focusListener);
+      if (oldWidget.focusNode == null) _focusNode.dispose();
+      _focusNode = widget.focusNode ?? FocusNode();
+      _focusNode.addListener(_focusListener);
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode.removeListener(_focusListener);
+    if (widget.focusNode == null) {
+      _focusNode.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final enabled = widget.onChanged != null;
+
+    return Focus(
+      focusNode: _focusNode,
+      autofocus: widget.autofocus,
+      canRequestFocus: enabled,
+      onKeyEvent: (node, event) {
+        if (!enabled) return KeyEventResult.ignored;
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.space)) {
+          widget.onChanged!(!widget.value);
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: _isFocused
+              ? Border.all(color: cs.primary, width: 2)
+              : Border.all(color: Colors.transparent, width: 2),
+        ),
+        child: ExcludeFocus(
+          child: Switch(
+            value: widget.value,
+            onChanged: widget.onChanged,
+            thumbIcon: WidgetStateProperty.resolveWith((states) {
+              if (_isFocused) {
+                return Icon(
+                  widget.value ? Icons.check_rounded : Icons.close_rounded,
+                  size: 14,
+                );
+              }
+              return null;
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+}

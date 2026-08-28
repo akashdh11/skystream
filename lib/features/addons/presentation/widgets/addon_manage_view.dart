@@ -505,7 +505,8 @@ class _AddonTileState extends State<_AddonTile> {
         onSelect: () => widget.onToggle(!widget.addon.enabled),
         child: const SizedBox.shrink(),
         builder: (context, focusState, _) {
-          final isTileFocused = focusState.focused;
+          final isTileFocused =
+              focusState.focused && !_menuFocusNode.hasFocus;
 
           return AnimatedContainer(
             duration: const Duration(milliseconds: 150),
@@ -633,6 +634,18 @@ class _AddonTileState extends State<_AddonTile> {
                         Switch(
                           value: widget.addon.enabled,
                           onChanged: widget.onToggle,
+                          thumbIcon: WidgetStateProperty.resolveWith<Icon?>((states) {
+                            if (isTileFocused ||
+                                states.contains(WidgetState.focused) ||
+                                states.contains(WidgetState.hovered)) {
+                              if (widget.addon.enabled) {
+                                return const Icon(Icons.check_rounded, size: 14);
+                              } else {
+                                return const Icon(Icons.close_rounded, size: 14);
+                              }
+                            }
+                            return null;
+                          }),
                         ),
                         const SizedBox(width: 4),
                         Focus(
