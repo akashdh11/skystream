@@ -5,7 +5,6 @@ import 'package:skystream/features/home/presentation/home_screen.dart';
 import 'package:skystream/features/search/presentation/search_screen.dart';
 import '../../features/explore/presentation/explore_screen.dart';
 import 'package:skystream/features/library/presentation/library_screen.dart';
-import 'package:skystream/features/nuvio/presentation/nuvio_screen.dart';
 import 'package:skystream/features/addons/presentation/addons_screen.dart';
 import 'package:skystream/features/addons/presentation/addon_detail_screen.dart';
 import 'package:skystream/features/addons/presentation/addon_catalog_screen.dart';
@@ -37,9 +36,6 @@ part 'app_router.g.dart';
     ),
     TypedStatefulShellBranch<ExploreBranchData>(
       routes: [TypedGoRoute<ExploreRoute>(path: '/explore')],
-    ),
-    TypedStatefulShellBranch<NuvioBranchData>(
-      routes: [TypedGoRoute<NuvioRoute>(path: '/nuvio')],
     ),
     TypedStatefulShellBranch<LibraryBranchData>(
       routes: [TypedGoRoute<LibraryRoute>(path: '/library')],
@@ -100,17 +96,6 @@ class ExploreRoute extends GoRouteData with $ExploreRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       const ExploreScreen();
-}
-
-class NuvioBranchData extends StatefulShellBranchData {
-  const NuvioBranchData();
-}
-
-class NuvioRoute extends GoRouteData with $NuvioRoute {
-  const NuvioRoute();
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      const NuvioScreen();
 }
 
 class LibraryBranchData extends StatefulShellBranchData {
@@ -340,21 +325,14 @@ const List<String> kShellBranchRoutes = [
   '/home',
   '/search',
   '/explore',
-  '/nuvio',
-  '/addons',
+  '/library',
   '/settings',
 ];
 
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
   final saved = ref.read(settingsRepositoryProvider).getDefaultHomeScreen();
-  final initial = kShellBranchRoutes.contains(saved)
-      ? saved
-      : (saved == '/stream'
-            ? '/addons'
-            : saved == '/library'
-            ? '/nuvio'
-            : '/home');
+  final initial = kShellBranchRoutes.contains(saved) ? saved : '/home';
 
   return GoRouter(
     initialLocation: initial,

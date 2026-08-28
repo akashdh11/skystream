@@ -39,11 +39,6 @@ class CustomBottomNavBar extends StatelessWidget {
         selectedIcon: Icons.explore,
         label: localizations.explore,
       ),
-      const _BottomNavDestination(
-        icon: Icons.bolt_outlined,
-        selectedIcon: Icons.bolt,
-        label: 'Nuvio',
-      ),
       _BottomNavDestination(
         icon: Icons.video_library_outlined,
         selectedIcon: Icons.video_library,
