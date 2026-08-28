@@ -11,6 +11,8 @@ import 'package:skystream/features/explore/presentation/widgets/hover_border_gra
 import 'package:skystream/features/explore/presentation/widgets/explore_mode_selector_dialog.dart';
 import 'dart:async';
 
+import '../../../../core/router/app_router.dart';
+
 /// A custom header bar for the explore screen in widescreen/desktop layout.
 ///
 /// Contains: carousel prev/next arrows, capsule search, filter chip.
@@ -202,46 +204,55 @@ class ExploreHeaderBar extends ConsumerWidget {
           ),
 
           const SizedBox(width: 16),
-          // Filter chip
-          CardsWrapper(
-            scaleFactor: 1.01,
-            onTap: () {
-              unawaited(
-                showDialog<void>(
-                  context: context,
-                  builder: (context) => const UnifiedFilterDialog(),
+          // Filter / Stremio Add-on Settings chip
+          Consumer(
+            builder: (context, ref, _) {
+              final mode = ref.watch(exploreModeProvider);
+              final isStremio = mode == ExploreModeType.stremio;
+              final filters = ref.watch(exploreFilterProvider);
+              final hasActiveFilter =
+                  filters.selectedGenre != null ||
+                  filters.selectedYear != null ||
+                  filters.minRating != null;
+
+              return CardsWrapper(
+                scaleFactor: 1.01,
+                onTap: () {
+                  if (isStremio) {
+                    const AddonsRoute().push<void>(context);
+                  } else {
+                    unawaited(
+                      showDialog<void>(
+                        context: context,
+                        builder: (context) => const UnifiedFilterDialog(),
+                      ),
+                    );
+                  }
+                },
+                borderRadius: BorderRadius.circular(50),
+                child: Tooltip(
+                  message: isStremio ? 'Stremio Settings' : 'Filter',
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: (!isStremio && hasActiveFilter)
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.surfaceContainerHighest.withValues(
+                              alpha: 0.3,
+                            ),
+                    ),
+                    child: Icon(
+                      isStremio ? Icons.extension_rounded : Icons.tune,
+                      color: theme.colorScheme.onSurface,
+                      size: 18,
+                    ),
+                  ),
                 ),
               );
             },
-            borderRadius: BorderRadius.circular(50),
-            child: Consumer(
-              builder: (context, ref, _) {
-                final filters = ref.watch(exploreFilterProvider);
-                final hasActiveFilter =
-                    filters.selectedGenre != null ||
-                    filters.selectedYear != null ||
-                    filters.minRating != null;
-
-                return Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: hasActiveFilter
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.surfaceContainerHighest.withValues(
-                            alpha: 0.3,
-                          ),
-                  ),
-                  child: Icon(
-                    Icons.tune,
-                    color: theme.colorScheme.onSurface,
-                    size: 18,
-                  ),
-                );
-              },
-            ),
           ),
         ],
       ),

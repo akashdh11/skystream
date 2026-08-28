@@ -24,6 +24,7 @@ import '../../../../core/domain/entity/multimedia_item.dart';
 import '../../addons/presentation/addons_screen.dart';
 import 'widgets/explore_mode_selector_dialog.dart';
 import '../../../l10n/generated/app_localizations.dart';
+import '../../../core/router/app_router.dart';
 import 'dart:async';
 
 class ExploreScreen extends ConsumerStatefulWidget {
@@ -237,42 +238,48 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
                 padding: const EdgeInsets.only(
                   right: LayoutConstants.spacingMd,
                 ),
-                child: CardsWrapper(
-                  onTap: () {
-                    unawaited(
-                      showDialog<void>(
-                        context: context,
-                        builder: (context) => const UnifiedFilterDialog(),
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final mode = ref.watch(exploreModeProvider);
+                    final isStremio = mode == ExploreModeType.stremio;
+                    final filters = ref.watch(exploreFilterProvider);
+                    final hasActiveFilter =
+                        filters.selectedGenre != null ||
+                        filters.selectedYear != null ||
+                        filters.minRating != null;
+
+                    return CardsWrapper(
+                      onTap: () {
+                        if (isStremio) {
+                          const AddonsRoute().push<void>(context);
+                        } else {
+                          unawaited(
+                            showDialog<void>(
+                              context: context,
+                              builder: (context) => const UnifiedFilterDialog(),
+                            ),
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(50),
+                      child: Tooltip(
+                        message: isStremio ? 'Stremio Settings' : 'Filter',
+                        child: CircleAvatar(
+                          backgroundColor: (!isStremio && hasActiveFilter)
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.1),
+                          radius: 18,
+                          child: Icon(
+                            isStremio ? Icons.extension_rounded : Icons.tune,
+                            color: Theme.of(context).colorScheme.onSurface,
+                            size: 18,
+                          ),
+                        ),
                       ),
                     );
                   },
-                  borderRadius: BorderRadius.circular(50),
-                  child: Consumer(
-                    builder: (context, ref, _) {
-                      final filters = ref.watch(
-                        exploreFilterProvider,
-                      ); // Updated
-                      // Language exclusion: Only highlight for content filters
-                      final hasActiveFilter =
-                          filters.selectedGenre != null ||
-                          filters.selectedYear != null ||
-                          filters.minRating != null;
-
-                      return CircleAvatar(
-                        backgroundColor: hasActiveFilter
-                            ? Theme.of(context).colorScheme.primary
-                            : Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.1),
-                        radius: 18,
-                        child: Icon(
-                          Icons.tune,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          size: 18,
-                        ),
-                      );
-                    },
-                  ),
                 ),
               ),
 
