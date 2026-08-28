@@ -8,6 +8,7 @@ import 'package:skystream/features/explore/presentation/widgets/unified_filter_d
 import 'package:skystream/features/explore/data/explore_filter_provider.dart';
 import 'package:skystream/features/explore/data/explore_mode_provider.dart';
 import 'package:skystream/features/explore/presentation/widgets/hover_border_gradient.dart';
+import 'package:skystream/features/explore/presentation/widgets/explore_mode_selector_dialog.dart';
 import 'dart:async';
 
 /// A custom header bar for the explore screen in widescreen/desktop layout.
@@ -84,51 +85,58 @@ class ExploreHeaderBar extends ConsumerWidget {
 
           CardsWrapper(
             scaleFactor: 1.01,
-            onTap: () {
-              final isAnime = ref.read(exploreModeProvider);
-              ref.read(exploreModeProvider.notifier).setAnimeMode(!isAnime);
-            },
+            onTap: () => showExploreModeSelectorDialog(context, ref),
             borderRadius: BorderRadius.circular(LayoutConstants.radiusPill),
             child: HoverBorderGradient(
-              onTap: () {
-                final isAnime = ref.read(exploreModeProvider);
-                ref.read(exploreModeProvider.notifier).setAnimeMode(!isAnime);
-              },
+              onTap: () => showExploreModeSelectorDialog(context, ref),
               child: Consumer(
                 builder: (context, ref, _) {
-                  final isAnime = ref.watch(exploreModeProvider);
+                  final mode = ref.watch(exploreModeProvider);
+                  final isDark =
+                      Theme.of(context).brightness == Brightness.dark;
+                  final textColor = isDark ? Colors.white : Colors.black;
+
+                  Widget iconWidget;
+                  String labelText;
+
+                  switch (mode) {
+                    case ExploreModeType.movies:
+                      iconWidget = Icon(
+                        Icons.movie_outlined,
+                        size: 14,
+                        color: textColor,
+                      );
+                      labelText = l10n.exploreMovies;
+                      break;
+                    case ExploreModeType.anime:
+                      iconWidget = SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CustomPaint(
+                          painter: AnimeLogoPainter(color: textColor),
+                        ),
+                      );
+                      labelText = l10n.exploreAnime;
+                      break;
+                    case ExploreModeType.stremio:
+                      iconWidget = Icon(
+                        Icons.extension_outlined,
+                        size: 14,
+                        color: textColor,
+                      );
+                      labelText = 'Stremio Add-ons';
+                      break;
+                  }
+
                   return Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (isAnime)
-                        Icon(
-                          Icons.movie,
-                          size: 14,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
-                        )
-                      else
-                        SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CustomPaint(
-                            painter: AnimeLogoPainter(
-                              color:
-                                  Theme.of(context).brightness ==
-                                      Brightness.dark
-                                  ? Colors.white
-                                  : Colors.black,
-                            ),
-                          ),
-                        ),
+                      iconWidget,
                       const SizedBox(width: 8),
                       Text(
-                        isAnime ? l10n.exploreMovies : l10n.exploreAnime,
+                        labelText,
                         style: TextStyle(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
+                          color: textColor,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),

@@ -17,7 +17,7 @@ TmdbService tmdbService(Ref ref) {
 
 @Riverpod(keepAlive: true)
 Future<List<TmdbGenre>> genres(Ref ref) async {
-  final isAnime = ref.watch(exploreModeProvider);
+  final isAnime = ref.watch(exploreModeProvider) == ExploreModeType.anime;
   if (isAnime) {
     final animeGenres = [
       'Action',

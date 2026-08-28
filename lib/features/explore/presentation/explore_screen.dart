@@ -21,6 +21,8 @@ import '../../../../core/utils/responsive_breakpoints.dart';
 import '../../../../core/providers/device_info_provider.dart';
 import '../../../../shared/widgets/shimmer_placeholder.dart';
 import '../../../../core/domain/entity/multimedia_item.dart';
+import '../../addons/presentation/addons_screen.dart';
+import 'widgets/explore_mode_selector_dialog.dart';
 import '../../../l10n/generated/app_localizations.dart';
 import 'dart:async';
 
@@ -169,51 +171,61 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
             ),
             centerTitle: false,
             actions: [
-              // Explore Mode Toggle (Movies <-> Anime)
+              // Explore Mode Selector (Movies / Anime / Stremio Add-ons)
               Padding(
                 padding: const EdgeInsets.only(
                   right: LayoutConstants.spacingMd,
                 ),
                 child: CardsWrapper(
-                  onTap: () {
-                    final isAnime = ref.read(exploreModeProvider);
-                    ref
-                        .read(exploreModeProvider.notifier)
-                        .setAnimeMode(!isAnime);
-                  },
+                  onTap: () => showExploreModeSelectorDialog(context, ref),
                   borderRadius: BorderRadius.circular(50),
                   child: Consumer(
                     builder: (context, ref, _) {
-                      final isAnime = ref.watch(exploreModeProvider);
+                      final mode = ref.watch(exploreModeProvider);
                       final l10n = AppLocalizations.of(context)!;
+                      final onSurfaceColor =
+                          Theme.of(context).colorScheme.onSurface;
+
+                      Widget iconWidget;
+                      String tooltipMsg;
+
+                      switch (mode) {
+                        case ExploreModeType.movies:
+                          iconWidget = Icon(
+                            Icons.movie_outlined,
+                            color: onSurfaceColor,
+                            size: 18,
+                          );
+                          tooltipMsg = l10n.exploreMovies;
+                          break;
+                        case ExploreModeType.anime:
+                          iconWidget = SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CustomPaint(
+                              painter: AnimeLogoPainter(color: onSurfaceColor),
+                            ),
+                          );
+                          tooltipMsg = l10n.exploreAnime;
+                          break;
+                        case ExploreModeType.stremio:
+                          iconWidget = Icon(
+                            Icons.extension_outlined,
+                            color: onSurfaceColor,
+                            size: 18,
+                          );
+                          tooltipMsg = 'Stremio Add-ons';
+                          break;
+                      }
+
                       return Tooltip(
-                        message: isAnime
-                            ? l10n.exploreMovies
-                            : l10n.exploreAnime,
+                        message: tooltipMsg,
                         child: CircleAvatar(
-                          backgroundColor: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.1),
+                          backgroundColor: onSurfaceColor.withValues(
+                            alpha: 0.1,
+                          ),
                           radius: 18,
-                          child: isAnime
-                              ? Icon(
-                                  Icons.movie,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                  size: 18,
-                                )
-                              : SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CustomPaint(
-                                    painter: AnimeLogoPainter(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface,
-                                    ),
-                                  ),
-                                ),
+                          child: iconWidget,
                         ),
                       );
                     },
@@ -295,23 +307,35 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
               ),
             ],
           ),
-          body: _withGradientEdgeHint(
-            ref.watch(exploreModeProvider)
-                ? AnilistExploreScreen(
-                    scrollController: _scrollController,
-                    firstActionFocusNode: _firstActionFocusNode,
-                    onControllerReady: (c) =>
-                        setState(() => _carouselController = c),
-                  )
-                : _buildScrollView(context),
-          ),
+          body: _withGradientEdgeHint(_buildActiveExploreBody(context)),
         );
       },
     );
   }
 
+  Widget _buildActiveExploreBody(BuildContext context) {
+    final mode = ref.watch(exploreModeProvider);
+    switch (mode) {
+      case ExploreModeType.movies:
+        return _buildScrollView(context);
+      case ExploreModeType.anime:
+        return AnilistExploreScreen(
+          scrollController: _scrollController,
+          firstActionFocusNode: _firstActionFocusNode,
+          onControllerReady: (c) =>
+              setState(() => _carouselController = c),
+        );
+      case ExploreModeType.stremio:
+        return AddonCatalogsTabView(
+          scrollController: _scrollController,
+          firstActionFocusNode: _firstActionFocusNode,
+          onControllerReady: (c) =>
+              setState(() => _carouselController = c),
+        );
+    }
+  }
+
   Widget _buildWidescreenBody(BuildContext context) {
-    final isAnime = ref.watch(exploreModeProvider);
     return Column(
       children: [
         Padding(
@@ -327,16 +351,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
           ),
         ),
         Expanded(
-          child: _withGradientEdgeHint(
-            isAnime
-                ? AnilistExploreScreen(
-                    scrollController: _scrollController,
-                    firstActionFocusNode: _firstActionFocusNode,
-                    onControllerReady: (c) =>
-                        setState(() => _carouselController = c),
-                  )
-                : _buildScrollView(context),
-          ),
+          child: _withGradientEdgeHint(_buildActiveExploreBody(context)),
         ),
       ],
     );

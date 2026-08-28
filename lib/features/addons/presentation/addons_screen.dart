@@ -48,7 +48,7 @@ class AddonsScreen extends StatelessWidget {
         ),
         body: const TabBarView(
           children: [
-            _CatalogsTab(),
+            AddonCatalogsTabView(),
             AddonManageView(),
             _DiscoverTab(),
           ],
@@ -72,16 +72,27 @@ class _NoScrollbarBehavior extends ScrollBehavior {
   }
 }
 
-class _CatalogsTab extends ConsumerStatefulWidget {
-  const _CatalogsTab();
+class AddonCatalogsTabView extends ConsumerStatefulWidget {
+  final ScrollController? scrollController;
+  final FocusNode? firstActionFocusNode;
+  final void Function(HeroCarouselController)? onControllerReady;
+
+  const AddonCatalogsTabView({
+    super.key,
+    this.scrollController,
+    this.firstActionFocusNode,
+    this.onControllerReady,
+  });
 
   @override
-  ConsumerState<_CatalogsTab> createState() => _CatalogsTabState();
+  ConsumerState<AddonCatalogsTabView> createState() =>
+      _AddonCatalogsTabViewState();
 }
 
-class _CatalogsTabState extends ConsumerState<_CatalogsTab>
+class _AddonCatalogsTabViewState extends ConsumerState<AddonCatalogsTabView>
     with AutomaticKeepAliveClientMixin {
   late final ScrollController _scrollController;
+  bool _createdInternalScrollController = false;
   final ValueNotifier<bool> _showBottomFade = ValueNotifier(false);
 
   @override
@@ -90,8 +101,23 @@ class _CatalogsTabState extends ConsumerState<_CatalogsTab>
   @override
   void initState() {
     super.initState();
-    _scrollController = ScrollController();
+    if (widget.scrollController != null) {
+      _scrollController = widget.scrollController!;
+    } else {
+      _scrollController = ScrollController();
+      _createdInternalScrollController = true;
+    }
     _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    if (_createdInternalScrollController) {
+      _scrollController.dispose();
+    }
+    _showBottomFade.dispose();
+    super.dispose();
   }
 
   void _onScroll() {
@@ -102,14 +128,6 @@ class _CatalogsTabState extends ConsumerState<_CatalogsTab>
     if (showFade != _showBottomFade.value) {
       _showBottomFade.value = showFade;
     }
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    _showBottomFade.dispose();
-    super.dispose();
   }
 
   Widget _withGradientEdgeHint(Widget scrollView) {
@@ -210,6 +228,8 @@ class _CatalogsTabState extends ConsumerState<_CatalogsTab>
               child: _CatalogCarouselSection(
                 catalog: firstCatalog,
                 scrollController: _scrollController,
+                onNavigateUp: () => widget.firstActionFocusNode?.requestFocus(),
+                onControllerReady: widget.onControllerReady,
               ),
             ),
 
@@ -270,10 +290,14 @@ class _CatalogsTabState extends ConsumerState<_CatalogsTab>
 class _CatalogCarouselSection extends ConsumerWidget {
   final BrowsableCatalog catalog;
   final ScrollController scrollController;
+  final VoidCallback? onNavigateUp;
+  final void Function(HeroCarouselController)? onControllerReady;
 
   const _CatalogCarouselSection({
     required this.catalog,
     required this.scrollController,
+    this.onNavigateUp,
+    this.onControllerReady,
   });
 
   @override
@@ -309,6 +333,8 @@ class _CatalogCarouselSection extends ConsumerWidget {
         return ExploreCarousel(
           movies: mediaList,
           scrollController: scrollController,
+          onNavigateUp: onNavigateUp,
+          onControllerReady: onControllerReady,
           onTap: (item) {
             final preview = previewMap[item.url];
             final type = preview?.type ??

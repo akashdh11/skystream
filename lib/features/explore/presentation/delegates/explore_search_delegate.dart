@@ -11,6 +11,9 @@ import '../controllers/explore_search_controller.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
 import '../../../../core/providers/device_info_provider.dart';
 import '../../../../core/utils/responsive_breakpoints.dart';
+import '../../../../core/domain/entity/multimedia_item.dart';
+import '../../../../core/addons/models/addon_meta.dart' show kAddonItemSource;
+import '../../data/explore_mode_provider.dart';
 
 class ExploreSearchDelegate extends SearchDelegate<void> {
   ExploreSearchDelegate()
@@ -182,18 +185,72 @@ class _SearchSuggestionsListState
               ),
             ),
             onTap: () {
-              TmdbDetailsRoute(
-                movieId: item.id,
-                mediaType: item.tmdbMediaType,
-                heroTag: 'search_${item.id}',
-                source: item.source,
-              ).push<void>(context);
+              _navigateToItem(
+                context,
+                item,
+                heroTag: 'search_${item.url}',
+                isStremioMode:
+                    ref.read(exploreModeProvider) == ExploreModeType.stremio,
+              );
             },
           ),
         );
       },
     );
   }
+}
+
+void _navigateToItem(
+  BuildContext context,
+  MultimediaItem item, {
+  String? heroTag,
+  String? placeholderPoster,
+  bool isStremioMode = false,
+}) {
+  final isAddon =
+      item.source == kAddonItemSource ||
+      item.url.startsWith('addon:') ||
+      isStremioMode ||
+      item.url.startsWith('tt') ||
+      item.url.startsWith('kitsu:');
+
+  if (isAddon) {
+    final String type;
+    final String id;
+    final String? addonUrl;
+
+    if (item.url.startsWith('addon:')) {
+      final parts = item.url.split(':');
+      type =
+          parts.length >= 2
+              ? parts[1]
+              : (item.contentType == MultimediaContentType.series
+                  ? 'series'
+                  : 'movie');
+      id = parts.length >= 3 ? parts[2] : item.url;
+      addonUrl = parts.length > 3 ? parts.sublist(3).join(':') : null;
+    } else {
+      type =
+          item.contentType == MultimediaContentType.series ? 'series' : 'movie';
+      id = item.url;
+      addonUrl = null;
+    }
+
+    AddonDetailRoute(
+      type: type,
+      id: id,
+      addonUrl: addonUrl,
+    ).push<void>(context);
+    return;
+  }
+
+  TmdbDetailsRoute(
+    movieId: item.id,
+    mediaType: item.tmdbMediaType,
+    heroTag: heroTag,
+    placeholderPoster: placeholderPoster,
+    source: item.source,
+  ).push<void>(context);
 }
 
 class _SearchResultsGrid extends ConsumerStatefulWidget {
@@ -338,20 +395,21 @@ class _SearchResultsGridState extends ConsumerState<_SearchResultsGrid> {
         final imageUrl = item.posterImageUrl;
         final title = item.title;
         final id = item.id;
-        final uniqueTag = 'search_result_${id}_$index';
+        final uniqueTag = 'search_result_${id != 0 ? id : item.url}_$index';
 
         return MultimediaCard(
           imageUrl: imageUrl,
           title: title,
           heroTag: uniqueTag,
           onTap: () {
-            TmdbDetailsRoute(
-              movieId: id,
-              mediaType: item.tmdbMediaType,
+            _navigateToItem(
+              context,
+              item,
               heroTag: uniqueTag,
               placeholderPoster: imageUrl,
-              source: item.source,
-            ).push<void>(context);
+              isStremioMode:
+                  ref.read(exploreModeProvider) == ExploreModeType.stremio,
+            );
           },
         );
       },
