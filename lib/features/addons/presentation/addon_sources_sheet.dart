@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:dpad/dpad.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -13,6 +15,7 @@ import '../../../core/addons/models/addon_stream_source.dart';
 import '../../../core/domain/entity/multimedia_item.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/download_service.dart';
+import '../../sources/presentation/source_sheet_widgets.dart';
 
 /// Add-on sources sheet: play or download a title using **only** the links
 /// returned by installed add-ons.
@@ -20,6 +23,7 @@ class AddonSourcesSheet extends ConsumerStatefulWidget {
   final MultimediaItem item;
   final AddonStreamRequest request;
   final Episode? episode;
+  final SourcesMode mode;
 
   /// Full episode list, forwarded to the player for binge playback.
   final List<AddonVideo> playlist;
@@ -30,6 +34,7 @@ class AddonSourcesSheet extends ConsumerStatefulWidget {
     required this.request,
     this.episode,
     this.playlist = const [],
+    this.mode = SourcesMode.play,
   });
 
   static Future<void> open(
@@ -38,6 +43,7 @@ class AddonSourcesSheet extends ConsumerStatefulWidget {
     required AddonStreamRequest request,
     Episode? episode,
     List<AddonVideo> playlist = const [],
+    SourcesMode mode = SourcesMode.play,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -49,6 +55,7 @@ class AddonSourcesSheet extends ConsumerStatefulWidget {
         request: request,
         episode: episode,
         playlist: playlist,
+        mode: mode,
       ),
     );
   }
@@ -65,10 +72,12 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
   bool _hdOnly = false;
   _KindFilter _kind = _KindFilter.all;
   String? _debridStatus;
+  late SourcesMode _mode;
 
   @override
   void initState() {
     super.initState();
+    _mode = widget.mode;
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_start()));
   }
 
@@ -80,8 +89,6 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
   }
 
   Future<void> _start({bool forceRefresh = false}) async {
-    // The store loads from disk asynchronously — don't mistake a cold start
-    // for "no add-ons installed".
     if (ref.read(addonRepositoryProvider).isLoading) {
       await ref.read(addonRepositoryProvider.notifier).load();
     }
@@ -105,6 +112,9 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
   List<AddonStreamSource> get _visible => _result.streams
       .where((s) {
         if (_hdOnly && s.qualityScore < 1080) return false;
+        if (_mode == SourcesMode.download && (!s.isDirect || s.url == null)) {
+          return false;
+        }
         return switch (_kind) {
           _KindFilter.all => true,
           _KindFilter.direct => s.isDirect,
@@ -114,29 +124,16 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
       })
       .toList(growable: false);
 
-  /// Rows that can actually be handed to a player (everything except deep
-  /// links into other apps).
   List<AddonStreamSource> get _playable =>
       _visible.where((s) => s.isPlayable).toList(growable: false);
 
-  /// Plays through the app's built-in player — quality filtering, source
-  /// switching, subtitle and track menus, gestures, HDR, external-player
-  /// hand-off, the seek/buffer watchdog, history and tracker sync. There is no
-  /// second, weaker player any more: add-on streams get the same engine as
-  /// everything else in the app.
   Future<void> _play(AddonStreamSource stream) async {
-    // Deep links (WatchHub & friends) open the streaming service instead of
-    // the player — that is the only thing those add-ons can do.
     if (stream.isExternal) {
       await _openExternally(stream);
       return;
     }
 
     final ordered = _playable;
-
-    // With a debrid account configured, the chosen torrent becomes a direct
-    // link before the player sees it. Not cached? The magnet is passed through
-    // and the player's own torrent engine takes over.
     var selected = stream;
     if (stream.isTorrent && ref.read(debridSettingsProvider).isConfigured) {
       setState(() => _debridStatus = 'Checking debrid…');
@@ -281,6 +278,118 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
     }
   }
 
+  String _diagnosticsReport() {
+    final buffer = StringBuffer()
+      ..writeln('Addon sources diagnostics')
+      ..writeln('title: ${widget.item.title}')
+      ..writeln('id candidates: ${widget.request.idCandidates.join(', ')}')
+      ..writeln(
+        'add-ons: ${_result.streams.length} links, '
+        '${_result.completedCount}/${_result.totalCount} done',
+      );
+    for (final status in _result.statuses) {
+      buffer.writeln(
+        '- ${status.addonName}: ${status.outcome.name}'
+        '${status.outcome == AddonQueryOutcome.links ? ' (${status.linkCount})' : ''}'
+        '${status.message == null ? '' : ' — ${status.message}'}',
+      );
+    }
+    return buffer.toString();
+  }
+
+  Widget _details(ThemeData theme, ColorScheme cs) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Add-on status · ${_result.statuses.length}',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: _diagnosticsReport()));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Diagnostics copied')),
+                  );
+                },
+                icon: const Icon(Icons.copy_rounded, size: 14),
+                label: const Text('Copy'),
+              ),
+            ],
+          ),
+          Text(
+            'Tried ids: ${widget.request.idCandidates.join(', ')}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 120),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final status in _result.statuses)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Row(
+                        children: [
+                          Icon(
+                            switch (status.outcome) {
+                              AddonQueryOutcome.links =>
+                                Icons.check_circle_rounded,
+                              AddonQueryOutcome.empty =>
+                                Icons.remove_circle_outline,
+                              AddonQueryOutcome.failed =>
+                                Icons.error_outline_rounded,
+                              AddonQueryOutcome.pending =>
+                                Icons.hourglass_empty_rounded,
+                            },
+                            size: 13,
+                            color: switch (status.outcome) {
+                              AddonQueryOutcome.links => Colors.green,
+                              AddonQueryOutcome.failed => cs.error,
+                              _ => cs.onSurfaceVariant,
+                            },
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              status.outcome == AddonQueryOutcome.links
+                                  ? '${status.addonName} · ${status.linkCount} links'
+                                  : '${status.addonName} · ${status.message ?? 'waiting…'}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -293,13 +402,14 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
 
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.82,
-      minChildSize: 0.45,
+      initialChildSize: 0.85,
+      minChildSize: 0.55,
       maxChildSize: 0.96,
       builder: (context, scrollController) => DecoratedBox(
         decoration: BoxDecoration(
           color: cs.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+          border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
         ),
         child: Column(
           children: [
@@ -312,41 +422,37 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 8, 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Add-on sources',
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          subtitle,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Refresh',
-                    icon: const Icon(Icons.refresh_rounded),
-                    onPressed: () => unawaited(_start(forceRefresh: true)),
-                  ),
-                ],
+            SourceSheetHeader(
+              title: 'Add-on Sources',
+              subtitle: subtitle,
+              trailing: const SourceTag(
+                text: 'STREMIO',
+                color: Color(0xFF7C6BF5),
               ),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SegmentedButton<SourcesMode>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: SourcesMode.play,
+                    icon: Icon(Icons.play_arrow_rounded, size: 18),
+                    label: Text('Play'),
+                  ),
+                  ButtonSegment(
+                    value: SourcesMode.download,
+                    icon: Icon(Icons.download_rounded, size: 18),
+                    label: Text('Download'),
+                  ),
+                ],
+                selected: {_mode},
+                onSelectionChanged: (value) =>
+                    setState(() => _mode = value.first),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
               child: Row(
                 children: [
                   Expanded(
@@ -364,7 +470,7 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
                   ),
                   if (_result.isLoading)
                     SizedBox(
-                      width: 70,
+                      width: 90,
                       child: LinearProgressIndicator(
                         value: _result.progress == 0 ? null : _result.progress,
                         minHeight: 4,
@@ -383,7 +489,7 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
             ),
             if (_debridStatus != null)
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 6),
                 child: Row(
                   children: [
                     const SizedBox(
@@ -429,6 +535,7 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
                 ],
               ),
             ),
+            const SizedBox(height: 4),
             Expanded(
               child: visible.isEmpty
                   ? Center(
@@ -447,14 +554,11 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
                                   const SizedBox(height: 12),
                                   Text(
                                     _result.streams.isNotEmpty
-                                        ? 'No links match this filter. '
-                                              'Try "All".'
+                                        ? 'No links match this filter. Try "All".'
                                         : _result.error ??
-                                              'No add-on returned links for '
-                                                  'this title. Install a '
-                                                  'stream add-on such as '
-                                                  'Torrentio, MediaFusion or '
-                                                  'WatchHub.',
+                                              'No add-on returned links for this title. '
+                                                  'Install a stream add-on such as Torrentio, '
+                                                  'MediaFusion or WatchHub.',
                                     textAlign: TextAlign.center,
                                     style: theme.textTheme.bodyMedium?.copyWith(
                                       color: cs.onSurfaceVariant,
@@ -495,6 +599,7 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
                         stream: visible[index],
                         isBest: index == 0,
                         autofocus: index == 0,
+                        downloadMode: _mode == SourcesMode.download,
                         onPlay: () => unawaited(_play(visible[index])),
                         onDownload: () => unawaited(_download(visible[index])),
                       ),
@@ -505,70 +610,82 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
       ),
     );
   }
+}
 
-  Widget _details(ThemeData theme, ColorScheme cs) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Tried ids: ${widget.request.idCandidates.join(', ')}',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: cs.onSurfaceVariant,
+class _DpadActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final FocusNode? focusNode;
+  final KeyEventResult Function(FocusNode, KeyEvent)? onKeyEvent;
+
+  const _DpadActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.color,
+    this.focusNode,
+    this.onKeyEvent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final enabled = onPressed != null;
+
+    if (!enabled) {
+      return ExcludeFocus(
+        child: IconButton(
+          tooltip: tooltip,
+          onPressed: null,
+          icon: Icon(icon, color: cs.onSurface.withValues(alpha: 0.3)),
+        ),
+      );
+    }
+
+    final dpadButton = DpadFocusable(
+      focusNode: focusNode,
+      onSelect: onPressed,
+      child: const SizedBox.shrink(),
+      builder: (context, state, _) {
+        final isFocused = state.focused;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isFocused
+                ? (color ?? cs.primary).withValues(alpha: 0.25)
+                : Colors.transparent,
+            border: Border.all(
+              color: isFocused ? Colors.white : Colors.transparent,
+              width: 2,
             ),
           ),
-          const SizedBox(height: 6),
-          for (final status in _result.statuses)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Row(
-                children: [
-                  Icon(
-                    switch (status.outcome) {
-                      AddonQueryOutcome.links => Icons.check_circle_rounded,
-                      AddonQueryOutcome.empty => Icons.remove_circle_outline,
-                      AddonQueryOutcome.failed => Icons.error_outline_rounded,
-                      AddonQueryOutcome.pending =>
-                        Icons.hourglass_empty_rounded,
-                    },
-                    size: 13,
-                    color: switch (status.outcome) {
-                      AddonQueryOutcome.links => Colors.green,
-                      AddonQueryOutcome.failed => cs.error,
-                      _ => cs.onSurfaceVariant,
-                    },
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      status.outcome == AddonQueryOutcome.links
-                          ? '${status.addonName} · ${status.linkCount} links'
-                          : '${status.addonName} · ${status.message ?? 'waiting…'}',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          child: IconButton(
+            tooltip: tooltip,
+            onPressed: onPressed,
+            icon: Icon(
+              icon,
+              color: isFocused ? Colors.white : (color ?? cs.onSurface),
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
+
+    if (onKeyEvent != null) {
+      return Focus(onKeyEvent: onKeyEvent, child: dpadButton);
+    }
+    return dpadButton;
   }
 }
 
-class _SourceRow extends StatelessWidget {
+class _SourceRow extends StatefulWidget {
   final AddonStreamSource stream;
   final bool isBest;
   final bool autofocus;
+  final bool downloadMode;
   final VoidCallback onPlay;
   final VoidCallback onDownload;
 
@@ -578,7 +695,33 @@ class _SourceRow extends StatelessWidget {
     required this.onPlay,
     required this.onDownload,
     this.autofocus = false,
+    this.downloadMode = false,
   });
+
+  @override
+  State<_SourceRow> createState() => _SourceRowState();
+}
+
+class _SourceRowState extends State<_SourceRow> {
+  late final FocusNode _cardFocusNode;
+  late final FocusNode _playFocusNode;
+  late final FocusNode _downloadFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _cardFocusNode = FocusNode();
+    _playFocusNode = FocusNode();
+    _downloadFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _cardFocusNode.dispose();
+    _playFocusNode.dispose();
+    _downloadFocusNode.dispose();
+    super.dispose();
+  }
 
   Color _avatarColor() {
     const palette = [
@@ -588,171 +731,219 @@ class _SourceRow extends StatelessWidget {
       Color(0xFF2196F3),
       Color(0xFF26C6DA),
       Color(0xFFEC407A),
+      Color(0xFFFFC107),
     ];
-    return palette[stream.addonName.hashCode.abs() % palette.length];
+    return palette[widget.stream.addonName.hashCode.abs() % palette.length];
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final stream = widget.stream;
+    final isBest = widget.isBest;
+    final downloadMode = widget.downloadMode;
+    final onPlay = widget.onPlay;
+    final onDownload = widget.onDownload;
+
     final letter = stream.addonName.isEmpty
         ? '?'
         : stream.addonName.substring(0, 1).toUpperCase();
     final size = stream.sizeLabel;
 
-    return Material(
-      color: cs.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onPlay,
-        autofocus: autofocus,
-        focusColor: cs.primary.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          _playFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: DpadFocusable(
+        focusNode: _cardFocusNode,
+        autofocus: widget.autofocus,
+        onSelect: downloadMode && stream.isDirect ? onDownload : onPlay,
+        child: const SizedBox.shrink(),
+        builder: (context, state, _) {
+          final isFocused = state.focused;
+          return Material(
+            color: isFocused
+                ? cs.surfaceContainerHighest
+                : cs.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(16),
-            border: isBest
-                ? Border.all(
-                    color: cs.primary.withValues(alpha: 0.8),
-                    width: 1.5,
-                  )
-                : null,
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: _avatarColor(),
-                child: Text(
-                  letter,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+            child: InkWell(
+              onTap: downloadMode && stream.isDirect ? onDownload : onPlay,
+              borderRadius: BorderRadius.circular(16),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isFocused
+                        ? Colors.white
+                        : (isBest
+                            ? cs.primary.withValues(alpha: 0.8)
+                            : Colors.transparent),
+                    width: isFocused ? 2 : (isBest ? 1.5 : 0),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+                child: Row(
                   children: [
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          stream.qualityLabel,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                    CircleAvatar(
+                      radius: 21,
+                      backgroundColor: _avatarColor(),
+                      child: Text(
+                        letter,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
                         ),
-                        if (stream.isHdr) _Tag(text: 'HDR', color: cs.tertiary),
-                        if (stream.isTorrent)
-                          _Tag(text: 'TORRENT', color: cs.primary),
-                        if (stream.isCachedDebrid)
-                          const _Tag(text: 'CACHED', color: Colors.green),
-                        if (stream.isExternal)
-                          _Tag(text: 'OPENS APP', color: cs.secondary),
-                        if (isBest) _Tag(text: 'BEST', color: cs.primary),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      stream.subtitleLine,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          stream.addonName,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: cs.onSurfaceVariant,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                stream.qualityLabel,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SourceTag(
+                                text: 'STREMIO',
+                                color: Color(0xFF7C6BF5),
+                              ),
+                              if (stream.isHdr)
+                                SourceTag(text: 'HDR', color: cs.tertiary),
+                              if (stream.isTorrent)
+                                SourceTag(text: 'TORRENT', color: cs.primary),
+                              if (stream.isCachedDebrid)
+                                const SourceTag(
+                                  text: 'CACHED',
+                                  color: Colors.green,
+                                ),
+                              if (stream.isExternal)
+                                SourceTag(
+                                  text: 'OPENS APP',
+                                  color: cs.secondary,
+                                ),
+                              if (isBest)
+                                SourceTag(text: 'BEST', color: cs.primary),
+                            ],
                           ),
-                        ),
-                        if (size != null) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(height: 2),
                           Text(
-                            size,
-                            style: theme.textTheme.labelSmall?.copyWith(
+                            stream.subtitleLine,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant,
                             ),
                           ),
-                        ],
-                        if (stream.seeders != null) ...[
-                          const SizedBox(width: 8),
-                          Icon(
-                            Icons.people_alt_outlined,
-                            size: 12,
-                            color: cs.onSurfaceVariant,
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  stream.addonName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              if (size != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  size,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                              if (stream.seeders != null) ...[
+                                const SizedBox(width: 8),
+                                Icon(
+                                  Icons.people_alt_outlined,
+                                  size: 12,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${stream.seeders}',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                          const SizedBox(width: 2),
-                          Text(
-                            '${stream.seeders}',
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: cs.onSurfaceVariant,
-                            ),
-                          ),
                         ],
-                      ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    _DpadActionButton(
+                      focusNode: _playFocusNode,
+                      icon: stream.isExternal
+                          ? Icons.open_in_new_rounded
+                          : Icons.play_arrow_rounded,
+                      tooltip: stream.isExternal ? 'Open' : 'Play',
+                      onPressed: onPlay,
+                      color: cs.primary,
+                      onKeyEvent: (node, event) {
+                        if (event is KeyDownEvent) {
+                          if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowLeft) {
+                            _cardFocusNode.requestFocus();
+                            return KeyEventResult.handled;
+                          }
+                          if (event.logicalKey ==
+                                  LogicalKeyboardKey.arrowRight &&
+                              stream.isDirect) {
+                            _downloadFocusNode.requestFocus();
+                            return KeyEventResult.handled;
+                          }
+                        }
+                        return KeyEventResult.ignored;
+                      },
+                    ),
+                    _DpadActionButton(
+                      focusNode: _downloadFocusNode,
+                      icon: Icons.download_rounded,
+                      tooltip: stream.isDirect
+                          ? 'Download'
+                          : 'Torrent sources cannot be downloaded',
+                      onPressed: stream.isDirect ? onDownload : null,
+                      onKeyEvent: (node, event) {
+                        if (event is KeyDownEvent &&
+                            event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                          _playFocusNode.requestFocus();
+                          return KeyEventResult.handled;
+                        }
+                        return KeyEventResult.ignored;
+                      },
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: stream.isExternal ? 'Open' : 'Play',
-                onPressed: onPlay,
-                icon: Icon(
-                  stream.isExternal
-                      ? Icons.open_in_new_rounded
-                      : Icons.play_arrow_rounded,
-                ),
-              ),
-              IconButton(
-                tooltip: stream.isDirect
-                    ? 'Download'
-                    : 'Torrent sources cannot be downloaded',
-                onPressed: stream.isDirect ? onDownload : null,
-                icon: const Icon(Icons.download_rounded),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Tag extends StatelessWidget {
-  final String text;
-  final Color color;
-  const _Tag({required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.18),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.bold,
-          color: color,
-          letterSpacing: 0.5,
-        ),
+            ),
+          );
+        },
       ),
     );
   }
