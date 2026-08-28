@@ -46,20 +46,16 @@ class MovieSeasonsList extends ConsumerStatefulWidget {
 }
 
 class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
-  late final ScrollController _scrollController;
-  late final ScrollController _episodesScrollController;
+  final ScrollController _scrollController = ScrollController();
+  final ScrollController _episodesScrollController = ScrollController();
+  final FocusNode _seasonDropdownFocusNode = FocusNode();
+  final FocusNode _rangeDropdownFocusNode = FocusNode();
   int _selectedRangeIndex = 0;
-  bool _isSeasonDropdownFocused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-    _episodesScrollController = ScrollController();
-  }
 
   @override
   void dispose() {
+    _seasonDropdownFocusNode.dispose();
+    _rangeDropdownFocusNode.dispose();
     _scrollController.dispose();
     _episodesScrollController.dispose();
     super.dispose();
@@ -120,75 +116,76 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                 ),
               ),
               const SizedBox(width: 20),
-              Focus(
-                onFocusChange: (focused) {
-                  setState(() {
-                    _isSeasonDropdownFocused = focused;
-                  });
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(8),
-                    border: _isSeasonDropdownFocused
-                        ? Border.all(
-                            color: Theme.of(context).colorScheme.primary,
-                            width: 2,
-                          )
-                        : null,
-                  ),
-                  child: Consumer(
-                    builder: (context, ref, _) {
-                      return DropdownButton<int>(
-                        value: ref
-                            .watch(
-                              tmdbDetailsControllerProvider(
-                                widget.movieId,
-                                source: widget.source,
-                              ),
+              ListenableBuilder(
+                listenable: _seasonDropdownFocusNode,
+                builder: (context, _) {
+                  final isFocused = _seasonDropdownFocusNode.hasFocus;
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surfaceContainer,
+                      borderRadius: BorderRadius.circular(8),
+                      border: isFocused
+                          ? Border.all(
+                              color: Theme.of(context).colorScheme.primary,
+                              width: 2,
                             )
-                            .selectedSeason,
-                        dropdownColor: Theme.of(
-                          context,
-                        ).colorScheme.surfaceContainer,
-                        underline: const SizedBox(),
-                        style: TextStyle(color: widget.textColor),
-                        icon: Icon(
-                          Icons.arrow_drop_down,
-                          color: widget.textColor,
-                        ),
-                        items: widget.seasons.map<DropdownMenuItem<int>>((s) {
-                          final num = s.seasonNumber;
-                          final count = s.episodeCount;
-                          return DropdownMenuItem(
-                            value: num,
-                            child: Text(
-                              AppLocalizations.of(
-                                context,
-                              )!.seasonWithEpisodes(num, count),
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (val) {
-                          if (val != null) {
-                            setState(() {
-                              _selectedRangeIndex = 0;
-                            });
-                            ref
-                                .read(
+                          : null,
+                    ),
+                    child: Consumer(
+                      builder: (context, ref, _) {
+                        return DropdownButtonHideUnderline(
+                          child: DropdownButton<int>(
+                            focusNode: _seasonDropdownFocusNode,
+                            value: ref
+                                .watch(
                                   tmdbDetailsControllerProvider(
                                     widget.movieId,
                                     source: widget.source,
-                                  ).notifier,
+                                  ),
                                 )
-                                .fetchEpisodes(val, source: widget.source);
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
+                                .selectedSeason,
+                            dropdownColor: Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainer,
+                            style: TextStyle(color: widget.textColor),
+                            icon: Icon(
+                              Icons.arrow_drop_down,
+                              color: widget.textColor,
+                            ),
+                            items: widget.seasons.map<DropdownMenuItem<int>>((s) {
+                              final num = s.seasonNumber;
+                              final count = s.episodeCount;
+                              return DropdownMenuItem(
+                                value: num,
+                                child: Text(
+                                  AppLocalizations.of(
+                                    context,
+                                  )!.seasonWithEpisodes(num, count),
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() {
+                                  _selectedRangeIndex = 0;
+                                });
+                                ref
+                                    .read(
+                                      tmdbDetailsControllerProvider(
+                                        widget.movieId,
+                                        source: widget.source,
+                                      ).notifier,
+                                    )
+                                    .fetchEpisodes(val, source: widget.source);
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -580,51 +577,64 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                       ),
                     ),
                     if (batchCount > 1)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surfaceContainer,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<int>(
-                            value: _selectedRangeIndex,
-                            dropdownColor: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainer,
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontWeight: FontWeight.bold,
+                      ListenableBuilder(
+                        listenable: _rangeDropdownFocusNode,
+                        builder: (context, _) {
+                          final isFocused = _rangeDropdownFocusNode.hasFocus;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 4,
                             ),
-                            icon: Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surfaceContainer,
+                              borderRadius: BorderRadius.circular(8),
+                              border: isFocused
+                                  ? Border.all(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      width: 2,
+                                    )
+                                  : null,
                             ),
-                            items: List.generate(batchCount, (index) {
-                              final rangeStart = index * batchSize + 1;
-                              final rangeEnd = ((index + 1) * batchSize).clamp(
-                                1,
-                                totalEpisodes,
-                              );
-                              return DropdownMenuItem(
-                                value: index,
-                                child: Text("$rangeStart-$rangeEnd"),
-                              );
-                            }),
-                            onChanged: (val) {
-                              if (val != null) {
-                                setState(() {
-                                  _selectedRangeIndex = val;
-                                });
-                              }
-                            },
-                          ),
-                        ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                focusNode: _rangeDropdownFocusNode,
+                                value: _selectedRangeIndex,
+                                dropdownColor: Theme.of(
+                                  context,
+                                ).colorScheme.surfaceContainer,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                icon: Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                                items: List.generate(batchCount, (index) {
+                                  final rangeStart = index * batchSize + 1;
+                                  final rangeEnd = ((index + 1) * batchSize).clamp(
+                                    1,
+                                    totalEpisodes,
+                                  );
+                                  return DropdownMenuItem(
+                                    value: index,
+                                    child: Text("$rangeStart-$rangeEnd"),
+                                  );
+                                }),
+                                onChanged: (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      _selectedRangeIndex = val;
+                                    });
+                                  }
+                                },
+                              ),
+                            ),
+                          );
+                        },
                       ),
                   ],
                 ),
