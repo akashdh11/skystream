@@ -27,7 +27,9 @@ class NuvioTmdbKey extends _$NuvioTmdbKey {
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      state = prefs.getString(_prefsKey) ?? '';
+      final saved = prefs.getString(_prefsKey) ?? '';
+      state = saved;
+      TmdbConfig.setNuvioApiKey(saved);
     } catch (_) {
       state = '';
     }
@@ -35,6 +37,7 @@ class NuvioTmdbKey extends _$NuvioTmdbKey {
 
   Future<void> set(String key) async {
     state = key.trim();
+    TmdbConfig.setNuvioApiKey(state);
     try {
       final prefs = await SharedPreferences.getInstance();
       if (state.isEmpty) {
