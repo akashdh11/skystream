@@ -35,6 +35,7 @@ class AddonDetailScreen extends ConsumerStatefulWidget {
 class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
   int? _selectedSeason;
   int _selectedRangeIndex = 0;
+  bool _isAscending = true;
   bool _isDescriptionExpanded = false;
 
   final ScrollController _scrollController = ScrollController();
@@ -1028,8 +1029,12 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
 
     final int start = _selectedRangeIndex * batchSize;
     final int end = (start + batchSize).clamp(0, totalEpisodes);
-    final displayedEpisodes =
+    List<AddonVideo> displayedEpisodes =
         episodes.isNotEmpty ? episodes.sublist(start, end) : <AddonVideo>[];
+
+    if (!_isAscending) {
+      displayedEpisodes = displayedEpisodes.reversed.toList();
+    }
 
     AddonStreamRequest requestFor(AddonVideo video) => AddonStreamRequest(
       type: meta.isSeries ? 'series' : 'movie',
@@ -1103,7 +1108,7 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
           const SizedBox(height: 20),
         ],
 
-        // Episodes Header + Range Dropdown (if episodes > 20)
+        // Episodes Header + Range Dropdown (if episodes > 20) + Sort Order Toggle
         Row(
           children: [
             Text(
@@ -1115,70 +1120,92 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                 letterSpacing: 1.0,
               ),
             ),
+            const SizedBox(width: 14),
             if (batchCount > 1) ...[
-              const SizedBox(width: 14),
-              DpadFocusable(
-                onSelect: () => _showRangePicker(
-                  context,
-                  batchCount,
-                  batchSize,
-                  totalEpisodes,
-                ),
-                child: const SizedBox.shrink(),
-                builder: (context, state, _) {
-                  final isFocused = state.focused;
-                  final rangeStart = _selectedRangeIndex * batchSize + 1;
-                  final rangeEnd =
-                      ((_selectedRangeIndex + 1) * batchSize).clamp(1, totalEpisodes);
-
-                  return InkWell(
-                    onTap: () => _showRangePicker(
-                      context,
-                      batchCount,
-                      batchSize,
-                      totalEpisodes,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 150),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
+              Focus(
+                child: Builder(
+                  builder: (context) {
+                    final isFocused = Focus.of(context).hasFocus;
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         color: theme.colorScheme.surfaceContainer,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
-                          color: isFocused
-                              ? theme.colorScheme.primary
-                              : Colors.transparent,
+                          color: isFocused ? Colors.white : Colors.transparent,
                           width: 2,
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '$rangeStart-$rangeEnd',
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurface,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
+                      child: Center(
+                        child: DropdownButton<int>(
+                          value: _selectedRangeIndex,
+                          dropdownColor:
+                              theme.colorScheme.surfaceContainerHigh,
+                          underline: const SizedBox(),
+                          elevation: 4,
+                          borderRadius: BorderRadius.circular(12),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
-                          const SizedBox(width: 4),
-                          Icon(
+                          icon: Icon(
                             Icons.keyboard_arrow_down_rounded,
-                            size: 18,
+                            size: 20,
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
-                        ],
+                          items: List.generate(batchCount, (index) {
+                            final rangeStart = index * batchSize + 1;
+                            final rangeEnd = ((index + 1) * batchSize)
+                                .clamp(1, totalEpisodes);
+                            return DropdownMenuItem(
+                              value: index,
+                              child: Text('$rangeStart-$rangeEnd'),
+                            );
+                          }),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _selectedRangeIndex = val;
+                              });
+                            }
+                          },
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
+              const SizedBox(width: 8),
             ],
+            Material(
+              color: Colors.transparent,
+              child: Ink(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () {
+                    setState(() {
+                      _isAscending = !_isAscending;
+                    });
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    child: Icon(
+                      Icons.swap_vert_rounded,
+                      size: 22,
+                      color: _isAscending
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
 
@@ -1401,106 +1428,6 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  void _showRangePicker(
-    BuildContext context,
-    int batchCount,
-    int batchSize,
-    int totalEpisodes,
-  ) {
-    final theme = Theme.of(context);
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: theme.colorScheme.surfaceContainer,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 4,
-                  ),
-                  child: Text(
-                    'Select Episode Range',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Flexible(
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: batchCount,
-                    itemBuilder: (context, index) {
-                      final rangeStart = index * batchSize + 1;
-                      final rangeEnd =
-                          ((index + 1) * batchSize).clamp(1, totalEpisodes);
-                      final isSelected = index == _selectedRangeIndex;
-
-                      return CardsWrapper(
-                        onTap: () {
-                          setState(() {
-                            _selectedRangeIndex = index;
-                          });
-                          Navigator.of(context).pop();
-                        },
-                        borderRadius: BorderRadius.circular(8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                    .withValues(alpha: 0.15)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Episodes $rangeStart - $rangeEnd',
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.onSurface,
-                                  fontWeight: isSelected
-                                      ? FontWeight.bold
-                                      : FontWeight.w500,
-                                  fontSize: 15,
-                                ),
-                              ),
-                              if (isSelected)
-                                Icon(
-                                  Icons.check_rounded,
-                                  color: theme.colorScheme.primary,
-                                  size: 20,
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
