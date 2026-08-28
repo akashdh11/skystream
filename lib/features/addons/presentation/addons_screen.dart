@@ -185,6 +185,8 @@ class _CatalogsTabState extends ConsumerState<_CatalogsTab>
     }
 
     final firstCatalog = catalogs.first;
+    final listCatalogs =
+        catalogs.length > 1 ? catalogs.skip(1).toList() : catalogs;
 
     return _withGradientEdgeHint(
       RefreshIndicator(
@@ -250,10 +252,10 @@ class _CatalogsTabState extends ConsumerState<_CatalogsTab>
             SliverList(
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
-                  if (index >= catalogs.length) return null;
-                  return _CatalogRow(entry: catalogs[index]);
+                  if (index >= listCatalogs.length) return null;
+                  return _CatalogRow(entry: listCatalogs[index]);
                 },
-                childCount: catalogs.length,
+                childCount: listCatalogs.length,
               ),
             ),
 
