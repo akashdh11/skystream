@@ -275,8 +275,6 @@ class PlayerRoute extends GoRouteData with $PlayerRoute {
   }
 }
 
-
-
 @TypedGoRoute<AddonDetailRoute>(path: '/addon-detail')
 class AddonDetailRoute extends GoRouteData with $AddonDetailRoute {
   const AddonDetailRoute({required this.type, required this.id, this.addonUrl});

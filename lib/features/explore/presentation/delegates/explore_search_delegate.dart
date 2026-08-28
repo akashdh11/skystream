@@ -132,10 +132,7 @@ class _SearchSuggestionsList extends ConsumerStatefulWidget {
   final String query;
   final FocusNode? firstItemFocusNode;
 
-  const _SearchSuggestionsList({
-    required this.query,
-    this.firstItemFocusNode,
-  });
+  const _SearchSuggestionsList({required this.query, this.firstItemFocusNode});
 
   @override
   ConsumerState<_SearchSuggestionsList> createState() =>
@@ -224,9 +221,9 @@ class _SearchSuggestionsListState
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.25,
-                ),
+                color: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.25),
               ),
               child: Row(
                 children: [
@@ -237,11 +234,14 @@ class _SearchSuggestionsListState
                       width: 52,
                       height: 76,
                       fit: BoxFit.cover,
-                      placeholder: (_, _) => ShimmerPlaceholder(borderRadius: 8),
+                      placeholder: (_, _) =>
+                          ShimmerPlaceholder(borderRadius: 8),
                       errorWidget: (_, _, _) => Container(
                         width: 52,
                         height: 76,
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         alignment: Alignment.center,
                         child: const Icon(Icons.movie_outlined, size: 24),
                       ),
@@ -284,9 +284,9 @@ class _SearchSuggestionsListState
                                   style: TextStyle(
                                     fontSize: 10,
                                     fontWeight: FontWeight.w700,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSecondaryContainer,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSecondaryContainer,
                                   ),
                                 ),
                               ),
@@ -296,9 +296,7 @@ class _SearchSuggestionsListState
                               Text(
                                 year,
                                 style: TextStyle(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurface
+                                  color: Theme.of(context).colorScheme.onSurface
                                       .withValues(alpha: 0.6),
                                   fontSize: 13,
                                 ),
@@ -311,10 +309,9 @@ class _SearchSuggestionsListState
                   Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 14,
-                    color: Theme.of(context)
-                        .colorScheme
-                        .onSurface
-                        .withValues(alpha: 0.4),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
                   ),
                   const SizedBox(width: 6),
                 ],
@@ -348,17 +345,17 @@ void _navigateToItem(
 
     if (item.url.startsWith('addon:')) {
       final parts = item.url.split(':');
-      type =
-          parts.length >= 2
-              ? parts[1]
-              : (item.contentType == MultimediaContentType.series
-                  ? 'series'
-                  : 'movie');
+      type = parts.length >= 2
+          ? parts[1]
+          : (item.contentType == MultimediaContentType.series
+                ? 'series'
+                : 'movie');
       id = parts.length >= 3 ? parts[2] : item.url;
       addonUrl = parts.length > 3 ? parts.sublist(3).join(':') : null;
     } else {
-      type =
-          item.contentType == MultimediaContentType.series ? 'series' : 'movie';
+      type = item.contentType == MultimediaContentType.series
+          ? 'series'
+          : 'movie';
       id = item.url;
       addonUrl = null;
     }
@@ -384,10 +381,7 @@ class _SearchResultsGrid extends ConsumerStatefulWidget {
   final String query;
   final FocusNode? firstItemFocusNode;
 
-  const _SearchResultsGrid({
-    required this.query,
-    this.firstItemFocusNode,
-  });
+  const _SearchResultsGrid({required this.query, this.firstItemFocusNode});
 
   @override
   ConsumerState<_SearchResultsGrid> createState() => _SearchResultsGridState();

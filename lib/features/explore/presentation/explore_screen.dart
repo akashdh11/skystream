@@ -184,8 +184,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
                     builder: (context, ref, _) {
                       final mode = ref.watch(exploreModeProvider);
                       final l10n = AppLocalizations.of(context)!;
-                      final onSurfaceColor =
-                          Theme.of(context).colorScheme.onSurface;
+                      final onSurfaceColor = Theme.of(
+                        context,
+                      ).colorScheme.onSurface;
 
                       Widget iconWidget;
                       String tooltipMsg;
@@ -331,15 +332,13 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
         return AnilistExploreScreen(
           scrollController: _scrollController,
           firstActionFocusNode: _firstActionFocusNode,
-          onControllerReady: (c) =>
-              setState(() => _carouselController = c),
+          onControllerReady: (c) => setState(() => _carouselController = c),
         );
       case ExploreModeType.stremio:
         return AddonCatalogsTabView(
           scrollController: _scrollController,
           firstActionFocusNode: _firstActionFocusNode,
-          onControllerReady: (c) =>
-              setState(() => _carouselController = c),
+          onControllerReady: (c) => setState(() => _carouselController = c),
         );
     }
   }
@@ -459,7 +458,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
     ];
 
     final isAnyLoading = allSections.any((s) => s.isLoading);
-    final isAllFailedOrEmpty = !isAnyLoading &&
+    final isAllFailedOrEmpty =
+        !isAnyLoading &&
         allSections.every((s) {
           if (s.hasError) return true;
           if (s.hasValue && (s.value?.isEmpty ?? true)) return true;
@@ -467,8 +467,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
         });
 
     if (isAllFailedOrEmpty) {
-      final firstError =
-          allSections.firstWhereOrNull((s) => s.hasError)?.error;
+      final firstError = allSections.firstWhereOrNull((s) => s.hasError)?.error;
       return _buildNeedsKeyOrErrorState(
         context,
         icon: Icons.cloud_off_rounded,
@@ -527,11 +526,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 80,
-              color: theme.colorScheme.error,
-            ),
+            Icon(icon, size: 80, color: theme.colorScheme.error),
             const SizedBox(height: 24),
             Text(
               title,

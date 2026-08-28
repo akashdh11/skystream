@@ -131,11 +131,7 @@ class _AppSidebarState extends ConsumerState<AppSidebar> {
       (Icons.home_outlined, Icons.home, l10n.home),
       (Icons.search, Icons.search, l10n.search),
       (Icons.explore_outlined, Icons.explore, l10n.explore),
-      (
-        Icons.video_library_outlined,
-        Icons.video_library,
-        l10n.library,
-      ),
+      (Icons.video_library_outlined, Icons.video_library, l10n.library),
       (Icons.settings_outlined, Icons.settings, l10n.settings),
     ];
     assert(

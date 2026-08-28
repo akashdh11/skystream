@@ -207,7 +207,9 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
                   children: [
                     CustomButton(
                       isPrimary: true,
-                      onPressed: _busy ? null : () => unawaited(_addRepository()),
+                      onPressed: _busy
+                          ? null
+                          : () => unawaited(_addRepository()),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -234,7 +236,9 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
                     if (state.repos.isNotEmpty)
                       CustomButton(
                         isOutlined: true,
-                        onPressed: _checking ? null : () => unawaited(_checkForUpdates()),
+                        onPressed: _checking
+                            ? null
+                            : () => unawaited(_checkForUpdates()),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -448,9 +452,7 @@ class _RepoCardState extends ConsumerState<_RepoCard> {
             },
             child: Text(
               'Remove',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.error,
-              ),
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
         ],
@@ -567,7 +569,9 @@ class _RepoCardState extends ConsumerState<_RepoCard> {
                 _TvIconButton(
                   tooltip: 'Refresh Repository',
                   icon: Icons.refresh_rounded,
-                  onPressed: repo.isRefreshing ? null : () => unawaited(_refresh()),
+                  onPressed: repo.isRefreshing
+                      ? null
+                      : () => unawaited(_refresh()),
                 ),
                 _TvIconButton(
                   tooltip: 'Remove Repository',
@@ -587,7 +591,11 @@ class _RepoCardState extends ConsumerState<_RepoCard> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.new_releases_outlined, size: 16, color: cs.tertiary),
+                  Icon(
+                    Icons.new_releases_outlined,
+                    size: 16,
+                    color: cs.tertiary,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -614,10 +622,7 @@ class _RepoCardState extends ConsumerState<_RepoCard> {
               ),
             ),
 
-          Divider(
-            height: 1,
-            color: theme.dividerColor.withValues(alpha: 0.5),
-          ),
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.5)),
 
           // Scrapers inside this repo
           for (int i = 0; i < scrapers.length; i++) ...[
@@ -727,7 +732,9 @@ class _ScraperTileState extends ConsumerState<_ScraperTile> {
     if (!mounted) return;
     if (layout.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('This scraper exposes no configuration options')),
+        const SnackBar(
+          content: Text('This scraper exposes no configuration options'),
+        ),
       );
       return;
     }
@@ -863,10 +870,7 @@ class _ScraperTileState extends ConsumerState<_ScraperTile> {
                     width: 18,
                     height: 18,
                     child: AppLoadingIndicator(
-                      constraints: BoxConstraints(
-                        maxWidth: 18,
-                        maxHeight: 18,
-                      ),
+                      constraints: BoxConstraints(maxWidth: 18, maxHeight: 18),
                     ),
                   )
                 : null,
@@ -966,7 +970,8 @@ class _TvIconButtonState extends State<_TvIconButton> {
               customBorder: const CircleBorder(),
               onTap: widget.onPressed,
               child: Center(
-                child: widget.customIcon ??
+                child:
+                    widget.customIcon ??
                     Icon(
                       widget.icon,
                       size: 20,
@@ -1075,7 +1080,8 @@ class _FocusableCardState extends State<_FocusableCard> {
       onFocusChange: (focused) => setState(() => _isFocused = focused),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        margin: widget.margin ?? const EdgeInsets.all(LayoutConstants.spacingMd),
+        margin:
+            widget.margin ?? const EdgeInsets.all(LayoutConstants.spacingMd),
         decoration: BoxDecoration(
           color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
@@ -1101,4 +1107,3 @@ class _FocusableCardState extends State<_FocusableCard> {
     );
   }
 }
-

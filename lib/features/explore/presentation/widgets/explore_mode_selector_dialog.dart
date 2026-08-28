@@ -155,14 +155,14 @@ class _ModeOptionTileState extends State<_ModeOptionTile> {
           color: _isFocused
               ? cs.primary.withValues(alpha: 0.15)
               : (widget.isSelected
-                  ? cs.primary.withValues(alpha: 0.08)
-                  : Colors.transparent),
+                    ? cs.primary.withValues(alpha: 0.08)
+                    : Colors.transparent),
           border: Border.all(
             color: _isFocused
                 ? cs.primary
                 : (widget.isSelected
-                    ? cs.primary.withValues(alpha: 0.4)
-                    : Colors.transparent),
+                      ? cs.primary.withValues(alpha: 0.4)
+                      : Colors.transparent),
             width: _isFocused ? 2 : 1,
           ),
         ),
@@ -185,7 +185,8 @@ class _ModeOptionTileState extends State<_ModeOptionTile> {
                           : cs.surfaceContainerHighest.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: widget.customIcon ??
+                    child:
+                        widget.customIcon ??
                         Icon(
                           widget.icon,
                           size: 22,
@@ -201,8 +202,9 @@ class _ModeOptionTileState extends State<_ModeOptionTile> {
                         Text(
                           widget.title,
                           style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight:
-                                active ? FontWeight.bold : FontWeight.w600,
+                            fontWeight: active
+                                ? FontWeight.bold
+                                : FontWeight.w600,
                             color: active ? cs.primary : cs.onSurface,
                           ),
                         ),
@@ -218,9 +220,7 @@ class _ModeOptionTileState extends State<_ModeOptionTile> {
                   ),
                   const SizedBox(width: 8),
                   ExcludeFocus(
-                    child: Radio<ExploreModeType>(
-                      value: widget.value,
-                    ),
+                    child: Radio<ExploreModeType>(value: widget.value),
                   ),
                 ],
               ),

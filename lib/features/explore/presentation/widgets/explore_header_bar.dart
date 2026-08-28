@@ -240,9 +240,8 @@ class ExploreHeaderBar extends ConsumerWidget {
                       shape: BoxShape.circle,
                       color: (!isStremio && hasActiveFilter)
                           ? theme.colorScheme.primary
-                          : theme.colorScheme.surfaceContainerHighest.withValues(
-                              alpha: 0.3,
-                            ),
+                          : theme.colorScheme.surfaceContainerHighest
+                                .withValues(alpha: 0.3),
                     ),
                     child: Icon(
                       isStremio

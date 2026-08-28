@@ -140,10 +140,7 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
               children: [
                 _buildTopBadge(context, 'ADD-ON'),
                 const SizedBox(width: 12),
-                _buildTopBadge(
-                  context,
-                  isMovie ? 'MOVIE' : 'SERIES',
-                ),
+                _buildTopBadge(context, isMovie ? 'MOVIE' : 'SERIES'),
               ],
             ),
             const SizedBox(height: 16),
@@ -208,8 +205,9 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
             top: 8,
             left: 8,
             child: CircleAvatar(
-              backgroundColor:
-                  theme.colorScheme.onSurface.withValues(alpha: 0.1),
+              backgroundColor: theme.colorScheme.onSurface.withValues(
+                alpha: 0.1,
+              ),
               child: IconButton(
                 icon: Icon(
                   Icons.arrow_back,
@@ -352,7 +350,12 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         if (logoUrl != null && logoUrl.isNotEmpty)
-                          _buildLogoWidget(logoUrl, title, textColor, isDesktop: true)
+                          _buildLogoWidget(
+                            logoUrl,
+                            title,
+                            textColor,
+                            isDesktop: true,
+                          )
                         else
                           Text(
                             title.toUpperCase(),
@@ -470,8 +473,9 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
 
     final mq = MediaQuery.sizeOf(context);
     final isLandscape = mq.width > mq.height;
-    final double expandedHeaderHeight =
-        isLandscape ? (mq.height * 0.80).clamp(220.0, 400.0) : 550.0;
+    final double expandedHeaderHeight = isLandscape
+        ? (mq.height * 0.80).clamp(220.0, 400.0)
+        : 550.0;
 
     return CustomScrollView(
       controller: _scrollController,
@@ -483,8 +487,9 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
           leading: Padding(
             padding: const EdgeInsets.all(8.0),
             child: CircleAvatar(
-              backgroundColor:
-                  theme.colorScheme.onSurface.withValues(alpha: 0.1),
+              backgroundColor: theme.colorScheme.onSurface.withValues(
+                alpha: 0.1,
+              ),
               radius: 18,
               child: IconButton(
                 icon: Icon(
@@ -623,8 +628,8 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                                     meta.genres.isNotEmpty
                                         ? meta.genres.take(3).join(' • ')
                                         : (meta.isSeries
-                                            ? 'TV Series'
-                                            : 'Movie'),
+                                              ? 'TV Series'
+                                              : 'Movie'),
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: theme.colorScheme.onSurface
@@ -670,10 +675,7 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                           ? meta.addonName.toUpperCase()
                           : 'ADD-ON',
                     ),
-                    _buildTopBadge(
-                      context,
-                      meta.isSeries ? 'SERIES' : 'MOVIE',
-                    ),
+                    _buildTopBadge(context, meta.isSeries ? 'SERIES' : 'MOVIE'),
                     if (year.isNotEmpty)
                       _buildIconInfo(
                         context,
@@ -688,11 +690,7 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                         iconColor: Colors.amber,
                       ),
                     if (runtime.isNotEmpty)
-                      _buildIconInfo(
-                        context,
-                        Icons.timer_outlined,
-                        runtime,
-                      ),
+                      _buildIconInfo(context, Icons.timer_outlined, runtime),
                     if (seasons.isNotEmpty && seasons.length > 1)
                       _buildIconInfo(
                         context,
@@ -789,7 +787,8 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
     final item = meta.toMultimediaItem();
 
     final seasons = meta.seasons;
-    final activeSeason = _selectedSeason ?? (seasons.isEmpty ? 1 : seasons.first);
+    final activeSeason =
+        _selectedSeason ?? (seasons.isEmpty ? 1 : seasons.first);
     final episodes = meta.episodesForSeason(activeSeason);
     final firstVideo = episodes.isNotEmpty ? episodes.first : null;
 
@@ -837,7 +836,10 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                 meta.videos.length > 1 && firstVideo != null
                     ? 'Play S${firstVideo.season ?? 1} E${firstVideo.episode ?? 1}'
                     : 'Play from add-ons',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: isFocused
@@ -905,10 +907,7 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
       decoration: BoxDecoration(
         color: primary.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: primary.withValues(alpha: 0.3),
-          width: 0.5,
-        ),
+        border: Border.all(color: primary.withValues(alpha: 0.3), width: 0.5),
       ),
       child: Text(
         label,
@@ -929,7 +928,8 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
     Color? iconColor,
   }) {
     final theme = Theme.of(context);
-    final color = iconColor ?? theme.colorScheme.onSurface.withValues(alpha: 0.7);
+    final color =
+        iconColor ?? theme.colorScheme.onSurface.withValues(alpha: 0.7);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -971,10 +971,14 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
             itemBuilder: (context, index) {
               final actor = cast[index];
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.5),
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -982,8 +986,9 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                   children: [
                     CircleAvatar(
                       radius: 12,
-                      backgroundColor:
-                          theme.colorScheme.primary.withValues(alpha: 0.2),
+                      backgroundColor: theme.colorScheme.primary.withValues(
+                        alpha: 0.2,
+                      ),
                       child: Text(
                         actor.isNotEmpty ? actor[0].toUpperCase() : '?',
                         style: TextStyle(
@@ -1015,7 +1020,8 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
   Widget _buildSeasonsAndEpisodesSection(BuildContext context, AddonMeta meta) {
     final theme = Theme.of(context);
     final seasons = meta.seasons;
-    final activeSeason = _selectedSeason ?? (seasons.isEmpty ? 1 : seasons.first);
+    final activeSeason =
+        _selectedSeason ?? (seasons.isEmpty ? 1 : seasons.first);
     final episodes = meta.episodesForSeason(activeSeason);
     final item = meta.toMultimediaItem();
 
@@ -1029,8 +1035,9 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
 
     final int start = _selectedRangeIndex * batchSize;
     final int end = (start + batchSize).clamp(0, totalEpisodes);
-    List<AddonVideo> displayedEpisodes =
-        episodes.isNotEmpty ? episodes.sublist(start, end) : <AddonVideo>[];
+    List<AddonVideo> displayedEpisodes = episodes.isNotEmpty
+        ? episodes.sublist(start, end)
+        : <AddonVideo>[];
 
     if (!_isAscending) {
       displayedEpisodes = displayedEpisodes.reversed.toList();
@@ -1139,8 +1146,7 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                       child: Center(
                         child: DropdownButton<int>(
                           value: _selectedRangeIndex,
-                          dropdownColor:
-                              theme.colorScheme.surfaceContainerHigh,
+                          dropdownColor: theme.colorScheme.surfaceContainerHigh,
                           underline: const SizedBox(),
                           elevation: 4,
                           borderRadius: BorderRadius.circular(12),
@@ -1154,8 +1160,10 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                           ),
                           items: List.generate(batchCount, (index) {
                             final rangeStart = index * batchSize + 1;
-                            final rangeEnd = ((index + 1) * batchSize)
-                                .clamp(1, totalEpisodes);
+                            final rangeEnd = ((index + 1) * batchSize).clamp(
+                              1,
+                              totalEpisodes,
+                            );
                             return DropdownMenuItem(
                               value: index,
                               child: Text('$rangeStart-$rangeEnd'),
@@ -1262,10 +1270,12 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: video.thumbnail == null ||
+                            child:
+                                video.thumbnail == null ||
                                     video.thumbnail!.isEmpty
                                 ? Container(
-                                    color: theme.colorScheme
+                                    color: theme
+                                        .colorScheme
                                         .surfaceContainerHighest,
                                     child: const Center(
                                       child: Icon(
@@ -1280,12 +1290,12 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                                     width: double.infinity,
                                     placeholder: (context, url) =>
                                         ShimmerPlaceholder.rectangular(
-                                      borderRadius: 10,
-                                    ),
+                                          borderRadius: 10,
+                                        ),
                                     errorWidget: (_, _, _) =>
                                         ThumbnailErrorPlaceholder(
-                                      label: episodeTitle,
-                                    ),
+                                          label: episodeTitle,
+                                        ),
                                   ),
                           ),
                           Padding(

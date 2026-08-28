@@ -6,11 +6,7 @@ part 'explore_mode_provider.g.dart';
 
 const String _kExploreModeKey = 'explore_mode_type';
 
-enum ExploreModeType {
-  movies,
-  anime,
-  stremio,
-}
+enum ExploreModeType { movies, anime, stremio }
 
 @riverpod
 class ExploreMode extends _$ExploreMode {

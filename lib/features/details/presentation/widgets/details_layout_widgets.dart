@@ -765,7 +765,9 @@ class _DetailsEpisodeFilterBarState
                         if (val != null) {
                           ref
                               .read(
-                                detailsControllerProvider(widget.itemUrl).notifier,
+                                detailsControllerProvider(
+                                  widget.itemUrl,
+                                ).notifier,
                               )
                               .setRangeIndex(val);
                         }
@@ -807,10 +809,7 @@ class _DetailsEpisodeFilterBarState
     );
   }
 
-  Widget _buildLanguageToggle(
-    BuildContext context,
-    DubStatus selected,
-  ) {
+  Widget _buildLanguageToggle(BuildContext context, DubStatus selected) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainer,

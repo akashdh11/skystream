@@ -787,8 +787,8 @@ class _SourceRowState extends State<_SourceRow> {
                     color: isFocused
                         ? Colors.white
                         : (isBest
-                            ? cs.primary.withValues(alpha: 0.8)
-                            : Colors.transparent),
+                              ? cs.primary.withValues(alpha: 0.8)
+                              : Colors.transparent),
                     width: isFocused ? 2 : (isBest ? 1.5 : 0),
                   ),
                 ),

@@ -25,11 +25,7 @@ class AddonsScreen extends ConsumerStatefulWidget {
   final int initialTab;
   final bool isEmbedded;
 
-  const AddonsScreen({
-    super.key,
-    this.initialTab = 0,
-    this.isEmbedded = false,
-  });
+  const AddonsScreen({super.key, this.initialTab = 0, this.isEmbedded = false});
 
   @override
   ConsumerState<AddonsScreen> createState() => _AddonsScreenState();
@@ -79,9 +75,9 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
               children: [
                 Text(
                   'Stremio Add-ons',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 // Tab chips
@@ -93,10 +89,7 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
         Expanded(
           child: IndexedStack(
             index: _tabController.index,
-            children: const [
-              AddonManageView(),
-              _DiscoverTab(),
-            ],
+            children: const [AddonManageView(), _DiscoverTab()],
           ),
         ),
       ],
@@ -107,10 +100,7 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
     }
 
     if (isWidescreen) {
-      return Scaffold(
-        backgroundColor: Colors.transparent,
-        body: content,
-      );
+      return Scaffold(backgroundColor: Colors.transparent, body: content);
     }
 
     // Mobile layout: Standard AppBar with TabBar
@@ -121,23 +111,14 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
           controller: _tabController,
           indicatorSize: TabBarIndicatorSize.label,
           tabs: const [
-            Tab(
-              text: 'My add-ons',
-              icon: Icon(Icons.extension_rounded),
-            ),
-            Tab(
-              text: 'Discover',
-              icon: Icon(Icons.travel_explore_rounded),
-            ),
+            Tab(text: 'My add-ons', icon: Icon(Icons.extension_rounded)),
+            Tab(text: 'Discover', icon: Icon(Icons.travel_explore_rounded)),
           ],
         ),
       ),
       body: IndexedStack(
         index: _tabController.index,
-        children: const [
-          AddonManageView(),
-          _DiscoverTab(),
-        ],
+        children: const [AddonManageView(), _DiscoverTab()],
       ),
     );
   }
@@ -420,8 +401,9 @@ class _AddonCatalogsTabViewState extends ConsumerState<AddonCatalogsTabView>
     }
 
     final firstCatalog = catalogs.first;
-    final listCatalogs =
-        catalogs.length > 1 ? catalogs.skip(1).toList() : catalogs;
+    final listCatalogs = catalogs.length > 1
+        ? catalogs.skip(1).toList()
+        : catalogs;
 
     return _withGradientEdgeHint(
       RefreshIndicator(
@@ -487,13 +469,10 @@ class _AddonCatalogsTabViewState extends ConsumerState<AddonCatalogsTabView>
 
             // 3. Catalog Rows using MediaHorizontalList
             SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  if (index >= listCatalogs.length) return null;
-                  return _CatalogRow(entry: listCatalogs[index]);
-                },
-                childCount: listCatalogs.length,
-              ),
+              delegate: SliverChildBuilderDelegate((context, index) {
+                if (index >= listCatalogs.length) return null;
+                return _CatalogRow(entry: listCatalogs[index]);
+              }, childCount: listCatalogs.length),
             ),
 
             const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
@@ -554,7 +533,8 @@ class _CatalogCarouselSection extends ConsumerWidget {
           onControllerReady: onControllerReady,
           onTap: (item) {
             final preview = previewMap[item.url];
-            final type = preview?.type ??
+            final type =
+                preview?.type ??
                 (item.contentType == MultimediaContentType.series
                     ? 'series'
                     : 'movie');
@@ -713,7 +693,8 @@ class _CatalogRow extends ConsumerWidget {
           ).push<void>(context),
           onTap: (mediaItem) {
             final preview = previewMap[mediaItem.url];
-            final type = preview?.type ??
+            final type =
+                preview?.type ??
                 (mediaItem.contentType == MultimediaContentType.series
                     ? 'series'
                     : 'movie');

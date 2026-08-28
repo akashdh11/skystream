@@ -153,7 +153,9 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                               Icons.arrow_drop_down,
                               color: widget.textColor,
                             ),
-                            items: widget.seasons.map<DropdownMenuItem<int>>((s) {
+                            items: widget.seasons.map<DropdownMenuItem<int>>((
+                              s,
+                            ) {
                               final num = s.seasonNumber;
                               final count = s.episodeCount;
                               return DropdownMenuItem(
@@ -587,11 +589,15 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surfaceContainer,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainer,
                               borderRadius: BorderRadius.circular(8),
                               border: isFocused
                                   ? Border.all(
-                                      color: Theme.of(context).colorScheme.primary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.primary,
                                       width: 2,
                                     )
                                   : null,
@@ -604,7 +610,9 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                                   context,
                                 ).colorScheme.surfaceContainer,
                                 style: TextStyle(
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   fontWeight: FontWeight.bold,
                                 ),
                                 icon: Icon(
@@ -615,10 +623,8 @@ class _MovieSeasonsListState extends ConsumerState<MovieSeasonsList> {
                                 ),
                                 items: List.generate(batchCount, (index) {
                                   final rangeStart = index * batchSize + 1;
-                                  final rangeEnd = ((index + 1) * batchSize).clamp(
-                                    1,
-                                    totalEpisodes,
-                                  );
+                                  final rangeEnd = ((index + 1) * batchSize)
+                                      .clamp(1, totalEpisodes);
                                   return DropdownMenuItem(
                                     value: index,
                                     child: Text("$rangeStart-$rangeEnd"),

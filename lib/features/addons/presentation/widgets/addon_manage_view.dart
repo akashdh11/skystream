@@ -219,10 +219,7 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
               children: [
                 Row(
                   children: [
-                    Icon(
-                      Icons.dashboard_customize_rounded,
-                      color: cs.primary,
-                    ),
+                    Icon(Icons.dashboard_customize_rounded, color: cs.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -234,9 +231,7 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
                     ),
                     DpadFocusable(
                       onSelect: () => unawaited(
-                        ref
-                            .read(addonRepositoryProvider.notifier)
-                            .refreshAll(),
+                        ref.read(addonRepositoryProvider.notifier).refreshAll(),
                       ),
                       child: const SizedBox.shrink(),
                       builder: (context, focusState, _) {
@@ -246,8 +241,9 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color:
-                                  isFocused ? Colors.white : Colors.transparent,
+                              color: isFocused
+                                  ? Colors.white
+                                  : Colors.transparent,
                               width: 2,
                             ),
                           ),
@@ -344,7 +340,8 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
                       onPressed: _busy.contains(preset.url)
                           ? null
                           : () => unawaited(
-                              _install(preset.url, label: preset.name)),
+                              _install(preset.url, label: preset.name),
+                            ),
                     ),
                   );
                 },
@@ -409,21 +406,22 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
             onRemove: () => unawaited(_confirmRemove(state.addons[i])),
             onMoveUp: i > 0
                 ? () => unawaited(
-                      ref
-                          .read(addonRepositoryProvider.notifier)
-                          .reorder(i, i - 1),
-                    )
+                    ref
+                        .read(addonRepositoryProvider.notifier)
+                        .reorder(i, i - 1),
+                  )
                 : null,
             onMoveDown: i < state.addons.length - 1
                 ? () => unawaited(
-                      ref
-                          .read(addonRepositoryProvider.notifier)
-                          .reorder(i, i + 2),
-                    )
+                    ref
+                        .read(addonRepositoryProvider.notifier)
+                        .reorder(i, i + 2),
+                  )
                 : null,
             onConfigure: () async {
-              final configureUrl =
-                  AddonTransport.baseUrl(state.addons[i].manifestUrl);
+              final configureUrl = AddonTransport.baseUrl(
+                state.addons[i].manifestUrl,
+              );
               final uri = Uri.tryParse('$configureUrl/configure');
               if (uri == null) return;
               await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -505,8 +503,7 @@ class _AddonTileState extends State<_AddonTile> {
         onSelect: () => widget.onToggle(!widget.addon.enabled),
         child: const SizedBox.shrink(),
         builder: (context, focusState, _) {
-          final isTileFocused =
-              focusState.focused && !_menuFocusNode.hasFocus;
+          final isTileFocused = focusState.focused && !_menuFocusNode.hasFocus;
 
           return AnimatedContainer(
             duration: const Duration(milliseconds: 150),
@@ -608,8 +605,9 @@ class _AddonTileState extends State<_AddonTile> {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: cs.primaryContainer
-                                        .withValues(alpha: 0.6),
+                                    color: cs.primaryContainer.withValues(
+                                      alpha: 0.6,
+                                    ),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -634,14 +632,22 @@ class _AddonTileState extends State<_AddonTile> {
                         Switch(
                           value: widget.addon.enabled,
                           onChanged: widget.onToggle,
-                          thumbIcon: WidgetStateProperty.resolveWith<Icon?>((states) {
+                          thumbIcon: WidgetStateProperty.resolveWith<Icon?>((
+                            states,
+                          ) {
                             if (isTileFocused ||
                                 states.contains(WidgetState.focused) ||
                                 states.contains(WidgetState.hovered)) {
                               if (widget.addon.enabled) {
-                                return const Icon(Icons.check_rounded, size: 14);
+                                return const Icon(
+                                  Icons.check_rounded,
+                                  size: 14,
+                                );
                               } else {
-                                return const Icon(Icons.close_rounded, size: 14);
+                                return const Icon(
+                                  Icons.close_rounded,
+                                  size: 14,
+                                );
                               }
                             }
                             return null;
@@ -699,8 +705,10 @@ class _AddonTileState extends State<_AddonTile> {
                                         value: 'configure',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.open_in_browser_rounded,
-                                                size: 20),
+                                            Icon(
+                                              Icons.open_in_browser_rounded,
+                                              size: 20,
+                                            ),
                                             SizedBox(width: 8),
                                             Text('Configure in browser'),
                                           ],
@@ -711,8 +719,10 @@ class _AddonTileState extends State<_AddonTile> {
                                         value: 'move_up',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.arrow_upward_rounded,
-                                                size: 20),
+                                            Icon(
+                                              Icons.arrow_upward_rounded,
+                                              size: 20,
+                                            ),
                                             SizedBox(width: 8),
                                             Text('Move up'),
                                           ],
@@ -723,8 +733,10 @@ class _AddonTileState extends State<_AddonTile> {
                                         value: 'move_down',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.arrow_downward_rounded,
-                                                size: 20),
+                                            Icon(
+                                              Icons.arrow_downward_rounded,
+                                              size: 20,
+                                            ),
                                             SizedBox(width: 8),
                                             Text('Move down'),
                                           ],
@@ -743,7 +755,8 @@ class _AddonTileState extends State<_AddonTile> {
                                           Text(
                                             'Remove',
                                             style: TextStyle(
-                                                color: Colors.redAccent),
+                                              color: Colors.redAccent,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -772,10 +785,7 @@ class _DebridApiKeyDialog extends StatefulWidget {
   final DebridProvider provider;
   final String initialKey;
 
-  const _DebridApiKeyDialog({
-    required this.provider,
-    required this.initialKey,
-  });
+  const _DebridApiKeyDialog({required this.provider, required this.initialKey});
 
   @override
   State<_DebridApiKeyDialog> createState() => _DebridApiKeyDialogState();
@@ -932,7 +942,7 @@ class _DebridCardState extends ConsumerState<_DebridCard> {
             _provider == DebridProvider.none
                 ? 'Debrid disabled'
                 : 'Connected to ${_provider.label}'
-                    '${username == null ? '' : ' as $username'}',
+                      '${username == null ? '' : ' as $username'}',
           ),
         ),
       );
@@ -1078,7 +1088,9 @@ class _DebridCardState extends ConsumerState<_DebridCard> {
                             ? const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.link_rounded),
                         label: Text(
@@ -1113,7 +1125,9 @@ class _DebridCardState extends ConsumerState<_DebridCard> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: isFocused ? Colors.white : Colors.transparent,
+                            color: isFocused
+                                ? Colors.white
+                                : Colors.transparent,
                             width: 2,
                           ),
                         ),
@@ -1130,8 +1144,10 @@ class _DebridCardState extends ConsumerState<_DebridCard> {
                                     _keyController.clear();
                                   });
                                 },
-                          icon: const Icon(Icons.link_off_rounded,
-                              color: Colors.redAccent),
+                          icon: const Icon(
+                            Icons.link_off_rounded,
+                            color: Colors.redAccent,
+                          ),
                           label: const Text(
                             'Disconnect',
                             style: TextStyle(color: Colors.redAccent),
@@ -1184,41 +1200,41 @@ class _DpadDialogButton extends StatelessWidget {
           ),
           child: isPrimary
               ? (icon != null
-                  ? FilledButton.icon(
-                      onPressed: onPressed,
-                      icon: Icon(icon, size: 18),
-                      label: Text(label),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: isFocused ? cs.primary : null,
-                      ),
-                    )
-                  : FilledButton(
-                      onPressed: onPressed,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: isFocused ? cs.primary : null,
-                      ),
-                      child: Text(label),
-                    ))
+                    ? FilledButton.icon(
+                        onPressed: onPressed,
+                        icon: Icon(icon, size: 18),
+                        label: Text(label),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: isFocused ? cs.primary : null,
+                        ),
+                      )
+                    : FilledButton(
+                        onPressed: onPressed,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: isFocused ? cs.primary : null,
+                        ),
+                        child: Text(label),
+                      ))
               : (icon != null
-                  ? TextButton.icon(
-                      onPressed: onPressed,
-                      icon: Icon(icon, size: 18),
-                      label: Text(label),
-                      style: TextButton.styleFrom(
-                        backgroundColor: isFocused
-                            ? cs.surfaceContainerHighest
-                            : Colors.transparent,
-                      ),
-                    )
-                  : TextButton(
-                      onPressed: onPressed,
-                      style: TextButton.styleFrom(
-                        backgroundColor: isFocused
-                            ? cs.surfaceContainerHighest
-                            : Colors.transparent,
-                      ),
-                      child: Text(label),
-                    )),
+                    ? TextButton.icon(
+                        onPressed: onPressed,
+                        icon: Icon(icon, size: 18),
+                        label: Text(label),
+                        style: TextButton.styleFrom(
+                          backgroundColor: isFocused
+                              ? cs.surfaceContainerHighest
+                              : Colors.transparent,
+                        ),
+                      )
+                    : TextButton(
+                        onPressed: onPressed,
+                        style: TextButton.styleFrom(
+                          backgroundColor: isFocused
+                              ? cs.surfaceContainerHighest
+                              : Colors.transparent,
+                        ),
+                        child: Text(label),
+                      )),
         );
       },
     );
