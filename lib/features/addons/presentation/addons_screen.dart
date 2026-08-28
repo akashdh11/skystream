@@ -38,7 +38,6 @@ class AddonsScreen extends ConsumerStatefulWidget {
 class _AddonsScreenState extends ConsumerState<AddonsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  late PageController _pageController;
 
   @override
   void initState() {
@@ -49,34 +48,14 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
       vsync: this,
       initialIndex: initial,
     );
-    _pageController = PageController(initialPage: initial);
-
-    // Sync PageView -> TabBar
-    _pageController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        final page = _pageController.page?.round() ?? 0;
-        if (_tabController.index != page) {
-          _tabController.animateTo(page);
-        }
-      }
-    });
-
-    // Sync TabBar -> PageView
     _tabController.addListener(() {
-      if (_tabController.indexIsChanging) {
-        _pageController.animateToPage(
-          _tabController.index,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.ease,
-        );
-      }
+      if (mounted) setState(() {});
     });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 
@@ -112,12 +91,8 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
           ),
         ),
         Expanded(
-          child: PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              _tabController.animateTo(index);
-            },
-            physics: const BouncingScrollPhysics(),
+          child: IndexedStack(
+            index: _tabController.index,
             children: const [
               AddonManageView(),
               _DiscoverTab(),
@@ -157,12 +132,8 @@ class _AddonsScreenState extends ConsumerState<AddonsScreen>
           ],
         ),
       ),
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          _tabController.animateTo(index);
-        },
-        physics: const BouncingScrollPhysics(),
+      body: IndexedStack(
+        index: _tabController.index,
         children: const [
           AddonManageView(),
           _DiscoverTab(),
