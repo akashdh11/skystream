@@ -49,6 +49,61 @@ void main() {
       },
     );
 
+    test('headers reach native as real libVLC options, not :http-header',
+        () async {
+      final controller = VlcPlayerController();
+      mockEventChannel(61);
+      await harness.attachController(controller, 61);
+
+      await controller.setMedia(
+        VlcMediaSource(
+          uri: Uri.parse('https://example.com/video.mp4'),
+          httpHeaders: const <String, String>{
+            'User-Agent': 'Mozilla/5.0',
+            'Referer': 'https://example.com/',
+            'Cookie': 'session=abc',
+          },
+        ),
+      );
+
+      final args = calls.single.arguments as Map<Object?, Object?>;
+      final options = (args['mediaOptions']! as List<Object?>).cast<String>();
+
+      // The whole point: libVLC has no http-header option, so emitting one
+      // discarded every header. Only names libVLC registers may appear.
+      expect(options, contains(':http-user-agent=Mozilla/5.0'));
+      expect(options, contains(':http-referrer=https://example.com/'));
+      expect(options.any((o) => o.contains('http-header')), isFalse);
+      // Cookie has no libVLC representation at all - the host app has to
+      // proxy it. It must not be smuggled into an option string.
+      expect(options.any((o) => o.contains('session=abc')), isFalse);
+
+      controller.dispose();
+    });
+
+    test('caller media options survive alongside translated headers', () async {
+      final controller = VlcPlayerController();
+      mockEventChannel(62);
+      await harness.attachController(controller, 62);
+
+      await controller.setMedia(
+        VlcMediaSource(
+          uri: Uri.parse('https://example.com/video.mp4'),
+          httpHeaders: const <String, String>{'User-Agent': 'UA'},
+          mediaOptions: const <String>[':network-caching=1200'],
+        ),
+      );
+
+      final args = calls.single.arguments as Map<Object?, Object?>;
+      final options = (args['mediaOptions']! as List<Object?>).cast<String>();
+      expect(options, containsAll(<String>[
+        ':http-user-agent=UA',
+        ':network-caching=1200',
+      ]));
+
+      controller.dispose();
+    });
+
     test('HLS source uri is passed through to the native VLC player', () async {
       final controller = VlcPlayerController();
       mockEventChannel(9);
@@ -1812,6 +1867,56 @@ void main() {
 
       expect(() => controller.setSubtitleTrack(-1), throwsArgumentError);
       expect(calls, isEmpty);
+
+      controller.dispose();
+    });
+
+    test('subtitles added before attachment are applied in order', () async {
+      final controller = VlcPlayerController();
+
+      // setMedia already tolerates this, so addSubtitle must too.
+      await controller.setMedia(
+        VlcMediaSource(uri: Uri.parse('https://example.com/a.mp4')),
+      );
+      await controller.addSubtitle(Uri.parse('https://example.com/en.srt'));
+      await controller.addSubtitle(Uri.parse('https://example.com/fr.srt'));
+      expect(calls, isEmpty);
+
+      mockEventChannel(51);
+      await harness.attachController(controller, 51);
+
+      expect(calls.map((call) => call.method), <String>[
+        'setSource',
+        'addSubtitle',
+        'addSubtitle',
+      ]);
+      expect(calls[1].arguments, <String, Object?>{
+        'viewId': 51,
+        'uri': 'https://example.com/en.srt',
+      });
+      expect(calls[2].arguments, <String, Object?>{
+        'viewId': 51,
+        'uri': 'https://example.com/fr.srt',
+      });
+
+      controller.dispose();
+    });
+
+    test('new media drops subtitles queued for the old media', () async {
+      final controller = VlcPlayerController();
+
+      await controller.setMedia(
+        VlcMediaSource(uri: Uri.parse('https://example.com/a.mp4')),
+      );
+      await controller.addSubtitle(Uri.parse('https://example.com/en.srt'));
+      await controller.setMedia(
+        VlcMediaSource(uri: Uri.parse('https://example.com/b.mp4')),
+      );
+
+      mockEventChannel(52);
+      await harness.attachController(controller, 52);
+
+      expect(calls.map((call) => call.method), <String>['setSource']);
 
       controller.dispose();
     });

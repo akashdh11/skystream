@@ -133,11 +133,10 @@ internal class VlcPlayerPlatformView(
 
         try {
             val media = Media(libVLC, Uri.parse(uri))
-            httpHeaders.forEach { (name, value) ->
-                if (isValidHeader(name, value)) {
-                    media.addOption(":http-header=$name: $value")
-                }
-            }
+            // HTTP headers are translated to libVLC options in Dart
+            // (vlc_http_headers.dart). libVLC 3.x can transmit only
+            // User-Agent and Referer; there is no `http-header` option, and
+            // emitting one here silently dropped every header.
             mediaOptions.forEach { option ->
                 media.addOption(option)
             }

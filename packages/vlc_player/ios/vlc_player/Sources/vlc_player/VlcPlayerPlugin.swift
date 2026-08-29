@@ -303,9 +303,10 @@ final class VlcPlayerPlatformView: NSObject, FlutterPlatformView, VLCMediaPlayer
     }
 
     let media = VLCMedia(url: url)
-    for (name, value) in httpHeaders where Self.isValidHeader(name: name, value: value) {
-      media.addOption(":http-header=\(name): \(value)")
-    }
+    // HTTP headers are translated to libVLC options in Dart
+    // (vlc_http_headers.dart). libVLC 3.x can transmit only User-Agent and
+    // Referer; there is no `http-header` option, and emitting one here
+    // silently dropped every header.
     for option in mediaOptions {
       media.addOption(option)
     }

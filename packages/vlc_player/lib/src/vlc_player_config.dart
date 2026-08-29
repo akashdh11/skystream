@@ -93,9 +93,11 @@ class VlcNetworkConfig {
 
   /// Default `User-Agent` for HTTP media (`--http-user-agent`).
   ///
-  /// Per-source headers on `VlcMediaSource.httpHeaders` take precedence; this
-  /// is the fallback for sources that do not carry one. Many CDNs reject the
-  /// stock libVLC agent, so setting a browser agent here is a common need.
+  /// Applied instance-wide. A `User-Agent` on `VlcMediaSource.httpHeaders`
+  /// becomes a per-media option and overrides this through VLC's variable
+  /// inheritance, so this is the fallback for sources that carry none. Many
+  /// CDNs reject the stock libVLC agent, so setting a browser agent here is a
+  /// common need.
   final String? userAgent;
 
   /// Default `Referer` for HTTP media (`--http-referrer`).
@@ -280,8 +282,7 @@ class VlcSubtitleStyle {
       if (fontFamily != null && fontFamily!.isNotEmpty)
         '--freetype-font=$fontFamily',
       if (fontSize != null) '--freetype-fontsize=$fontSize',
-      if (relativeFontSize != null)
-        '--freetype-rel-fontsize=$relativeFontSize',
+      if (relativeFontSize != null) '--freetype-rel-fontsize=$relativeFontSize',
       if (color != null) ...<String>[
         '--freetype-color=${_rgb(color!)}',
         '--freetype-opacity=${_alpha(color!)}',
@@ -297,8 +298,7 @@ class VlcSubtitleStyle {
         '--freetype-shadow-color=${_rgb(shadowColor!)}',
         '--freetype-shadow-opacity=${_alpha(shadowColor!)}',
       ],
-      if (shadowDistance != null)
-        '--freetype-shadow-distance=$shadowDistance',
+      if (shadowDistance != null) '--freetype-shadow-distance=$shadowDistance',
       if (backgroundColor != null) ...<String>[
         '--freetype-background-color=${_rgb(backgroundColor!)}',
         '--freetype-background-opacity=${_alpha(backgroundColor!)}',

@@ -167,28 +167,15 @@ std::vector<std::string> ReadStringList(const EncodableMap &map,
   return values;
 }
 
+// HTTP headers are translated to libVLC options in Dart
+// (lib/src/vlc_http_headers.dart). libVLC 3.x can transmit only User-Agent and
+// Referer, via :http-user-agent and :http-referrer; there is no `http-header`
+// option in any VLC 3.x build, and emitting one here silently discarded every
+// header the caller supplied. The raw map is still delivered in the payload for
+// platform-specific mechanisms, but it produces no media options.
 std::vector<std::string> ReadHeaders(const EncodableMap &map) {
-  std::vector<std::string> headers;
-  const EncodableValue *raw = FindValue(map, "httpHeaders");
-  const auto header_map =
-      raw == nullptr ? nullptr : std::get_if<EncodableMap>(raw);
-  if (header_map == nullptr) {
-    return headers;
-  }
-
-  for (const auto &entry : *header_map) {
-    const auto name = std::get_if<std::string>(&entry.first);
-    const auto value = std::get_if<std::string>(&entry.second);
-    if (name == nullptr || value == nullptr || name->empty() ||
-        name->find('\r') != std::string::npos ||
-        name->find('\n') != std::string::npos ||
-        value->find('\r') != std::string::npos ||
-        value->find('\n') != std::string::npos) {
-      continue;
-    }
-    headers.push_back(":http-header=" + *name + ": " + *value);
-  }
-  return headers;
+  (void)map;
+  return {};
 }
 
 EncodableValue NullableString(const std::string &value) {

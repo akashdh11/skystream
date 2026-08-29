@@ -205,32 +205,15 @@ std::vector<std::string> ReadStringList(FlValue* map, const gchar* key) {
   return result;
 }
 
+// HTTP headers are translated to libVLC options in Dart
+// (lib/src/vlc_http_headers.dart). libVLC 3.x can transmit only User-Agent and
+// Referer, via :http-user-agent and :http-referrer; there is no `http-header`
+// option in any VLC 3.x build, and emitting one here silently discarded every
+// header the caller supplied. The raw map is still delivered in the payload for
+// platform-specific mechanisms, but it produces no media options.
 std::vector<std::string> ReadHeaders(FlValue* map) {
-  std::vector<std::string> result;
-  FlValue* headers = FindValue(map, "httpHeaders");
-  if (headers == nullptr || fl_value_get_type(headers) != FL_VALUE_TYPE_MAP) {
-    return result;
-  }
-
-  const size_t length = fl_value_get_length(headers);
-  for (size_t i = 0; i < length; ++i) {
-    FlValue* raw_name = fl_value_get_map_key(headers, i);
-    FlValue* raw_value = fl_value_get_map_value(headers, i);
-    if (fl_value_get_type(raw_name) != FL_VALUE_TYPE_STRING ||
-        fl_value_get_type(raw_value) != FL_VALUE_TYPE_STRING) {
-      continue;
-    }
-    const std::string name = fl_value_get_string(raw_name);
-    const std::string value = fl_value_get_string(raw_value);
-    if (name.empty() || name.find('\r') != std::string::npos ||
-        name.find('\n') != std::string::npos ||
-        value.find('\r') != std::string::npos ||
-        value.find('\n') != std::string::npos) {
-      continue;
-    }
-    result.push_back(":http-header=" + name + ": " + value);
-  }
-  return result;
+  (void)map;
+  return {};
 }
 
 class LinuxVlcPlayer {

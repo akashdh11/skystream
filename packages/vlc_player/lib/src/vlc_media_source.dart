@@ -10,8 +10,9 @@ import 'package:flutter/foundation.dart';
 class VlcMediaSource {
   /// Creates a media source for [uri].
   ///
-  /// [uri] must be non-empty. [httpHeaders] are sent when VLC opens HTTP(S)
-  /// media. [mediaOptions] are passed to VLC for this source only; use VLC
+  /// [uri] must be non-empty. [httpHeaders] are translated to the libVLC
+  /// options that exist — see the field for which ones actually reach the
+  /// network. [mediaOptions] are passed to VLC for this source only; use VLC
   /// option syntax such as `:network-caching=1200`. [startPosition] must be
   /// non-negative and is applied after the source is loaded when the platform
   /// backend supports seeking.
@@ -37,7 +38,17 @@ class VlcMediaSource {
   /// Media URI to load.
   final Uri uri;
 
-  /// HTTP headers used when opening [uri].
+  /// HTTP headers to present when opening [uri].
+  ///
+  /// **Only `User-Agent` and `Referer` are actually sent.** libVLC 3.x has no
+  /// general per-request header mechanism: its HTTP access exposes
+  /// `http-user-agent` and `http-referrer` as options and nothing else. Those
+  /// two are translated automatically; `Cookie`, `Authorization`, `Origin` and
+  /// custom headers have no representation and are silently dropped by libVLC.
+  ///
+  /// Call `unsupportedVlcHeaders` to find out which entries will not be sent.
+  /// If a server requires one of them, proxy the media through a local server
+  /// that injects the headers itself and give VLC the proxy URL.
   final Map<String, String> httpHeaders;
 
   /// VLC media options applied only to this source.

@@ -405,7 +405,11 @@ VlcMediaSource({
 ```
 
 - `uri`: non-empty media URI to load.
-- `httpHeaders`: HTTP headers used when opening the media.
+- `httpHeaders`: headers to present when opening the media. Only `User-Agent`
+  and `Referer` are actually transmitted — libVLC 3.x has no option for any
+  other header, so `Cookie`, `Authorization`, `Origin` and custom headers are
+  dropped. Use `unsupportedVlcHeaders` to detect this, and proxy the media if
+  the server requires them.
 - `mediaOptions`: VLC media options applied only to this source.
 - `startPosition`: non-negative initial playback position.
 
@@ -574,7 +578,8 @@ Check that:
 - Android has internet permission.
 - macOS sandboxed apps have the network client entitlement.
 - iOS allows the URL through App Transport Security if it is not HTTPS.
-- Required HTTP headers are passed through `VlcMediaSource.httpHeaders`.
+- Required HTTP headers are passed through `VlcMediaSource.httpHeaders`, which
+  can carry only `User-Agent` and `Referer` to the network — see above.
 - Linux has `libvlc-dev` and `vlc` installed.
 
 ### macOS `Library not loaded: VLCKit`

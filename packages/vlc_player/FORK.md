@@ -128,6 +128,69 @@ CHANGELOG, podspecs and `example/pubspec.lock`, that the podspec author is
 describes package behaviour, and none of it is true or wanted for a vendored
 fork that will never be published to pub.dev.
 
+### 7. `addSubtitle` before attachment queues instead of throwing
+
+Upstream, `setMedia` may be called before a `VlcPlayer` is mounted — it stores
+the source and applies it when the view is attached. `addSubtitle` did not: it
+went straight to `_attachedArguments`, which throws
+
+    StateError: The controller is not attached to a VlcPlayer.
+
+That asymmetry is a trap. The natural way to start playback is to set the media
+and its side-car subtitles together, before building the widget that shows it,
+and only the first of those two calls worked. Every caller would otherwise
+reimplement the same "wait until attached" dance.
+
+`addSubtitle` now queues when there is no view and flushes, in order, from both
+attach paths (`attach` and `attachTexturePlayer`), right after the pending media
+is applied. Setting new media discards subtitles queued for the previous media.
+A queued subtitle that fails to load is dropped rather than thrown: the video is
+still playable without it, and attachment must not fail because a side-car URI
+was bad.
+
+Covered by `subtitles added before attachment are applied in order` and
+`new media drops subtitles queued for the old media`.
+
+### 8. HTTP headers now use options libVLC actually has
+
+Upstream converted every entry of a source's header map into a media option:
+
+    media.addOption(":http-header=$name: $value")
+
+**`http-header` is not a libVLC option.** It exists in no VLC 3.x build. I dumped the option-name
+string tables of every binary this app ships — `libvlc-all:3.7.0` (the pinned Android AAR),
+`MobileVLCKit 3.7.3`, `VLCKit 3.7.3`, and the VLC 3.0.23 desktop core. All four contain
+`http-user-agent`, `http-referrer` and `http-forward-cookies`. None contains `http-header`.
+libvlccore parses the unknown option, logs `unknown option %s`, and drops it — and the log is
+suppressed by the default `--quiet`.
+
+The effect was total and silent: **no per-source HTTP header reached the network on any of the five
+platforms.** No Referer, no Cookie, no Authorization, no Origin, and not even a source's own
+User-Agent. A caller could pass a complete, correct header map, see no error, and watch the server
+answer 403. Nothing in the package or its tests could catch it, because every layer agreed the
+header had been handed on.
+
+The translation now happens once, in Dart, in `_sourceArguments()` — the single builder every
+`setSource` payload goes through, so all five backends inherit one policy instead of five copies of
+it. `lib/src/vlc_http_headers.dart` maps `User-Agent` → `:http-user-agent=` and `Referer`/`Referrer`
+→ `:http-referrer=`, skipping blank values and any value containing CR or LF, which would otherwise
+corrupt the options after it in the list. Per-media options override the instance-level
+`--http-user-agent` through VLC's variable inheritance, so a source carrying its own User-Agent now
+wins while sources carrying none still get the configured default. The `:http-header=` emission is
+deleted from all five native backends; the raw map is still delivered in the payload for genuinely
+platform-specific mechanisms (iOS's `storeCookie:forHost:path:`, for instance) but produces no
+options.
+
+`Cookie`, `Authorization`, `Origin` and custom headers have **no libVLC representation at all**.
+Pretending otherwise is what caused this, so the package no longer does: `unsupportedVlcHeaders()`
+names exactly which headers will not be sent, and a debug build prints them per source. A host app
+that must honour them has to proxy the media and inject them upstream — which is what SkyStream now
+does through `LocalProxyService`.
+
+Covered by `test/vlc_http_headers_test.dart` and two channel-boundary tests in
+`vlc_player_controller_test.dart` that assert the emitted option strings and that nothing containing
+`http-header` is ever produced.
+
 ---
 
 ## Known gaps, not yet addressed

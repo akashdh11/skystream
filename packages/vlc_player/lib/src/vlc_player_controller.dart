@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'vlc_media_info.dart';
+import 'vlc_http_headers.dart';
 import 'vlc_media_source.dart';
 import 'vlc_player_config.dart';
 import 'vlc_media_stats.dart';
@@ -263,6 +264,14 @@ class _VlcPlayerController extends VlcPlayerController
   int? _textureId;
   VlcMediaSource? _pendingMediaSource;
   bool _pendingAutoPlay = false;
+
+  /// External subtitles requested before a player instance existed.
+  ///
+  /// [setMedia] already tolerates being called before attachment, so callers
+  /// reasonably expect [addSubtitle] to as well — otherwise every caller has to
+  /// hand-roll the same "wait until attached" dance. They are flushed in order
+  /// once a view or texture is attached, and dropped when new media is set.
+  final List<Uri> _pendingSubtitles = <Uri>[];
   List<VlcMediaSource> _playlist = const <VlcMediaSource>[];
   int? _playlistIndex;
   bool _playlistAutoAdvance = false;
@@ -331,6 +340,7 @@ class _VlcPlayerController extends VlcPlayerController
       await _setMedia(pendingMediaSource, autoPlay: _pendingAutoPlay);
       _ensureNotDisposed();
     }
+    await _flushPendingSubtitles();
   }
 
   /// Attaches this controller to a texture-backed player instance.
@@ -379,6 +389,7 @@ class _VlcPlayerController extends VlcPlayerController
       await _setMedia(pendingMediaSource, autoPlay: _pendingAutoPlay);
       _ensureNotDisposed();
     }
+    await _flushPendingSubtitles();
 
     return textureId;
   }
@@ -401,6 +412,8 @@ class _VlcPlayerController extends VlcPlayerController
   @override
   Future<void> setMedia(VlcMediaSource source, {bool autoPlay = false}) async {
     _ensureNotDisposed();
+    // New media invalidates side-car subtitles queued for the old one.
+    _pendingSubtitles.clear();
     final previousPlaylist = _playlist;
     final previousPlaylistIndex = _playlistIndex;
     final previousPlaylistAutoAdvance = _playlistAutoAdvance;
@@ -746,12 +759,39 @@ class _VlcPlayerController extends VlcPlayerController
   Future<void> disableSubtitle() => _invoke('disableSubtitle');
 
   @override
-  Future<void> addSubtitle(Uri uri) {
+  Future<void> addSubtitle(Uri uri) async {
+    _ensureNotDisposed();
     final value = uri.toString();
     if (value.isEmpty) {
       throw ArgumentError.value(uri, 'uri', 'Must be non-empty.');
     }
-    return _invoke('addSubtitle', <String, Object?>{'uri': value});
+    if (_viewId == null) {
+      _pendingSubtitles.add(uri);
+      return;
+    }
+    await _invoke('addSubtitle', <String, Object?>{'uri': value});
+  }
+
+  /// Applies subtitles queued before attachment, in the order requested.
+  ///
+  /// A failure here must not take down attachment: the video is playable
+  /// without a side-car subtitle, so a bad URI is dropped rather than thrown.
+  Future<void> _flushPendingSubtitles() async {
+    if (_pendingSubtitles.isEmpty || _viewId == null) {
+      return;
+    }
+    final pending = List<Uri>.of(_pendingSubtitles);
+    _pendingSubtitles.clear();
+    for (final uri in pending) {
+      if (_isDisposed || _viewId == null) {
+        return;
+      }
+      try {
+        await _invoke('addSubtitle', <String, Object?>{'uri': uri.toString()});
+      } catch (_) {
+        // Ignored on purpose - see above.
+      }
+    }
   }
 
   @override
@@ -791,17 +831,39 @@ class _VlcPlayerController extends VlcPlayerController
     return <String, Object?>{'viewId': viewId, ...?arguments};
   }
 
+  /// Builds every `setSource` payload, so headers can never desync from the
+  /// media they belong to.
+  ///
+  /// HTTP headers are translated to libVLC options **here**, once, rather than
+  /// in each of the five native backends. libVLC can transmit only User-Agent
+  /// and Referer (see vlc_http_headers.dart); the natives are handed the raw
+  /// map as well, but only for mechanisms that are genuinely platform-specific.
   Map<String, Object?> _sourceArguments(
     int viewId,
     VlcMediaSource source, {
     required bool autoPlay,
   }) {
+    final headerOptions = vlcHeaderOptions(source.httpHeaders);
+    final mediaOptions = <String>[...headerOptions, ...source.mediaOptions];
+
+    assert(() {
+      final dropped = unsupportedVlcHeaders(source.httpHeaders);
+      if (dropped.isNotEmpty) {
+        debugPrint(
+          'vlc_player: libVLC cannot send these headers, so they were dropped '
+          'for ${source.uri}: ${dropped.join(', ')}. Proxy the media and '
+          'inject them upstream if the server requires them.',
+        );
+      }
+      return true;
+    }());
+
     return <String, Object?>{
       'viewId': viewId,
       'uri': source.uri.toString(),
       'autoPlay': autoPlay,
       'httpHeaders': source.httpHeaders,
-      if (source.mediaOptions.isNotEmpty) 'mediaOptions': source.mediaOptions,
+      if (mediaOptions.isNotEmpty) 'mediaOptions': mediaOptions,
       if (source.startPosition > Duration.zero)
         'startPosition': source.startPosition.inMilliseconds,
     };
