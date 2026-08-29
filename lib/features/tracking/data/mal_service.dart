@@ -309,7 +309,10 @@ class MalService implements TrackingService {
     if (item.contentType == MultimediaContentType.movie) {
       return _updateListStatus(malId, status: 'completed');
     } else {
-      if (episode == null) return false;
+      // Episode.episode defaults to 0 and many plugins never populate it.
+      // num_watched_episodes is an absolute overwrite, so a 0 here resets the
+      // user's progress for the whole title rather than doing nothing.
+      if (episode == null || episode.episode <= 0) return false;
       return _updateListStatus(malId, numWatchedEpisodes: episode.episode);
     }
   }

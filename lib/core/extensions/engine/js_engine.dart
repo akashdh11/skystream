@@ -13,6 +13,7 @@ import '../../storage/extension_repository.dart';
 import '../../network/cloudflare_bypass.dart';
 import '../../logger/app_logger.dart';
 import '../../network/dio_client_provider.dart';
+import '../../network/http_defaults.dart';
 
 import 'js_engine_worker.dart';
 
@@ -382,9 +383,10 @@ class JsEngineService {
           ? Map<String, dynamic>.from(rawHeaders as Map)
           : <String, dynamic>{};
       if (!headers.keys.any((k) => k.toLowerCase() == 'user-agent')) {
-        headers['User-Agent'] =
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-            '(KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36';
+        // Must be the same UA playback will use: CDNs routinely tie a signed
+        // URL to the requesting agent, so resolving as one browser and playing
+        // as another 403s. See http_defaults.dart.
+        headers['User-Agent'] = kDefaultBrowserUserAgent;
       }
       if (!headers.keys.any((k) => k.toLowerCase() == 'accept-encoding')) {
         headers['Accept-Encoding'] = 'identity';

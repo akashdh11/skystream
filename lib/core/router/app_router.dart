@@ -280,8 +280,7 @@ class PlayerRoute extends GoRouteData with $PlayerRoute {
             item: $extra.item,
             videoUrl: $extra.videoUrl,
             episode: $extra.episode,
-            headers: $extra.preloadedStreams?.firstOrNull?.headers,
-            subtitles: $extra.preloadedStreams?.firstOrNull?.subtitles,
+            preloadedStreams: $extra.preloadedStreams,
           );
         }
         return PlayerScreen(
@@ -294,7 +293,6 @@ class PlayerRoute extends GoRouteData with $PlayerRoute {
     );
   }
 }
-
 
 /// Library is no longer a tab: Settings opens Downloads / Bookmarks here.
 @TypedGoRoute<LibraryRoute>(path: '/library')
@@ -309,11 +307,7 @@ class LibraryRoute extends GoRouteData with $LibraryRoute {
 
 @TypedGoRoute<AddonDetailRoute>(path: '/addon-detail')
 class AddonDetailRoute extends GoRouteData with $AddonDetailRoute {
-  const AddonDetailRoute({
-    required this.type,
-    required this.id,
-    this.addonUrl,
-  });
+  const AddonDetailRoute({required this.type, required this.id, this.addonUrl});
   final String type;
   final String id;
   final String? addonUrl;

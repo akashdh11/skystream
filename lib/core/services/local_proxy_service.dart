@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import '../network/http_defaults.dart';
 
 class ProxyOptions {
   final List<String> mirrorHosts;
@@ -515,9 +516,11 @@ class LocalProxyService {
     String targetUrl,
     ProxyOptions? options,
   ) {
-    // Default User-Agent if missing
+    // Default User-Agent if missing. Uses the app-wide browser identity rather
+    // than an ExoPlayer string, so a proxied request looks like every other
+    // request this app makes for the same stream.
     if (req.headers['User-Agent'] == null) {
-      req.headers.set("User-Agent", "Mozilla/5.0 (Android) ExoPlayer");
+      req.headers.set("User-Agent", kDefaultBrowserUserAgent);
     }
 
     // Default Referer if missing or proxy-based

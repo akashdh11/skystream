@@ -502,6 +502,157 @@ auto-select races, `pendingVideoViewSubtitleIdsBeforeReload` — all deleted, no
 **Done when.** Embedded and external audio/subtitle tracks are selectable, delay works, and no Dart
 code mirrors engine track state.
 
+### Phase 6.5 — `videoUrl` is not a URL
+
+**Why this exists.** Phase 5 was wrong about the single most basic input to the player. The first
+real stream played on the VLC engine crashed in `initState`:
+
+    FormatException: Scheme not starting with alphabetic character (at character 1)
+    [{"source":"https://hubcloud.cx/...","quality":"480p"},{"source":...}]
+
+`PlayerRouteExtra.videoUrl` is **not a URL**. It is an opaque token handed to the active plugin's
+`loadStreams()`, and a plugin may put anything in it - an episode page, a `tmdb:` id, or, as here, a
+JSON array of candidate sources. `PlayerScreen` never treated it as a URI; the VLC screen did.
+
+**What landed.** `lib/features/player/domain/stream_resolver.dart` - `resolvePlayback()`, engine-
+agnostic because it ends at a `StreamResult` and nothing in it knows which library will open that.
+In order: direct/local/torrent short-circuit, `preloadedStreams ?? loadStreams()`, quality filter and
+sort by network type, last-used source for this title, then a parallel health probe of the top
+candidates with early exit. The screen awaits it and has resolving / playing / failed states, so a
+bad source is a message with a working Back button rather than an exception.
+
+It takes a `ProviderReader` (`T Function<T>(ProviderListenable<T>)`) rather than a `Ref`, because
+`Ref` and `WidgetRef` are unrelated types in Riverpod 3 and both satisfy that signature - which also
+makes it testable without a container.
+
+**One package change fell out of it.** `addSubtitle` threw `StateError` when called before a
+`VlcPlayer` was mounted, while `setMedia` queued. The fork now queues subtitles and flushes them on
+attach - FORK.md section 7.
+
+### Phase 6.6 - Headers that actually reach the network
+
+**Why this exists.** Phase 5 built the header map correctly and I verified it against the old
+`_buildPlaybackHeaders`, which is a real check of the wrong half. The map was correct and then
+discarded at the engine boundary.
+
+All five native backends emitted `media.addOption(":http-header=Name: Value")`. `http-header` is not
+a libVLC option. Dumping the option-name string tables of every binary this app ships -
+`libvlc-all:3.7.0`, `MobileVLCKit 3.7.3`, `VLCKit 3.7.3`, VLC 3.0.23 desktop - finds
+`http-user-agent`, `http-referrer` and `http-forward-cookies` in all four, and `http-header` in none.
+libvlccore logs `unknown option` and drops it; `--quiet` hides the log. **No per-source header
+reached the network on any platform** - no Referer, no Cookie, no Authorization, and not even a
+plugin's own User-Agent. It explains the observed split exactly: plain-CDN movies played, streams
+needing a Referer or Cookie 403'd. Inherited from upstream on all five platforms, so systemic rather
+than a typo, and nothing in the package could catch it: every layer agreed the header had been
+passed on.
+
+**What landed.**
+- `packages/vlc_player/lib/src/vlc_http_headers.dart` translates `User-Agent` to `:http-user-agent=`
+  and `Referer`/`Referrer` to `:http-referrer=`, dropping blank values and any value containing CR or
+  LF (an embedded newline corrupts every option after it). Done once in `_sourceArguments()`, the
+  single builder behind every `setSource`, so all five platforms inherit one policy. The
+  `:http-header=` emission is deleted from all five natives. FORK.md section 8.
+- `unsupportedVlcHeaders()` names what cannot be sent, and debug builds print it per source.
+- **`Cookie` and `Authorization` have no libVLC representation at all**, so the app routes those
+  streams through `LocalProxyService`, which re-injects the full set on the real request and across
+  redirects - the same answer the mpv path reached, for the same reason.
+- `playbackHeaders(StreamResult)` moved into stream_resolver.dart and is shared by the health probe
+  and playback. The probe previously sent dart:io's default User-Agent, giving one playback three
+  identities and letting it reject sources that would have played.
+- External subtitles are proxied when the stream carries its own headers, since `addSubtitle` has no
+  header channel at any layer.
+- The DRM guard now checks `drmKid` too, matching the old path's predicate.
+
+**Two bugs found while wiring it.** `LocalProxyService.getProxyUrl` calls `startServer()` without
+awaiting, and `_serverPort` is 0 until the bind completes - a cold first call builds a URL pointing
+at port 0. And the proxy strips `Cookie` outright unless `ProxyOptions.keepCookies` lists the cookie
+names, which would have silently defeated the entire fix.
+
+**Also unified the User-Agent.** http_defaults.dart states the invariant - one consistent browser UA
+across resolve and playback - while `js_engine` hardcoded Chrome/119 and the proxy substituted
+`Mozilla/5.0 (Android) ExoPlayer`. Both now use `kDefaultBrowserUserAgent`. This changes the old path
+too: every plugin's resolve request moves from Chrome/119 to Chrome/124.
+
+### Phase 6.7 - Progress and resume
+
+**Goal.** Stop losing the user's place. Until this landed, watching anything on the VLC engine
+silently discarded progress - a regression against the old path, not a missing feature.
+
+**The trap, and it is engine-specific.** libVLC pushes `position = 0` on `setSource`, on `stop()` and
+at end-of-media. Worse, `VlcPlayerValue.fromEvent` merges into the previous value, so between
+`setMedia()` returning and the first snapshot arriving, `controller.value` still describes the
+*previous* media - long enough to write the outgoing episode's position under the incoming episode's
+key. Reading the engine at teardown, which is exactly when progress most needs saving, is therefore
+guaranteed to read a lie. The old path had the same bug in a different costume: it branched on
+`state.useExoPlayer` and otherwise read an idle media_kit handle, persisting a zero.
+
+**The design.** `lib/features/player/domain/playback_progress.dart` never touches a player. It takes
+a `ProgressSample` carrying position, duration **and a session token**; the screen samples only while
+`state == playing`, stamps each sample with the current session, and writes the last good sample at
+teardown rather than asking the engine. A sample whose token has moved on is refused.
+
+Guards: duration >= 30 s; position > 0; position clamped to duration rather than discarded;
+livestreams never written; and the token check. Write rate is limited to 5% of duration, with a
+forced flush at pause, at app background (the screen is a `WidgetsBindingObserver`) and at dispose -
+**before** `_controller.dispose()`, since disposing stops the player and zeroes the position.
+
+**Resume is a start position, not a seek.** `resumePointFor` reads history before the engine sees the
+media and passes the result as `VlcMediaSource.startPosition`, which every backend turns into
+`:start-time=`. That deletes the old path's pending-seek state machine - the resume percentage, the
+readiness race, the re-entrancy flag - outright. Suppressed below 1% and at or above 90%; the old
+path had no near-end guard, so a completed episode resumed at ~90% forever through the legacy `EP_`
+row.
+
+**A shipping-path data-loss bug found on the way.** `Episode.episode` defaults to `0` and many
+plugins never populate it. `MalService.markWatched` and `AniListService.markWatched` guarded only
+`episode == null`, then sent `num_watched_episodes: 0` / `progress: 0` - both **absolute
+overwrites**, so finishing one episode of an anime whose plugin omits episode numbers reset the
+user's tracked progress for the entire title. Both now refuse when `episode.episode <= 0`. This
+affected the old engine too and is unrelated to VLC.
+
+### Phase 6.8 - Completion, scrobbling and source failover
+
+**Completion and scrobbling.** Every write here is irreversible against a third-party account, and
+`SimklService.removePlaybackProgress` is a hardcoded `return false`, so there is no undo in this
+codebase. `playback_tracker.dart` enforces five rules, each because breaking it corrupts real data:
+
+1. The latch is set **before** the write is dispatched. An `await` between check and set is a window
+   a second call walks through.
+2. **Exactly one terminal event per session.** The old path emits `scrobbleStop` at dispose
+   (player_controller.dart:4081) and then calls `saveProgress()` (:4090), which can cross 90% and
+   also emit `markWatched` - two terminal events for one episode, which either duplicates the Trakt
+   play or resurrects it in Continue Watching.
+3. Completion is judged **only from a sample taken while playing** - at `ended` and `stopped` libVLC
+   reports position 0, so the ratio is 0 and the branch silently never fires.
+4. The duration must **settle** (unchanged across consecutive readings) before any ratio is trusted.
+   VLC revises duration during startup; a 90% ratio against a provisional value marks a title watched
+   seconds after it opens.
+5. The latch **never resets on failover** - only a genuinely new episode gets a new session.
+
+Scrobble pause/resume is driven from the `paused` state specifically, never from `playing`
+transitions: VLC re-enters `playing` after every buffering episode, and `buffering` is a distinct
+state, so `paused` really is a user pause.
+
+**Source failover.** `resolvePlayback` always returned an ordered candidate list; nothing consumed
+past the first entry. Now one generation-guarded `_openAttempt` owns opening, bumped on every attempt
+and re-checked after every await, so a failover from a dying source cannot land after the user has
+moved on. Error and end-of-media are **edge**-detected: `VlcPlayerValue` is level-triggered and the
+native error code is sticky until the next `setSource`, so a missing edge detector turns one dead
+source into an unbounded storm. Neither handler runs synchronously inside the listener - failing over
+calls `setMedia`, which notifies again.
+
+Two rules carry the weight. **Position is taken from the last sample captured while playing**, not
+from `controller.value`, which `setMedia` has already zeroed by the time a retry runs. And
+**end-of-media is ambiguous** - a finished film and a truncated download look identical to the
+engine, so only a position short of the duration by more than two seconds is treated as a failure.
+
+A source that produced frames gets two retries at the same URL before advancing; one that never
+played is dead and is skipped immediately.
+
+**Still outstanding.** Next-episode advancement, and the series history rollover on completion (a
+finished film now leaves Continue Watching; a finished episode does not yet roll forward, because
+that needs the next-episode calculation). Then Phase 5b's controls.
+
 ### Phase 7 — Live, then the long tail
 
 **Goal.** Move live onto the new engine and retire video_view.
