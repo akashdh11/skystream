@@ -481,7 +481,10 @@ class _StreamPosterCard extends ConsumerWidget {
                             ),
                             onPressed: () =>
                                 StreamSourcePicker.open(context, ref, item),
-                            icon: const Icon(Icons.play_arrow_rounded, size: 17),
+                            icon: const Icon(
+                              Icons.play_arrow_rounded,
+                              size: 17,
+                            ),
                             label: const Text(
                               'Play',
                               style: TextStyle(fontSize: 12),

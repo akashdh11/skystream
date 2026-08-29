@@ -146,7 +146,9 @@ class _StreamSourcePickerState extends ConsumerState<StreamSourcePicker> {
       if (started) Navigator.of(context).maybePop();
     } catch (error) {
       if (!mounted) return;
-      messenger.showSnackBar(SnackBar(content: Text('Download failed: $error')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Download failed: $error')),
+      );
     }
   }
 
@@ -415,7 +417,10 @@ class _SourceRow extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: isBest
-                ? Border.all(color: cs.primary.withValues(alpha: 0.8), width: 1.5)
+                ? Border.all(
+                    color: cs.primary.withValues(alpha: 0.8),
+                    width: 1.5,
+                  )
                 : null,
           ),
           child: Row(

@@ -278,7 +278,9 @@ class NuvioManifest {
   };
 
   bool get isValid =>
-      name.trim().isNotEmpty && version.trim().isNotEmpty && scrapers.isNotEmpty;
+      name.trim().isNotEmpty &&
+      version.trim().isNotEmpty &&
+      scrapers.isNotEmpty;
 }
 
 /// A repository the user added, plus the scrapers it published.
@@ -386,14 +388,16 @@ class NuvioRepo {
       manifest: rawManifest is Map
           ? NuvioManifest.fromJson(Map<String, dynamic>.from(rawManifest))
           : null,
-      disabledScrapers: {
-        for (final id in _stringList(json['disabled'])) id,
-      },
+      disabledScrapers: {for (final id in _stringList(json['disabled'])) id},
       enabledOverrides: {
         for (final id in _stringList(json['enabledOverrides'])) id,
       },
-      lastCheckedAt: DateTime.tryParse((json['lastCheckedAt'] as String?) ?? ''),
-      lastUpdatedAt: DateTime.tryParse((json['lastUpdatedAt'] as String?) ?? ''),
+      lastCheckedAt: DateTime.tryParse(
+        (json['lastCheckedAt'] as String?) ?? '',
+      ),
+      lastUpdatedAt: DateTime.tryParse(
+        (json['lastUpdatedAt'] as String?) ?? '',
+      ),
     );
   }
 }
@@ -434,7 +438,10 @@ class NuvioSettingsField {
         if (entry is Map) {
           final value = entry['value']?.toString() ?? '';
           if (value.isEmpty) continue;
-          options.add((label: entry['label']?.toString() ?? value, value: value));
+          options.add((
+            label: entry['label']?.toString() ?? value,
+            value: value,
+          ));
         } else if (entry is String) {
           options.add((label: entry, value: entry));
         }
@@ -550,7 +557,8 @@ class NuvioStreamResult {
     }
 
     final infoHash = (json['infoHash'] as String?)?.trim();
-    if ((url == null || url.isEmpty) && (infoHash == null || infoHash.isEmpty)) {
+    if ((url == null || url.isEmpty) &&
+        (infoHash == null || infoHash.isEmpty)) {
       return null;
     }
 
@@ -568,9 +576,7 @@ class NuvioStreamResult {
     final proxyHeaders = behaviorHints['proxyHeaders'];
     final headers =
         readHeaders(json['headers']) ??
-        readHeaders(
-          proxyHeaders is Map ? proxyHeaders['request'] : null,
-        ) ??
+        readHeaders(proxyHeaders is Map ? proxyHeaders['request'] : null) ??
         readHeaders(behaviorHints['headers']) ??
         readHeaders(json['requestHeaders']);
 
@@ -596,9 +602,11 @@ class NuvioStreamResult {
       (json['title'] ?? json['name'] ?? scraperName).toString(),
     );
     final name = json['name'] == null ? null : _clean(json['name'].toString());
-    final quality = _cleanOrNull(json['quality']?.toString()) ??
+    final quality =
+        _cleanOrNull(json['quality']?.toString()) ??
         _qualityFromText('$title ${name ?? ''}');
-    final size = _cleanOrNull(json['size']?.toString()) ??
+    final size =
+        _cleanOrNull(json['size']?.toString()) ??
         _sizeFromBytes(json['sizeBytes'] ?? json['filesize'] ?? json['bytes']);
 
     return NuvioStreamResult(

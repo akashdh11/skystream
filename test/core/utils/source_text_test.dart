@@ -56,7 +56,10 @@ void main() {
     });
 
     test('falls back when there is nothing to show', () {
-      expect(buildSourceDetail([null, ''], fallback: 'MyProvider'), 'MyProvider');
+      expect(
+        buildSourceDetail([null, ''], fallback: 'MyProvider'),
+        'MyProvider',
+      );
     });
 
     test('a Nuvio row and a SkyStream row end up in the same style', () {

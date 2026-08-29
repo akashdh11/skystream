@@ -142,6 +142,15 @@ class ViewAllController extends _$ViewAllController {
             page: nextPage,
           );
           break;
+        case ViewAllCategory.trendingTV:
+          newItems = await tmdbService.getTrendingTV(
+            language: lang,
+            genreId: filters.selectedGenre?.id,
+            year: filters.selectedYear,
+            minRating: filters.minRating,
+            page: nextPage,
+          );
+          break;
         case ViewAllCategory.providerContent:
           // Provider content is fully loaded at init — no pagination.
           state = state.copyWith(hasMore: false, isLoading: false);

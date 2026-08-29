@@ -48,9 +48,7 @@ class AddonSubtitleService {
     final providers = addons
         .where((a) => a.manifest?.hasResource('subtitles') ?? false)
         .toList();
-    if (!providers.any(
-      (a) => a.manifestUrl == _openSubtitles.manifestUrl,
-    )) {
+    if (!providers.any((a) => a.manifestUrl == _openSubtitles.manifestUrl)) {
       providers.add(_openSubtitles);
     }
 

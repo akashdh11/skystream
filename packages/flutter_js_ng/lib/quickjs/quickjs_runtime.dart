@@ -52,10 +52,8 @@ Pointer<JSValueConst> bridgeCallbackGlobalHandler(
     }
   }
 
-  return QuickJsRuntime.jsEval(
-          ctx,
-          jsonEncode(
-              'No channel registered: ($channelNameStr) => $messageStr'))
+  return QuickJsRuntime.jsEval(ctx,
+          jsonEncode('No channel registered: ($channelNameStr) => $messageStr'))
       .rawResult;
 }
 

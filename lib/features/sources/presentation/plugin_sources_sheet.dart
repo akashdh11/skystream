@@ -1,32 +1,23 @@
 import 'dart:async';
 
+import 'package:dpad/dpad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/network/link_probe_service.dart';
-import '../../../core/utils/source_text.dart';
 import '../../../core/domain/entity/multimedia_item.dart';
-import '../../../core/extensions/extension_manager.dart';
+import '../../../core/network/link_probe_service.dart';
 import '../../../core/nuvio/data/nuvio_stream_service.dart';
 import '../../../core/nuvio/models/nuvio_models.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/services/download_service.dart';
-import '../../stream/data/stream_aggregator.dart';
-import '../../stream/data/stream_browser_provider.dart'
-    show streamAggregatorProvider;
-import '../../stream/data/stream_source.dart';
+import '../../../core/utils/source_text.dart';
 import 'source_sheet_widgets.dart';
 
-/// Plugin-powered sources sheet used from Explore / TMDB details.
+/// Nuvio-powered sources sheet used from Explore / TMDB details.
 ///
-/// Two plugin systems feed this one list:
-/// * **SkyStream plugins** — the JS providers behind "Available Sources (BETA)"
-/// * **Nuvio plugins** — scraper repositories in Nuvio's format, run on the
-///   same device with `getStreams(tmdbId, mediaType, season, episode)`
-///
-/// Stremio add-ons are deliberately *not* here: they have their own tab, sheet
-/// and pipeline.
+/// Runs scraper repositories in Nuvio's format on background isolates with
+/// `getStreams(tmdbId, mediaType, season, episode)`.
 class PluginSourcesSheet extends ConsumerStatefulWidget {
   final MultimediaItem target;
   final Episode? episode;
@@ -59,90 +50,64 @@ class PluginSourcesSheet extends ConsumerStatefulWidget {
   ConsumerState<PluginSourcesSheet> createState() => _PluginSourcesSheetState();
 }
 
-/// One row: either a SkyStream plugin link or a Nuvio scraper link.
+/// One row wrapping a resolved Nuvio scraper link.
 class _Row {
-  final AggregatedStream? plugin;
-  final NuvioStreamResult? nuvio;
+  final NuvioStreamResult nuvio;
 
-  const _Row.fromPlugin(AggregatedStream this.plugin) : nuvio = null;
-  const _Row.fromNuvio(NuvioStreamResult this.nuvio) : plugin = null;
+  const _Row(this.nuvio);
 
-  bool get isNuvio => nuvio != null;
+  String get url => nuvio.url;
 
-  String get url => isNuvio ? nuvio!.url : plugin!.stream.url;
+  String get providerName => nuvio.scraperName;
 
-  String get providerName =>
-      isNuvio ? nuvio!.scraperName : plugin!.providerName;
+  /// Consistent detail line: size, language, seeders, and stream name.
+  String get detail => buildSourceDetail([
+    nuvio.size,
+    nuvio.language,
+    nuvio.seeders == null ? null : '${nuvio.seeders} seeds',
+    nuvio.name ?? nuvio.title,
+  ], fallback: providerName);
 
-  /// One consistent line for both systems: quality-adjacent facts first, then
-  /// whatever the provider called it, all cleaned the same way.
-  String get detail => buildSourceDetail(
-    isNuvio
-        ? [
-            nuvio!.size,
-            nuvio!.language,
-            nuvio!.seeders == null ? null : '${nuvio!.seeders} seeds',
-            nuvio!.name ?? nuvio!.title,
-          ]
-        : [plugin!.stream.displaySource],
-    fallback: providerName,
-  );
+  Map<String, String>? get headers => nuvio.headers;
 
-  Map<String, String>? get headers =>
-      isNuvio ? nuvio!.headers : plugin!.stream.headers;
-
-  bool get isTorrent => isNuvio
-      ? nuvio!.isTorrent
-      : plugin!.stream.url.startsWith('magnet:');
+  bool get isTorrent => nuvio.isTorrent;
 
   bool get canDownload => url.startsWith('http') && !isTorrent;
 
-  static final RegExp _res = RegExp(r'(\d{3,4})\s*[pi]\b', caseSensitive: false);
+  static final RegExp _res = RegExp(
+    r'(\d{3,4})\s*[pi]\b',
+    caseSensitive: false,
+  );
   static final RegExp _uhd = RegExp(r'\b(4k|uhd|2160)\b', caseSensitive: false);
 
   int get qualityScore {
-    if (!isNuvio) return plugin!.qualityScore;
-    final text = '${nuvio!.quality ?? ''} ${nuvio!.title} ${nuvio!.url}';
+    final text = '${nuvio.quality ?? ''} ${nuvio.title} ${nuvio.url}';
     if (_uhd.hasMatch(text)) return 2160;
     final match = _res.firstMatch(text);
     return match == null ? 0 : (int.tryParse(match.group(1)!) ?? 0);
   }
 
   String get qualityLabel {
-    if (!isNuvio) return plugin!.qualityLabel;
     final score = qualityScore;
     if (score >= 2160) return '4K';
     if (score > 0) return '${score}p';
-    final quality = nuvio!.quality?.trim();
+    final quality = nuvio.quality?.trim();
     return (quality == null || quality.isEmpty) ? 'Auto' : quality;
   }
 
-  bool get isHdr => isNuvio
-      ? RegExp(
-          r'\b(hdr10\+?|hdr|dolby\s*vision|dovi)\b',
-          caseSensitive: false,
-        ).hasMatch('${nuvio!.quality ?? ''} ${nuvio!.title}')
-      : plugin!.isHdr;
+  bool get isHdr => RegExp(
+    r'\b(hdr10\+?|hdr|dolby\s*vision|dovi)\b',
+    caseSensitive: false,
+  ).hasMatch('${nuvio.quality ?? ''} ${nuvio.title}');
 
-  String get key => isNuvio
-      ? 'nuvio:${nuvio!.scraperId}:${nuvio!.url}'
-      : 'plugin:${plugin!.providerId}:${plugin!.stream.url}';
+  String get key => 'nuvio:${nuvio.scraperId}:${nuvio.url}';
 
-  StreamResult toStreamResult() => isNuvio
-      ? nuvio!.toStreamResult()
-      : plugin!.stream.copyWith(
-          providerName: plugin!.providerName,
-          source: plugin!.stream.source,
-        );
+  StreamResult toStreamResult() => nuvio.toStreamResult();
 }
 
 class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
-  StreamSubscription<StreamAggregateResult>? _pluginSub;
   StreamSubscription<NuvioProgress>? _nuvioSub;
 
-  StreamAggregateResult _pluginResult = const StreamAggregateResult(
-    isLoading: true,
-  );
   NuvioProgress _nuvioResult = const NuvioProgress(isLoading: true);
   bool _showDiagnostics = false;
 
@@ -150,8 +115,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
   final Set<String> _probing = {};
 
   late SourcesMode _mode;
-  /// Title / TMDB id the user typed in "Search manually", used instead of the
-  /// TMDB metadata when a plugin lists the film under a different name.
+
+  /// Title / TMDB id the user typed in "Search manually".
   String? _titleOverride;
   String? _tmdbOverride;
   final Set<String> _providerFilter = {};
@@ -164,7 +129,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     super.initState();
     _mode = widget.mode;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _startPlugins();
       _startNuvio();
     });
   }
@@ -172,31 +136,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
   @override
   void dispose() {
     _disposed = true;
-    _pluginSub?.cancel();
     _nuvioSub?.cancel();
     super.dispose();
-  }
-
-  MultimediaItem get _searchTarget => _titleOverride == null
-      ? widget.target
-      : widget.target.copyWith(title: _titleOverride);
-
-  void _startPlugins() {
-    final manager = ref.read(extensionManagerProvider.notifier);
-    final aggregator = ref.read(streamAggregatorProvider);
-    final target = _searchTarget;
-    final stream = widget.episode == null
-        ? aggregator.aggregateForMovie(manager: manager, target: target)
-        : aggregator.aggregateForEpisode(
-            manager: manager,
-            target: target,
-            episode: widget.episode!,
-          );
-    _pluginSub = stream.listen((result) {
-      if (_disposed) return;
-      setState(() => _pluginResult = result);
-      _scheduleProbes();
-    });
   }
 
   void _startNuvio() {
@@ -225,56 +166,13 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
         });
   }
 
-  /// Re-runs the search with a title the user types.
-  ///
-  /// Plugins index films under their own names (regional titles, release
-  /// names, "Part 2" vs "Chapter 2"), so the TMDB title can miss even when the
-  /// plugin has the film. A pasted TMDB id or `tmdb:123` re-points the Nuvio
-  /// scrapers as well.
+  /// Re-runs the search with a title or TMDB id the user types.
   Future<void> _searchManually() async {
-    final controller = TextEditingController(
-      text: _titleOverride ?? widget.target.title,
-    );
     final value = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Search plugins manually'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Type the title a plugin would use. A TMDB id (or tmdb:123) '
-              'also re-points the Nuvio scrapers.',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Title or TMDB id',
-              ),
-              onSubmitted: (text) => Navigator.pop(dialogContext, text.trim()),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          if (_titleOverride != null || _tmdbOverride != null)
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext, ''),
-              child: const Text('Reset'),
-            ),
-          FilledButton(
-            onPressed: () =>
-                Navigator.pop(dialogContext, controller.text.trim()),
-            child: const Text('Search'),
-          ),
-        ],
+      builder: (dialogContext) => _ManualSearchDialog(
+        initialText: _titleOverride ?? widget.target.title,
+        hasOverride: _titleOverride != null || _tmdbOverride != null,
       ),
     );
     if (value == null || !mounted) return;
@@ -291,20 +189,14 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
         _titleOverride = value;
         _tmdbOverride = null;
       }
-      _pluginResult = const StreamAggregateResult(isLoading: true);
       _nuvioResult = const NuvioProgress(isLoading: true);
       _probes.clear();
       _probing.clear();
     });
-    await _pluginSub?.cancel();
     await _nuvioSub?.cancel();
-    _startPlugins();
     _startNuvio();
   }
 
-  /// Link checking runs for **every** row, SkyStream and Nuvio alike — the
-  /// old sixteen-row cap meant most of a long list never got a
-  /// working/dead badge. Six at a time keeps it off the network's back.
   static const int _maxParallelProbes = 6;
 
   void _scheduleProbes() {
@@ -322,7 +214,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
             _probes[url] = result;
             _probing.remove(url);
           });
-          // Free slot: keep working down the list.
           _scheduleProbes();
         }),
       );
@@ -331,8 +222,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
 
   List<_Row> get _allRows {
     final rows = <_Row>[
-      for (final stream in _pluginResult.streams) _Row.fromPlugin(stream),
-      for (final stream in _nuvioResult.streams) _Row.fromNuvio(stream),
+      for (final stream in _nuvioResult.streams) _Row(stream),
     ];
     rows.sort((a, b) {
       final byQuality = b.qualityScore.compareTo(a.qualityScore);
@@ -357,21 +247,17 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     return true;
   }).toList();
 
-  bool get _isLoading => _pluginResult.isLoading || _nuvioResult.isLoading;
+  bool get _isLoading => _nuvioResult.isLoading;
 
   void _play(_Row row) {
     final ordered = <_Row>[row, ..._visible.where((r) => r.key != row.key)];
     final streams = [for (final r in ordered) r.toStreamResult()];
 
-    final item = row.isNuvio
-        ? widget.target
-        : row.plugin!.detailedItem;
-    final episode = row.isNuvio ? widget.episode : row.plugin!.episode;
-    final videoUrl = row.isNuvio
-        ? (widget.target.url.isNotEmpty
-              ? widget.target.url
-              : 'tmdb:${widget.target.tmdbId}')
-        : row.plugin!.episodeUrl;
+    final item = widget.target;
+    final episode = widget.episode;
+    final videoUrl = widget.target.url.isNotEmpty
+        ? widget.target.url
+        : 'tmdb:${widget.target.tmdbId}';
 
     Navigator.of(context).pop();
     unawaited(
@@ -396,8 +282,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     }
 
     final service = ref.read(downloadServiceProvider);
-    final item = row.isNuvio ? widget.target : row.plugin!.detailedItem;
-    final episode = row.isNuvio ? widget.episode : row.plugin!.episode;
+    final item = widget.target;
+    final episode = widget.episode;
 
     try {
       final saveDir = await service.getDownloadPath(item, episode: episode);
@@ -418,7 +304,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
         directory: saveDir,
         item: item,
         episode: episode,
-        trackingUrl: row.isNuvio ? row.url : row.plugin!.episodeUrl,
+        trackingUrl: row.url,
         headers: row.headers,
       );
 
@@ -433,7 +319,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
           ),
         ),
       );
-      if (started && mounted) Navigator.of(context).maybePop();
+      if (started && mounted) unawaited(Navigator.of(context).maybePop());
     } catch (error) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -442,29 +328,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     }
   }
 
-  /// What each SkyStream plugin actually matched.
-  ///
-  /// Plugins search by title, so a wrong match is the usual reason a film has
-  /// links that turn out to be a different film. Showing the matched title
-  /// makes that visible — and "Search with a different title" fixes it.
-  Map<String, String> get _skystreamMatches {
-    final titles = <String, String>{};
-    final counts = <String, int>{};
-    for (final stream in _pluginResult.streams) {
-      final provider = stream.providerName;
-      counts[provider] = (counts[provider] ?? 0) + 1;
-      final matched = stream.detailedItem.title.trim();
-      if (matched.isNotEmpty) titles.putIfAbsent(provider, () => matched);
-    }
-    return {
-      for (final provider in counts.keys)
-        provider:
-            '${titles[provider] ?? 'matched'} · ${counts[provider]} links',
-    };
-  }
-
-  /// Per-plugin outcome, so "why did only three plugins answer?" has an
-  /// answer in the app instead of needing a rebuild to find out.
+  /// Per-scraper outcome diagnostics.
   Widget _diagnosticsPanel(ThemeData theme, ColorScheme cs) {
     final statuses = _nuvioResult.statuses.toList()
       ..sort((a, b) => a.scraperName.compareTo(b.scraperName));
@@ -479,27 +343,11 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_skystreamMatches.isNotEmpty) ...[
-            Text(
-              'SkyStream plugins · ${_skystreamMatches.length}',
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            for (final entry in _skystreamMatches.entries)
-              Text(
-                '${entry.key}: ${entry.value}',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: cs.onSurfaceVariant,
-                ),
-              ),
-            const SizedBox(height: 8),
-          ],
           Row(
             children: [
               Expanded(
                 child: Text(
-                  'Nuvio plugins · ${statuses.length}',
+                  'Nuvio scrapers · ${statuses.length}',
                   style: theme.textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -518,7 +366,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
             ],
           ),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 160),
+            constraints: const BoxConstraints(maxHeight: 120),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -544,19 +392,12 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
 
   String _diagnosticsReport() {
     final buffer = StringBuffer()
-      ..writeln('SkyStream sources diagnostics')
+      ..writeln('Nuvio sources diagnostics')
       ..writeln('title: ${widget.target.title} (tmdb ${widget.target.tmdbId})')
       ..writeln(
-        'skystream plugins: ${_pluginResult.streams.length} links, '
-        '${_pluginResult.completedCount}/${_pluginResult.totalCount} done',
-      )
-      ..writeln(
-        'nuvio plugins: ${_nuvioResult.streams.length} links, '
+        'nuvio scrapers: ${_nuvioResult.streams.length} links, '
         '${_nuvioResult.completedCount}/${_nuvioResult.totalCount} done',
       );
-    for (final entry in _skystreamMatches.entries) {
-      buffer.writeln('- ${entry.key} matched ${entry.value}');
-    }
     for (final status in _nuvioResult.statuses) {
       buffer.writeln(
         '- ${status.scraperName}: ${status.outcome.name}'
@@ -583,8 +424,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
 
     return DraggableScrollableSheet(
       expand: false,
-      initialChildSize: 0.82,
-      minChildSize: 0.45,
+      initialChildSize: 0.85,
+      minChildSize: 0.55,
       maxChildSize: 0.96,
       builder: (context, scrollController) {
         return DecoratedBox(
@@ -605,24 +446,46 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                 ),
               ),
               SourceSheetHeader(
-                title: 'Available Sources',
+                title: 'Nuvio Sources',
                 subtitle: _titleOverride == null && _tmdbOverride == null
                     ? subtitle
                     : 'Searching for "${_titleOverride ?? 'tmdb:$_tmdbOverride'}"',
-                trailing: const SourceTag(text: 'PLUGINS', color: Colors.teal),
+                trailing: const SourceTag(text: 'NUVIO', color: Colors.teal),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 2),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: () => unawaited(_searchManually()),
-                    icon: const Icon(Icons.search_rounded, size: 16),
-                    label: Text(
-                      _titleOverride == null && _tmdbOverride == null
-                          ? 'Search with a different title'
-                          : 'Change search title',
-                    ),
+                  child: DpadFocusable(
+                    onSelect: () => unawaited(_searchManually()),
+                    child: const SizedBox.shrink(),
+                    builder: (context, state, _) {
+                      final isFocused = state.focused;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: isFocused
+                                ? Colors.white
+                                : Colors.transparent,
+                            width: 1.5,
+                          ),
+                          color: isFocused
+                              ? cs.primary.withValues(alpha: 0.15)
+                              : Colors.transparent,
+                        ),
+                        child: TextButton.icon(
+                          onPressed: () => unawaited(_searchManually()),
+                          icon: const Icon(Icons.search_rounded, size: 16),
+                          label: Text(
+                            _titleOverride == null && _tmdbOverride == null
+                                ? 'Search with a different title'
+                                : 'Change search title',
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -648,18 +511,15 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
                         _isLoading
-                            ? 'Searching plugins… '
-                                  '${_pluginResult.completedCount + _nuvioResult.completedCount}'
-                                  '/${_pluginResult.totalCount + _nuvioResult.totalCount}'
-                            : '${_allRows.length} links · '
-                                  '${_pluginResult.streams.length} SkyStream · '
-                                  '$nuvioCount Nuvio',
+                            ? 'Searching Nuvio scrapers… '
+                                  '${_nuvioResult.completedCount}/${_nuvioResult.totalCount}'
+                            : '$nuvioCount Nuvio links',
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: _isLoading ? cs.primary : cs.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
@@ -670,21 +530,15 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                       SizedBox(
                         width: 90,
                         child: LinearProgressIndicator(
-                          value:
-                              (_pluginResult.totalCount +
-                                      _nuvioResult.totalCount) ==
-                                  0
+                          value: _nuvioResult.totalCount == 0
                               ? null
-                              : (_pluginResult.completedCount +
-                                        _nuvioResult.completedCount) /
-                                    (_pluginResult.totalCount +
-                                        _nuvioResult.totalCount),
+                              : _nuvioResult.completedCount /
+                                    _nuvioResult.totalCount,
                           minHeight: 4,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       )
-                    else if (_nuvioResult.hasWork ||
-                        _pluginResult.streams.isNotEmpty)
+                    else if (_nuvioResult.hasWork)
                       TextButton.icon(
                         onPressed: () => setState(
                           () => _showDiagnostics = !_showDiagnostics,
@@ -745,7 +599,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                         child: Padding(
                           padding: const EdgeInsets.all(24),
                           child: _isLoading
-                              ? const Text('Searching installed plugins…')
+                              ? const Text('Searching active Nuvio scrapers…')
                               : Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -758,11 +612,8 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                                     Text(
                                       _allRows.isNotEmpty
                                           ? 'No links match the current filters.'
-                                          : (_pluginResult.error ??
-                                                'No links found for this title. '
-                                                    'Install SkyStream plugins '
-                                                    'or a Nuvio plugin '
-                                                    'repository.'),
+                                          : 'No links found for this title. '
+                                                'Ensure active Nuvio scraper repositories are installed.',
                                       textAlign: TextAlign.center,
                                       style: theme.textTheme.bodyMedium
                                           ?.copyWith(
@@ -801,7 +652,218 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
   }
 }
 
-class _SourceRow extends StatelessWidget {
+/// DPad-navigable manual search dialog that allows moving seamlessly from
+/// the text input down to the action buttons.
+class _ManualSearchDialog extends StatefulWidget {
+  final String initialText;
+  final bool hasOverride;
+
+  const _ManualSearchDialog({
+    required this.initialText,
+    required this.hasOverride,
+  });
+
+  @override
+  State<_ManualSearchDialog> createState() => _ManualSearchDialogState();
+}
+
+class _ManualSearchDialogState extends State<_ManualSearchDialog> {
+  late final TextEditingController _controller;
+  late final FocusNode _textFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialText);
+    _textFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _textFocusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Search Nuvio scrapers manually'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Type a title or TMDB id (or tmdb:123) to re-point the Nuvio scrapers.',
+          ),
+          const SizedBox(height: 14),
+          Focus(
+            onKeyEvent: (node, event) {
+              if (event is KeyDownEvent &&
+                  event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                node.nextFocus();
+                return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            child: TextField(
+              controller: _controller,
+              focusNode: _textFocusNode,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Title or TMDB id',
+              ),
+              onSubmitted: (text) => Navigator.pop(context, text.trim()),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        _DpadDialogButton(
+          label: 'Cancel',
+          onPressed: () => Navigator.pop(context),
+          isPrimary: false,
+        ),
+        if (widget.hasOverride)
+          _DpadDialogButton(
+            label: 'Reset',
+            onPressed: () => Navigator.pop(context, ''),
+            isPrimary: false,
+          ),
+        _DpadDialogButton(
+          label: 'Search',
+          onPressed: () => Navigator.pop(context, _controller.text.trim()),
+          isPrimary: true,
+        ),
+      ],
+    );
+  }
+}
+
+class _DpadDialogButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onPressed;
+  final bool isPrimary;
+
+  const _DpadDialogButton({
+    required this.label,
+    required this.onPressed,
+    required this.isPrimary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return DpadFocusable(
+      onSelect: onPressed,
+      child: const SizedBox.shrink(),
+      builder: (context, state, _) {
+        final isFocused = state.focused;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isFocused ? Colors.white : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: isPrimary
+              ? FilledButton(
+                  onPressed: onPressed,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: isFocused ? cs.primary : null,
+                  ),
+                  child: Text(label),
+                )
+              : TextButton(
+                  onPressed: onPressed,
+                  style: TextButton.styleFrom(
+                    backgroundColor: isFocused
+                        ? cs.surfaceContainerHighest
+                        : Colors.transparent,
+                  ),
+                  child: Text(label),
+                ),
+        );
+      },
+    );
+  }
+}
+
+class _DpadActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final FocusNode? focusNode;
+  final KeyEventResult Function(FocusNode, KeyEvent)? onKeyEvent;
+
+  const _DpadActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.color,
+    this.focusNode,
+    this.onKeyEvent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final enabled = onPressed != null;
+
+    if (!enabled) {
+      return ExcludeFocus(
+        child: IconButton(
+          tooltip: tooltip,
+          onPressed: null,
+          icon: Icon(icon, color: cs.onSurface.withValues(alpha: 0.3)),
+        ),
+      );
+    }
+
+    final dpadButton = DpadFocusable(
+      focusNode: focusNode,
+      onSelect: onPressed,
+      child: const SizedBox.shrink(),
+      builder: (context, state, _) {
+        final isFocused = state.focused;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isFocused
+                ? (color ?? cs.primary).withValues(alpha: 0.25)
+                : Colors.transparent,
+            border: Border.all(
+              color: isFocused ? Colors.white : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: IconButton(
+            tooltip: tooltip,
+            onPressed: onPressed,
+            icon: Icon(
+              icon,
+              color: isFocused ? Colors.white : (color ?? cs.onSurface),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (onKeyEvent != null) {
+      return Focus(onKeyEvent: onKeyEvent, child: dpadButton);
+    }
+    return dpadButton;
+  }
+}
+
+class _SourceRow extends StatefulWidget {
   final _Row row;
   final LinkProbeResult? probe;
   final bool probing;
@@ -822,6 +884,31 @@ class _SourceRow extends StatelessWidget {
     this.autofocus = false,
   });
 
+  @override
+  State<_SourceRow> createState() => _SourceRowState();
+}
+
+class _SourceRowState extends State<_SourceRow> {
+  late final FocusNode _cardFocusNode;
+  late final FocusNode _playFocusNode;
+  late final FocusNode _downloadFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _cardFocusNode = FocusNode();
+    _playFocusNode = FocusNode();
+    _downloadFocusNode = FocusNode();
+  }
+
+  @override
+  void dispose() {
+    _cardFocusNode.dispose();
+    _playFocusNode.dispose();
+    _downloadFocusNode.dispose();
+    super.dispose();
+  }
+
   Color _avatarColor() {
     const palette = [
       Color(0xFF7C6BF5),
@@ -832,127 +919,197 @@ class _SourceRow extends StatelessWidget {
       Color(0xFFEC407A),
       Color(0xFFFFC107),
     ];
-    return palette[row.providerName.hashCode.abs() % palette.length];
+    return palette[widget.row.providerName.hashCode.abs() % palette.length];
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final row = widget.row;
+    final probe = widget.probe;
+    final probing = widget.probing;
+    final isBest = widget.isBest;
+    final downloadMode = widget.downloadMode;
+    final onPlay = widget.onPlay;
+    final onDownload = widget.onDownload;
+
     final letter = row.providerName.isEmpty
         ? '?'
         : row.providerName.substring(0, 1).toUpperCase();
     final resolution = probe?.resolutionLabel ?? row.qualityLabel;
     final size = probe?.sizeLabel;
 
-    return Material(
-      color: cs.surfaceContainerHigh,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: downloadMode && row.canDownload ? onDownload : onPlay,
-        autofocus: autofocus,
-        focusColor: cs.primary.withValues(alpha: 0.22),
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
+    return Focus(
+      onKeyEvent: (node, event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          _playFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: DpadFocusable(
+        focusNode: _cardFocusNode,
+        autofocus: widget.autofocus,
+        onSelect: downloadMode && row.canDownload ? onDownload : onPlay,
+        child: const SizedBox.shrink(),
+        builder: (context, state, _) {
+          final isFocused = state.focused;
+          return Material(
+            color: isFocused
+                ? cs.surfaceContainerHighest
+                : cs.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(16),
-            border: isBest
-                ? Border.all(
-                    color: cs.primary.withValues(alpha: 0.8),
-                    width: 1.5,
-                  )
-                : null,
-          ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 21,
-                backgroundColor: _avatarColor(),
-                child: Text(
-                  letter,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17,
+            child: InkWell(
+              onTap: downloadMode && row.canDownload ? onDownload : onPlay,
+              borderRadius: BorderRadius.circular(16),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isFocused
+                        ? Colors.white
+                        : (isBest
+                              ? cs.primary.withValues(alpha: 0.8)
+                              : Colors.transparent),
+                    width: isFocused ? 2 : (isBest ? 1.5 : 0),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
+                child: Row(
                   children: [
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Text(
-                          resolution,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
+                    CircleAvatar(
+                      radius: 21,
+                      backgroundColor: _avatarColor(),
+                      child: Text(
+                        letter,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
                         ),
-                        SourceTag(
-                          text: row.isNuvio ? 'NUVIO' : 'SKYSTREAM',
-                          color: row.isNuvio ? cs.tertiary : cs.secondary,
-                        ),
-                        if (row.isHdr)
-                          SourceTag(text: 'HDR', color: cs.tertiary),
-                        if (row.isTorrent)
-                          SourceTag(text: 'TORRENT', color: cs.primary),
-                        if (isBest) SourceTag(text: 'BEST', color: cs.primary),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      row.detail,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Text(
-                          row.providerName,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: cs.onSurfaceVariant,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                resolution,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SourceTag(text: 'NUVIO', color: cs.tertiary),
+                              if (row.isHdr)
+                                SourceTag(text: 'HDR', color: cs.tertiary),
+                              if (row.isTorrent)
+                                SourceTag(text: 'TORRENT', color: cs.primary),
+                              if (isBest)
+                                SourceTag(text: 'BEST', color: cs.primary),
+                            ],
                           ),
-                        ),
-                        if (size != null) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(height: 2),
                           Text(
-                            size,
-                            style: theme.textTheme.labelSmall?.copyWith(
+                            row.detail,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant,
                             ),
                           ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  row.providerName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                              if (size != null) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  size,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(width: 8),
+                              Flexible(
+                                child: ProbeBadge(
+                                  probe: probe,
+                                  probing: probing,
+                                ),
+                              ),
+                            ],
+                          ),
                         ],
-                        const SizedBox(width: 8),
-                        ProbeBadge(probe: probe, probing: probing),
-                      ],
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    _DpadActionButton(
+                      focusNode: _playFocusNode,
+                      icon: Icons.play_arrow_rounded,
+                      tooltip: 'Play',
+                      onPressed: onPlay,
+                      color: cs.primary,
+                      onKeyEvent: (node, event) {
+                        if (event is KeyDownEvent) {
+                          if (event.logicalKey ==
+                              LogicalKeyboardKey.arrowLeft) {
+                            _cardFocusNode.requestFocus();
+                            return KeyEventResult.handled;
+                          }
+                          if (event.logicalKey ==
+                                  LogicalKeyboardKey.arrowRight &&
+                              row.canDownload) {
+                            _downloadFocusNode.requestFocus();
+                            return KeyEventResult.handled;
+                          }
+                        }
+                        return KeyEventResult.ignored;
+                      },
+                    ),
+                    _DpadActionButton(
+                      focusNode: _downloadFocusNode,
+                      icon: Icons.download_rounded,
+                      tooltip: row.canDownload
+                          ? 'Download'
+                          : 'Stream-only link',
+                      onPressed: row.canDownload ? onDownload : null,
+                      onKeyEvent: (node, event) {
+                        if (event is KeyDownEvent &&
+                            event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+                          _playFocusNode.requestFocus();
+                          return KeyEventResult.handled;
+                        }
+                        return KeyEventResult.ignored;
+                      },
                     ),
                   ],
                 ),
               ),
-              IconButton(
-                tooltip: 'Play',
-                onPressed: onPlay,
-                icon: const Icon(Icons.play_arrow_rounded),
-              ),
-              IconButton(
-                tooltip: row.canDownload ? 'Download' : 'Stream-only link',
-                onPressed: row.canDownload ? onDownload : null,
-                icon: const Icon(Icons.download_rounded),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

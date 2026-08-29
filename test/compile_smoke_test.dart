@@ -20,9 +20,7 @@ import 'package:skystream/features/details/presentation/widgets/episode_picker_s
 import 'package:skystream/features/details/presentation/widgets/movie_seasons_list.dart';
 import 'package:skystream/features/extensions/screens/extensions_screen.dart';
 import 'package:skystream/features/nuvio/presentation/nuvio_plugins_view.dart';
-import 'package:skystream/features/nuvio/presentation/nuvio_screen.dart';
 import 'package:skystream/features/nuvio/presentation/nuvio_scraper_settings_dialog.dart';
-import 'package:skystream/features/nuvio/presentation/nuvio_sources_sheet.dart';
 import 'package:skystream/features/player/presentation/player_screen.dart';
 import 'package:skystream/features/sources/presentation/plugin_sources_sheet.dart';
 import 'package:skystream/features/sources/presentation/source_sheet_widgets.dart';
@@ -40,9 +38,7 @@ void main() {
     expect(MovieSeasonsList, isNotNull);
     expect(ExtensionsScreen, isNotNull);
     expect(NuvioPluginsView, isNotNull);
-    expect(NuvioScreen, isNotNull);
     expect(NuvioScraperSettingsDialog, isNotNull);
-    expect(NuvioSourcesSheet, isNotNull);
     expect(PlayerScreen, isNotNull);
     expect(PluginSourcesSheet, isNotNull);
     expect(SourcesMode.play, isNotNull);

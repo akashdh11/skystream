@@ -27,7 +27,9 @@ class NuvioTmdbKey extends _$NuvioTmdbKey {
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      state = prefs.getString(_prefsKey) ?? '';
+      final saved = prefs.getString(_prefsKey) ?? '';
+      state = saved;
+      TmdbConfig.setNuvioApiKey(saved);
     } catch (_) {
       state = '';
     }
@@ -35,6 +37,7 @@ class NuvioTmdbKey extends _$NuvioTmdbKey {
 
   Future<void> set(String key) async {
     state = key.trim();
+    TmdbConfig.setNuvioApiKey(state);
     try {
       final prefs = await SharedPreferences.getInstance();
       if (state.isEmpty) {
@@ -53,61 +56,6 @@ class NuvioTmdbKey extends _$NuvioTmdbKey {
 String effectiveNuvioTmdbKey(Ref ref) {
   final own = ref.watch(nuvioTmdbKeyProvider);
   return own.isNotEmpty ? own : TmdbConfig.apiKey;
-}
-
-/// A title in the Nuvio browser.
-class NuvioTitle {
-  final int tmdbId;
-  final String name;
-  final String mediaType; // 'movie' | 'tv'
-  final String? posterUrl;
-  final String? backdropUrl;
-  final String? overview;
-  final String? year;
-  final double? rating;
-
-  const NuvioTitle({
-    required this.tmdbId,
-    required this.name,
-    required this.mediaType,
-    this.posterUrl,
-    this.backdropUrl,
-    this.overview,
-    this.year,
-    this.rating,
-  });
-
-  bool get isSeries => mediaType == 'tv';
-
-  static NuvioTitle? fromJson(Map<String, dynamic> json, {String? typeHint}) {
-    final id = (json['id'] as num?)?.toInt();
-    if (id == null) return null;
-    final type = (json['media_type'] as String?) ?? typeHint ?? 'movie';
-    if (type != 'movie' && type != 'tv') return null;
-
-    final name = (json['title'] ?? json['name'] ?? '').toString();
-    if (name.isEmpty) return null;
-
-    final date = (json['release_date'] ?? json['first_air_date'] ?? '')
-        .toString();
-    final poster = json['poster_path'] as String?;
-    final backdrop = json['backdrop_path'] as String?;
-
-    return NuvioTitle(
-      tmdbId: id,
-      name: name,
-      mediaType: type,
-      posterUrl: poster == null
-          ? null
-          : 'https://image.tmdb.org/t/p/w342$poster',
-      backdropUrl: backdrop == null
-          ? null
-          : 'https://image.tmdb.org/t/p/w780$backdrop',
-      overview: json['overview'] as String?,
-      year: date.length >= 4 ? date.substring(0, 4) : null,
-      rating: (json['vote_average'] as num?)?.toDouble(),
-    );
-  }
 }
 
 class NuvioEpisode {
@@ -132,8 +80,7 @@ NuvioTmdbService nuvioTmdbService(Ref ref) => NuvioTmdbService(
   () => ref.read(effectiveNuvioTmdbKeyProvider),
 );
 
-/// Small TMDB client for the Nuvio tab — trending rows, search, and the
-/// season/episode list needed to ask scrapers for a specific episode.
+/// TMDB helper for Nuvio scrapers — IMDB ID resolution and season/episode lists.
 class NuvioTmdbService {
   NuvioTmdbService(this._dio, this._key);
 
@@ -143,58 +90,6 @@ class NuvioTmdbService {
   static const String _base = 'https://api.themoviedb.org/3';
 
   bool get hasKey => _key().isNotEmpty;
-
-  Future<List<NuvioTitle>> _list(
-    String path, {
-    Map<String, dynamic>? query,
-    String? typeHint,
-  }) async {
-    final key = _key();
-    if (key.isEmpty) throw const NuvioTmdbException('No TMDB API key set.');
-
-    final response = await _dio.get<dynamic>(
-      '$_base$path',
-      queryParameters: {'api_key': key, ...?query},
-      options: Options(
-        receiveTimeout: const Duration(seconds: 15),
-        validateStatus: (status) => status != null && status < 500,
-      ),
-    );
-    if ((response.statusCode ?? 0) == 401) {
-      throw const NuvioTmdbException('TMDB rejected that API key.');
-    }
-    final data = response.data;
-    if (data is! Map) return const [];
-    final results = data['results'];
-    if (results is! List) return const [];
-
-    final out = <NuvioTitle>[];
-    for (final entry in results) {
-      if (entry is Map) {
-        final title = NuvioTitle.fromJson(
-          Map<String, dynamic>.from(entry),
-          typeHint: typeHint,
-        );
-        if (title != null) out.add(title);
-      }
-    }
-    return out;
-  }
-
-  Future<List<NuvioTitle>> trendingMovies() =>
-      _list('/trending/movie/week', typeHint: 'movie');
-
-  Future<List<NuvioTitle>> trendingSeries() =>
-      _list('/trending/tv/week', typeHint: 'tv');
-
-  Future<List<NuvioTitle>> popularMovies() =>
-      _list('/movie/popular', typeHint: 'movie');
-
-  Future<List<NuvioTitle>> popularSeries() =>
-      _list('/tv/popular', typeHint: 'tv');
-
-  Future<List<NuvioTitle>> search(String query) =>
-      _list('/search/multi', query: {'query': query, 'include_adult': 'false'});
 
   final Map<String, String> _imdbToTmdb = {};
 
@@ -224,7 +119,8 @@ class NuvioTmdbService {
     final bucket = type == 'tv' ? 'tv_results' : 'movie_results';
     final results = data[bucket] is List && (data[bucket] as List).isNotEmpty
         ? data[bucket] as List
-        : (data['movie_results'] is List && (data['movie_results'] as List).isNotEmpty
+        : (data['movie_results'] is List &&
+                  (data['movie_results'] as List).isNotEmpty
               ? data['movie_results'] as List
               : data['tv_results'] as List? ?? const []);
     if (results.isEmpty) return null;

@@ -6,7 +6,7 @@ import '../../../sources/presentation/plugin_sources_sheet.dart';
 import '../../../sources/presentation/source_sheet_widgets.dart';
 import '../tmdb_details_controller.dart';
 
-/// Season / episode picker for "Play from plugins" on a series.
+/// Season / episode picker for "Play from Nuvio plugins" on a series.
 ///
 /// Movies open the sources sheet straight away; a series needs to know which
 /// episode to look for, and previously the only way in was scrolling down to

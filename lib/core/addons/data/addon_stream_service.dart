@@ -220,7 +220,9 @@ class AddonStreamService {
                 ? (error.message ?? error.type.name)
                 : error.toString();
             if (kDebugMode) {
-              debugPrint('[AddonStreamService] ${addon.displayName} $type/$id: $error');
+              debugPrint(
+                '[AddonStreamService] ${addon.displayName} $type/$id: $error',
+              );
             }
           }
         }

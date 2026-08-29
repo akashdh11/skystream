@@ -336,7 +336,9 @@ class DebridService {
             status == 'error' ||
             status == 'virus' ||
             status == 'dead') {
-          throw const DebridException('Real-Debrid could not fetch this torrent.');
+          throw const DebridException(
+            'Real-Debrid could not fetch this torrent.',
+          );
         }
         onStatus?.call('Real-Debrid: $status ${progress.toStringAsFixed(0)}%');
       }

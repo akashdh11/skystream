@@ -101,7 +101,8 @@ class _DownloadsTabState extends ConsumerState<DownloadsTab>
               selectionMode: _selectionMode,
               selectedCount: _selectedIds.length,
               onPauseAll: () => ref.read(downloadsProvider.notifier).pauseAll(),
-              onResumeAll: () => ref.read(downloadsProvider.notifier).resumeAll(),
+              onResumeAll: () =>
+                  ref.read(downloadsProvider.notifier).resumeAll(),
               onSelectAll: () => _selectAll(downloads),
               onDeleteSelected: () async {
                 await ref
@@ -115,38 +116,39 @@ class _DownloadsTabState extends ConsumerState<DownloadsTab>
               child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
                 itemCount: keys.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: 16),
                 itemBuilder: (context, index) {
-            final key = keys[index];
-            final groupItems = grouped[key]!;
+                  final key = keys[index];
+                  final groupItems = grouped[key]!;
 
-            if (groupItems.length == 1) {
-              final download = groupItems.first;
-              final trackingUrl = download.task.metaData;
-              final progressData = activeProgress[trackingUrl];
-              final double displayProgress =
-                  progressData?.progress ?? download.progress;
-              final TaskStatus displayStatus =
-                  progressData?.status ?? download.status;
+                  if (groupItems.length == 1) {
+                    final download = groupItems.first;
+                    final trackingUrl = download.task.metaData;
+                    final progressData = activeProgress[trackingUrl];
+                    final double displayProgress =
+                        progressData?.progress ?? download.progress;
+                    final TaskStatus displayStatus =
+                        progressData?.status ?? download.status;
 
-              return _DownloadItemTile(
-                item: download,
-                progress: displayProgress,
-                status: displayStatus,
-                progressData: progressData,
-                selectionMode: _selectionMode,
-                isSelected: _selectedIds.contains(download.id),
-                onSelect: () => _toggleSelection(download.id),
-              );
-            } else {
-              return _GroupedDownloadTile(
-                items: groupItems,
-                activeProgress: activeProgress,
-                selectionMode: _selectionMode,
-                selectedIds: _selectedIds,
-                onSelect: _toggleSelection,
-              );
-            }
+                    return _DownloadItemTile(
+                      item: download,
+                      progress: displayProgress,
+                      status: displayStatus,
+                      progressData: progressData,
+                      selectionMode: _selectionMode,
+                      isSelected: _selectedIds.contains(download.id),
+                      onSelect: () => _toggleSelection(download.id),
+                    );
+                  } else {
+                    return _GroupedDownloadTile(
+                      items: groupItems,
+                      activeProgress: activeProgress,
+                      selectionMode: _selectionMode,
+                      selectedIds: _selectedIds,
+                      onSelect: _toggleSelection,
+                    );
+                  }
                 },
               ),
             ),

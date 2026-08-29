@@ -6,7 +6,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 import '../../../../core/utils/layout_constants.dart';
-import '../../../../shared/widgets/cards_wrapper.dart';
 import '../../../../core/utils/responsive_breakpoints.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/providers/device_info_provider.dart';
@@ -465,8 +464,8 @@ class _ExploreCarouselState extends ConsumerState<ExploreCarousel>
     final theme = Theme.of(context);
     final scaffoldColor = theme.scaffoldBackgroundColor;
 
-    return CardsWrapper(
-      scaleFactor: 1.0,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         if (widget.onTap != null) {
           widget.onTap!(movie);
@@ -474,7 +473,6 @@ class _ExploreCarouselState extends ConsumerState<ExploreCarousel>
           _navigateToDetails(context, movie);
         }
       },
-      borderRadius: BorderRadius.zero,
       child: RepaintBoundary(
         child: ValueListenableBuilder<double>(
           valueListenable: _scrollOffset,
@@ -510,8 +508,8 @@ class _ExploreCarouselState extends ConsumerState<ExploreCarousel>
     bool isDesktop = false,
   }) {
     final theme = Theme.of(context);
-    return CardsWrapper(
-      scaleFactor: 1.0,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () {
         if (widget.onTap != null) {
           widget.onTap!(movie);
@@ -519,7 +517,6 @@ class _ExploreCarouselState extends ConsumerState<ExploreCarousel>
           _navigateToDetails(context, movie);
         }
       },
-      borderRadius: BorderRadius.zero,
       child: _buildSlideBase(
         context: context,
         movie: movie,

@@ -131,9 +131,11 @@ class AddonVideo {
           (number != null ? 'Episode $number' : 'Video'),
       season: (json['season'] as num?)?.toInt(),
       episode: number,
-      released: (json['released'] as String?) ?? (json['firstAired'] as String?),
+      released:
+          (json['released'] as String?) ?? (json['firstAired'] as String?),
       thumbnail: json['thumbnail'] as String?,
-      overview: (json['overview'] as String?) ?? (json['description'] as String?),
+      overview:
+          (json['overview'] as String?) ?? (json['description'] as String?),
     );
   }
 

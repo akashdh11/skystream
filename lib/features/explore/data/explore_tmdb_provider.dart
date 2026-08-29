@@ -17,7 +17,7 @@ TmdbService tmdbService(Ref ref) {
 
 @Riverpod(keepAlive: true)
 Future<List<TmdbGenre>> genres(Ref ref) async {
-  final isAnime = ref.watch(exploreModeProvider);
+  final isAnime = ref.watch(exploreModeProvider) == ExploreModeType.anime;
   if (isAnime) {
     final animeGenres = [
       'Action',
@@ -123,6 +123,19 @@ Future<List<MultimediaItem>> topRatedMovies(Ref ref) async {
   final lang = ref.watch(languageProvider);
   final filters = ref.watch(exploreFilterProvider);
   return service.getTopRated(
+    language: lang,
+    genreId: filters.selectedGenre?.id,
+    year: filters.selectedYear,
+    minRating: filters.minRating,
+  );
+}
+
+@riverpod
+Future<List<MultimediaItem>> trendingTV(Ref ref) async {
+  final service = ref.watch(tmdbServiceProvider);
+  final lang = ref.watch(languageProvider);
+  final filters = ref.watch(exploreFilterProvider);
+  return service.getTrendingTV(
     language: lang,
     genreId: filters.selectedGenre?.id,
     year: filters.selectedYear,

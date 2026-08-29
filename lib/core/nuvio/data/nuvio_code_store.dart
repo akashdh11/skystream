@@ -45,7 +45,10 @@ class NuvioCodeStore {
     required String scraperId,
     required String version,
   }) {
-    final repo = sha1.convert(utf8.encode(manifestUrl)).toString().substring(0, 12);
+    final repo = sha1
+        .convert(utf8.encode(manifestUrl))
+        .toString()
+        .substring(0, 12);
     // `..` must not survive: these become file names.
     String sanitize(String value) => value
         .replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_')
