@@ -7,12 +7,9 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_js
   flutter_secure_storage_linux
   flutter_volume_controller
-  media_kit_libs_linux
-  media_kit_video
   open_file_linux
   screen_retriever_linux
   url_launcher_linux
-  video_view
   vlc_player
   window_manager
 )

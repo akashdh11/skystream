@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:skystream/features/library/presentation/history_provider.dart';
 import 'package:skystream/core/domain/entity/multimedia_item.dart';
 import 'package:skystream/features/player/domain/playback_progress.dart';
 import 'package:skystream/features/player/domain/stream_resolver.dart';
@@ -85,10 +86,65 @@ void main() {
       expect(recorder.record(sample(600000, 3600000)), isFalse);
     });
 
+    test('stops writing once completion latches, so the rollover survives', () {
+      // dispose() always forces a final write. Without this guard that write
+      // would point Continue Watching back at the episode just finished,
+      // undoing the roll-forward to the next one.
+      final stub = _StubHistory();
+      final recorder = PlaybackProgressRecorder(
+        // The recorder reads exactly one provider; the cast fails loudly if
+        // it ever reaches for something else.
+        read: <T>(_) => stub as T,
+        item: MultimediaItem(
+          title: 'T',
+          url: 'https://example.com/t',
+          posterUrl: '',
+          contentType: MultimediaContentType.movie,
+        ),
+        episode: null,
+        videoUrl: 'https://example.com/t',
+        token: 1, // matches the sample() helper's default
+      );
+
+      // Cross 90%: this write happens and latches completion.
+      expect(recorder.record(sample(3400000, 3600000)), isTrue);
+      expect(recorder.isCompleted, isTrue);
+      expect(stub.writes, 1);
+
+      // Everything after is refused, including the forced teardown flush.
+      expect(recorder.record(sample(3500000, 3600000), force: true), isFalse);
+      expect(recorder.record(sample(3000000, 3600000), force: true), isFalse);
+      expect(stub.writes, 1);
+    });
+
     test('is not complete until a write actually happens', () {
       final recorder = recorderFor(MultimediaContentType.movie);
       recorder.record(sample(3500000, 3600000, token: 6));
       expect(recorder.isCompleted, isFalse);
     });
   });
+}
+
+/// Counts writes without touching Hive. Only saveProgress is ever called.
+class _StubHistory implements WatchHistory {
+  int writes = 0;
+
+  @override
+  Future<void> saveProgress(
+    MultimediaItem item,
+    int position,
+    int duration, {
+    String? lastStreamUrl,
+    String? lastEpisodeUrl,
+    int? season,
+    int? episode,
+    String? episodeTitle,
+    String? episodePosterUrl,
+  }) async {
+    writes++;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnsupportedError('not needed: ${invocation.memberName}');
 }

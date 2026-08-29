@@ -10,10 +10,17 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../../../../core/domain/entity/multimedia_item.dart';
 import '../../../../core/network/http_defaults.dart';
+import '../../../../core/providers/device_info_provider.dart';
+import '../../../../core/extensions/providers.dart';
 import '../../../../core/services/local_proxy_service.dart';
+import '../../domain/episode_navigator.dart';
+import '../../../skip/data/skip_service.dart';
+import '../../domain/clear_key.dart';
 import '../../domain/playback_progress.dart';
+import '../../domain/skip_segments.dart';
 import '../../domain/playback_tracker.dart';
 import '../../domain/stream_resolver.dart';
+import '../player_platform_service.dart';
 import 'vlc_player_controls.dart';
 
 /// Playback on the VLC engine.
@@ -61,6 +68,15 @@ enum _Stage { resolving, playing, failed }
 /// simply dead and gets no retries.
 const int _kSameSourceRetries = 2;
 
+/// How many times a live feed is reopened before giving up on that source.
+/// Reset as soon as playback actually resumes, so an all-evening channel that
+/// drops once an hour never exhausts it.
+const int _kMaxLiveReconnects = 5;
+
+/// Breathing room before reopening a dropped live feed. Without it a dead URL
+/// ends instantly and the reopen becomes a hot loop.
+const Duration _kLiveReconnectDelay = Duration(seconds: 2);
+
 class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     with WidgetsBindingObserver {
   /// The screen owns the controller, and its lifetime is exactly this State's.
@@ -73,6 +89,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
 
   _Stage _stage = _Stage.resolving;
   String _error = '';
+
+  /// Shown under the spinner while opening, when there is something worth
+  /// saying - a cold magnet link can take a long time to become playable.
+  String _status = '';
   bool _disposed = false;
 
   PlaybackProgressRecorder? _recorder;
@@ -94,6 +114,21 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   ResolvedPlayback? _resolved;
   ResumePoint? _initialResume;
 
+  /// The episode currently playing. Mutable because advancing swaps media on
+  /// this same State rather than pushing a new route.
+  Episode? _episode;
+
+  /// The plugin token for [_episode]. Starts as the route's, then follows.
+  late String _videoUrl;
+
+  /// Sources the route pre-aggregated. They belong to the FIRST episode only,
+  /// so advancing must drop them or the next episode plays this one's streams.
+  List<StreamResult>? _preloaded;
+
+  /// One advance at a time. The engine's ended event, a retry and any future
+  /// button can all land within the same second.
+  bool _advancing = false;
+
   /// Cancellation token for the open chain. Bumped on every attempt, so a
   /// failover that completes late cannot overwrite a newer one.
   int _generation = 0;
@@ -106,9 +141,29 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   bool _sawError = false;
   bool _sawEnded = false;
 
+  /// Decided from the item and URL at open time rather than from the engine,
+  /// because it governs buffering and what end-of-media means.
+  bool _isLive = false;
+
+  /// Consecutive live reopen attempts that have not yet produced playback.
+  int _liveReconnects = 0;
+
+  /// Whether this session ever started the torrent engine, so teardown only
+  /// stops something it actually started.
+  bool _startedTorrent = false;
+
+  /// Intro/outro bands for the current episode. Usually empty: both sources
+  /// are opt-in and off by default.
+  List<SkipSegment> _skipSegments = const <SkipSegment>[];
+
+  final PlayerPlatformService _platform = PlayerPlatformService();
+
   @override
   void initState() {
     super.initState();
+    _episode = widget.episode;
+    _videoUrl = widget.videoUrl;
+    _preloaded = widget.preloadedStreams;
     WidgetsBinding.instance.addObserver(this);
     WakelockPlus.enable();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
@@ -121,13 +176,23 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       eventThrottleInterval: const Duration(milliseconds: 250),
       config: const VlcPlayerConfig(
         network: VlcNetworkConfig(
-          // Matches what the mpv path asks for on VOD. Live tuning is Phase 7.
+          // VOD default; a live source overrides it per-media in _openAttempt.
           networkCaching: 3000,
           userAgent: kDefaultBrowserUserAgent,
+          // The mpv path pins hls-bitrate=max because FFmpeg treats HLS variant
+          // bitrate as metadata and never switches on it. libVLC does adapt, but
+          // its estimator starts pessimistic and can sit on a low rendition for
+          // a long stretch, so pin the highest for the same reason.
+          adaptiveLogic: VlcAdaptiveLogic.highest,
         ),
       ),
+      // Verified present in both shipped libVLC builds (VLCKit 3.7.3 and
+      // libvlc-all 3.7.0) - see FORK.md section 8 for why option names are
+      // checked against the binary rather than assumed.
+      options: const <String>['--http-reconnect'],
     );
 
+    _controller.addListener(_onPlaybackValue);
     unawaited(_start());
   }
 
@@ -141,8 +206,8 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       final resolved = await resolvePlayback(
         read: ref.read,
         item: widget.item,
-        videoUrl: widget.videoUrl,
-        preloadedStreams: widget.preloadedStreams,
+        videoUrl: _videoUrl,
+        preloadedStreams: _preloaded,
         isCancelled: () => _disposed,
       );
       if (_disposed) return;
@@ -154,7 +219,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
         read: ref.read,
         item: widget.item,
         episode: currentEpisode,
-        videoUrl: widget.videoUrl,
+        videoUrl: _videoUrl,
         token: _token,
       );
       // One tracker for the whole screen, deliberately: failing over to another
@@ -174,10 +239,13 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
         read: ref.read,
         item: widget.item,
         episode: currentEpisode,
-        videoUrl: widget.videoUrl,
+        videoUrl: _videoUrl,
       );
 
-      _controller.addListener(_onPlaybackValue);
+      // Not awaited: both skip sources are network lookups against
+      // crowdsourced databases, and playback must not wait on a convenience.
+      unawaited(_loadSkipSegments(currentEpisode));
+
       await _openAttempt(
         resolved.index,
         startAt: _initialResume?.position ?? Duration.zero,
@@ -212,28 +280,50 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     _attemptRetries = retries;
 
     final stream = resolved.streams[index];
-    if (stream.url.startsWith('magnet:') || stream.url.endsWith('.torrent')) {
-      return _fail('Torrent playback is not on the VLC engine yet.');
+
+    // libVLC cannot decrypt CENC on any build we ship, so ClearKey content is
+    // decrypted in the local proxy and handed to the engine as plaintext.
+    // Anything we cannot key ourselves - a licence server, or a scheme other
+    // than ClearKey - still has no path.
+    final clearKey = clearKeyFor(stream);
+    final obstacle = drmObstacleFor(stream);
+    if (obstacle != null) return _fail(describeDrmObstacle(obstacle));
+
+    // A torrent has to be prepared and seeded before anything can open it, and
+    // that can take a while on a cold magnet - so say so rather than sitting on
+    // a blank screen.
+    final isTorrent = isTorrentSource(stream);
+    if (isTorrent && mounted && _stage != _Stage.playing) {
+      setState(() => _status = 'Preparing torrent…');
     }
-    if (stream.drmKey != null ||
-        stream.drmKid != null ||
-        stream.licenseUrl != null) {
-      return _fail('DRM playback is not on the VLC engine yet.');
+    if (isTorrent) _startedTorrent = true;
+    final playable = await playableUrlFor(read: ref.read, stream: stream);
+    if (_disposed || generation != _generation) return;
+    if (playable == null) {
+      return _failAttempt('torrent could not be prepared');
     }
 
-    final uri = _playableUri(stream.url);
+    final uri = _playableUri(playable);
     if (uri == null) return _failAttempt('source has no playable address');
 
     final headers = playbackHeaders(stream);
-    final mediaUri = await _deliverableUri(uri, headers);
+    final mediaUri = clearKey != null
+        ? await _decryptingUri(uri, headers, clearKey)
+        : await _deliverableUri(uri, headers);
     if (_disposed || generation != _generation) return;
 
     _lastStreamUrl = stream.url;
+    _isLive = isLiveSource(widget.item, stream.url);
     await _controller.setMedia(
       VlcMediaSource(
         uri: mediaUri,
         httpHeaders: headers,
         startPosition: startAt,
+        // Live trades latency for jitter tolerance and never seeks, so it wants
+        // a small live buffer rather than the large VOD readahead.
+        mediaOptions: _isLive
+            ? const <String>[':live-caching=3000', ':network-caching=3000']
+            : const <String>[],
       ),
       autoPlay: true,
     );
@@ -258,7 +348,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     }
 
     if (!_disposed && _stage != _Stage.playing) {
-      setState(() => _stage = _Stage.playing);
+      setState(() {
+        _stage = _Stage.playing;
+        _status = '';
+      });
     }
   }
 
@@ -306,11 +399,179 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   void _handleEnded() {
     if (_disposed) return;
     _flushProgress();
+
+    // A live feed has no end. Reaching one means the stream dropped, so
+    // reopening the same source is the right answer - advancing or failing over
+    // to another source would abandon a channel that is merely interrupted.
+    if (_isLive) {
+      if (_liveReconnects >= _kMaxLiveReconnects) {
+        // This source keeps dropping without ever coming back; try another.
+        _liveReconnects = 0;
+        _failAttempt('live feed dropped repeatedly');
+        return;
+      }
+      _liveReconnects++;
+      final generation = _generation;
+      unawaited(
+        Future<void>.delayed(_kLiveReconnectDelay).then((_) async {
+          if (_disposed || generation != _generation) return;
+          await _openAttempt(
+            _attemptIndex,
+            startAt: Duration.zero,
+            retries: _attemptRetries,
+          );
+        }),
+      );
+      return;
+    }
+
     final sample = _sample;
     if (sample != null &&
         sample.duration > Duration.zero &&
         sample.position < sample.duration - const Duration(seconds: 2)) {
       _failAttempt('stream ended before its duration');
+      return;
+    }
+    unawaited(_advance());
+  }
+
+  /// Looks up intro/outro segments in the background.
+  ///
+  /// Never awaited by the open path: both sources are network lookups against
+  /// crowdsourced databases, and playback must not wait on a convenience.
+  Future<void> _loadSkipSegments(Episode? episode) async {
+    if (episode == null) return;
+    final token = _token;
+    final segments = await fetchSkipSegments(
+      read: ref.read,
+      item: widget.item,
+      episode: episode,
+    );
+    if (_disposed || token != _token || segments.isEmpty) return;
+    setState(() => _skipSegments = segments);
+  }
+
+  /// Whether an episode follows this one. Recomputed rather than cached so it
+  /// cannot go stale after an advance.
+  bool get _hasNextEpisode =>
+      nextEpisodeFor(
+        item: widget.item,
+        current: _currentEpisode,
+        videoUrl: _videoUrl,
+      ).next !=
+      null;
+
+  /// Picture-in-picture is an Android activity mode; there is no equivalent on
+  /// the other platforms this ships to, and it is meaningless on a television.
+  bool get _pipAvailable =>
+      Platform.isAndroid &&
+      !(ref.read(deviceProfileProvider).asData?.value.isTv ?? false);
+
+  void _enterPip() {
+    unawaited(_platform.enterPip(_controller.value.isPlaying));
+  }
+
+  /// Lets the viewer move off a source that plays but plays badly — failover
+  /// only reacts to outright failure.
+  void _openSourcePicker() {
+    final resolved = _resolved;
+    if (resolved == null) return;
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: const Color(0xFF141414),
+        isScrollControlled: true,
+        builder: (sheetContext) => SafeArea(
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: resolved.streams.length,
+            itemBuilder: (context, i) {
+              final stream = resolved.streams[i];
+              return ListTile(
+                dense: true,
+                selected: i == _attemptIndex,
+                selectedColor: Colors.white,
+                leading: Icon(
+                  i == _attemptIndex
+                      ? Icons.play_arrow_rounded
+                      : Icons.source_outlined,
+                  color: Colors.white70,
+                ),
+                title: Text(
+                  stream.displaySource,
+                  style: const TextStyle(color: Colors.white),
+                ),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  if (i == _attemptIndex) return;
+                  // Carry the position across, exactly as failover does.
+                  unawaited(
+                    _openAttempt(
+                      i,
+                      startAt: _controller.value.isLive
+                          ? Duration.zero
+                          : (_sample?.position ?? Duration.zero),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Moves to the next episode in place, on this controller and this State.
+  ///
+  /// In place rather than a fresh route because the screen already owns its
+  /// controller for the State's lifetime; pushing would tear down and rebuild
+  /// the native view for no gain. The cost is that every per-episode field has
+  /// to be reset by hand here — which is exactly the bookkeeping the old path
+  /// got wrong, so the reset is a single block rather than scattered.
+  Future<void> _advance() async {
+    if (_disposed || _advancing) return;
+    _advancing = true;
+    try {
+      final lookup = nextEpisodeFor(
+        item: widget.item,
+        current: _currentEpisode,
+        videoUrl: _videoUrl,
+      );
+
+      // The outgoing episode's session ends first: finish() emits its single
+      // terminal tracking event while the tracker still describes it.
+      _tracker?.finish();
+
+      final next = lookup.next;
+      if (next == null) {
+        // Only a located last episode means "finished". A current episode we
+        // could not find in the list means "don't know", and deleting the
+        // series on that would cascade across every per-episode row.
+        if (lookup.isFinalEpisode) {
+          clearFinishedFromHistory(read: ref.read, item: widget.item);
+        }
+        return;
+      }
+
+      rollForwardHistory(read: ref.read, item: widget.item, next: next);
+
+      // Per-episode reset. _token, _recorder, _tracker and _initialResume are
+      // rebuilt by _start(); _generation and the attempt/edge flags by
+      // _openAttempt(). These four are the ones nothing else clears.
+      _sample = null;
+      _lastStreamUrl = null;
+      _resolved = null;
+      _preloaded = null; // route sources belong to the first episode only
+      _skipSegments = const <SkipSegment>[]; // previous episode's intro/outro
+
+      _episode = next;
+      _videoUrl = next.url;
+      if (mounted) setState(() {}); // title/subtitle follow the new episode
+
+      await _start();
+    } finally {
+      _advancing = false;
     }
   }
 
@@ -318,15 +579,13 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// does: an explicitly passed episode wins, otherwise match the route's token
   /// against the series' own episode list.
   Episode? get _currentEpisode {
-    if (widget.episode != null) return widget.episode;
+    if (_episode != null) return _episode;
     final type = widget.item.contentType;
     final isSeries =
         type == MultimediaContentType.series ||
         type == MultimediaContentType.anime;
     if (!isSeries) return null;
-    return widget.item.episodes?.firstWhereOrNull(
-      (e) => e.url == widget.videoUrl,
-    );
+    return widget.item.episodes?.firstWhereOrNull((e) => e.url == _videoUrl);
   }
 
   /// Samples progress, and only while playback is genuinely running.
@@ -364,6 +623,9 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
         duration: value.duration,
         token: _token,
       );
+      // Real playback: this source is alive, so the live reconnect budget is
+      // restored rather than being consumed over the whole session.
+      _liveReconnects = 0;
       if (!sample.isWritable) return;
       _sample = sample;
       recorder.record(sample, lastStreamUrl: _lastStreamUrl);
@@ -431,6 +693,23 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     return _proxied(uri, headers);
   }
 
+  /// Routes an encrypted DASH manifest through the decrypting proxy.
+  Future<Uri> _decryptingUri(
+    Uri uri,
+    Map<String, String> headers,
+    ClearKey clearKey,
+  ) async {
+    await LocalProxyService.instance.startServer();
+    return Uri.parse(
+      LocalProxyService.instance.getDecryptingDashUrl(
+        uri.toString(),
+        key: clearKey.key,
+        keyId: clearKey.keyId,
+        headers: headers,
+      ),
+    );
+  }
+
   Future<Uri> _proxied(Uri uri, Map<String, String> headers) async {
     if (!uri.scheme.startsWith('http')) return uri;
     // getProxyUrl starts the server without awaiting it, and the port is 0
@@ -472,6 +751,8 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_onPlaybackValue);
     _controller.dispose();
+    // The torrent server seeds in the background; nothing else stops it.
+    if (_startedTorrent) unawaited(ref.read(torrentServiceProvider).stop());
     WakelockPlus.disable();
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.manual,
@@ -485,8 +766,22 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: switch (_stage) {
-        _Stage.resolving => _status(const CircularProgressIndicator()),
-        _Stage.failed => _status(
+        _Stage.resolving => _statusFrame(
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircularProgressIndicator(),
+              if (_status.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  _status,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+              ],
+            ],
+          ),
+        ),
+        _Stage.failed => _statusFrame(
           Text(
             _error,
             textAlign: TextAlign.center,
@@ -500,8 +795,17 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
             VlcPlayerControls(
               controller: _controller,
               title: widget.item.title,
-              subtitle: widget.episode?.name,
+              subtitle: _currentEpisode?.name,
               onBack: () => Navigator.of(context).maybePop(),
+              // Both are null unless the thing they do is actually available,
+              // so the overlay never renders a button that would do nothing.
+              onNextEpisode: _hasNextEpisode ? () => unawaited(_advance()) : null,
+              onOpenSources: (_resolved?.streams.length ?? 0) > 1
+                  ? _openSourcePicker
+                  : null,
+              onEnterPip: _pipAvailable ? _enterPip : null,
+              isLive: _isLive,
+              skipSegments: _skipSegments,
             ),
           ],
         ),
@@ -511,7 +815,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
 
   /// Resolving and failed share one frame so that back is always reachable —
   /// on TV there is no gesture to fall back on.
-  Widget _status(Widget child) {
+  Widget _statusFrame(Widget child) {
     return SafeArea(
       child: Stack(
         children: [

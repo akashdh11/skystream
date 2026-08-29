@@ -33,6 +33,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/domain/entity/multimedia_item.dart';
 import '../../../core/extensions/base_provider.dart';
 import '../../../core/extensions/extension_manager.dart';
+import '../../../core/extensions/providers.dart';
 import '../../../core/storage/history_repository.dart';
 import '../../../core/network/http_defaults.dart';
 import '../../../core/utils/app_utils.dart';
@@ -78,6 +79,64 @@ Map<String, String> playbackHeaders(StreamResult stream) {
   final hasUserAgent = headers.keys.any((k) => k.toLowerCase() == 'user-agent');
   if (!hasUserAgent) headers['User-Agent'] = kDefaultBrowserUserAgent;
   return headers;
+}
+
+/// Turns a resolved candidate into a URL an engine can actually open.
+///
+/// Only torrents need work: a `magnet:` link or a `.torrent` is not something
+/// any player opens directly. The torrent service downloads and seeds it, then
+/// serves it over loopback HTTP, and the engine plays that.
+///
+/// Engine-agnostic like the rest of this file - the result is a plain URL, and
+/// the loopback hop means no headers are involved. Lifted out of
+/// `PlayerController._resolveStreamUrl` so both engines share one
+/// implementation rather than the VLC path growing a second copy.
+///
+/// Returns null when the torrent could not be prepared, which the caller should
+/// surface rather than pass to the engine.
+Future<String?> playableUrlFor({
+  required ProviderReader read,
+  required StreamResult stream,
+}) async {
+  if (isTorrentSource(stream)) {
+    return read(torrentServiceProvider).getStreamUrl(stream.url);
+  }
+  return AppUtils.normalizeUrl(stream.url);
+}
+
+/// Whether this candidate has to go through the torrent service first.
+///
+/// The path check is deliberately narrowed by [StreamResult.source]: a bare
+/// absolute path is normally a local file, and only a torrent-sourced one is a
+/// seeded file the service already knows about.
+bool isTorrentSource(StreamResult stream) =>
+    stream.url.startsWith('magnet:') ||
+    stream.url.endsWith('.torrent') ||
+    (stream.url.startsWith('/') && stream.source.contains('Torrent'));
+
+/// Whether this source should be treated as live.
+///
+/// Mirrors the old controller's `_isLiveStream`: the item's own content type
+/// wins, then the URL scheme. Torrents and local files are always VOD however
+/// they are labelled.
+///
+/// Liveness changes buffering, seeking, progress writing and what end-of-media
+/// means, so it is decided once from data both engines can see rather than
+/// waiting for the engine to report it.
+bool isLiveSource(MultimediaItem item, String url) {
+  if (url.isEmpty) return item.contentType == MultimediaContentType.livestream;
+  final lower = url.toLowerCase();
+  if (lower.startsWith('magnet:') ||
+      lower.endsWith('.torrent') ||
+      lower.startsWith('/')) {
+    return false;
+  }
+  if (item.contentType == MultimediaContentType.livestream) return true;
+  return lower.startsWith('rtmp://') ||
+      lower.startsWith('rtsp://') ||
+      lower.startsWith('mms://') ||
+      lower.startsWith('udp://') ||
+      lower.startsWith('rtp://');
 }
 
 /// Resolution failed in a way worth showing the user.

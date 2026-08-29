@@ -132,6 +132,64 @@ ResumePoint? resumePointFor({
   );
 }
 
+/// Points Continue Watching at [next] after the previous episode finished.
+///
+/// **Deliberately preserves whatever progress [next] already has.** The old
+/// path wrote position 0 / duration 0 here, and because `lastEpisodeUrl` is
+/// non-null for a series, storage mirrors that same map into a second row keyed
+/// by the next episode. Hive `put` is a full replace, so a viewer who had
+/// already watched twenty minutes of the next episode lost it by finishing the
+/// previous one.
+///
+/// Reading the stored values back and rewriting them keeps the card pointing at
+/// the right episode without touching its position.
+void rollForwardHistory({
+  required ProviderReader read,
+  required MultimediaItem item,
+  required Episode next,
+}) {
+  final repo = read(historyRepositoryProvider);
+  final positionMs = repo.getEpisodePosition(
+    next.url,
+    mainUrl: item.url,
+    season: next.season,
+    episode: next.episode,
+  );
+  final durationMs = repo.getEpisodeDuration(
+    next.url,
+    mainUrl: item.url,
+    season: next.season,
+    episode: next.episode,
+  );
+
+  read(watchHistoryProvider.notifier).saveProgress(
+    item.copyWith(provider: item.provider ?? 'Unknown'),
+    positionMs > 0 ? positionMs : 0,
+    durationMs > 0 ? durationMs : 0,
+    // The next episode's source is unknown until it resolves; leaving this null
+    // makes the resolver pick fresh rather than reuse the finished episode's.
+    lastStreamUrl: null,
+    lastEpisodeUrl: next.url,
+    season: next.season,
+    episode: next.episode,
+    episodeTitle: next.name,
+    episodePosterUrl: next.posterUrl,
+  );
+}
+
+/// Drops a finished title from Continue Watching.
+///
+/// Only safe when the caller *knows* the series ended — see
+/// [NextEpisodeLookup.isFinalEpisode]. The underlying delete cascades across
+/// every per-episode row for this title, so calling it because the current
+/// episode merely could not be located erases the whole series' progress.
+void clearFinishedFromHistory({
+  required ProviderReader read,
+  required MultimediaItem item,
+}) {
+  read(watchHistoryProvider.notifier).removeFromHistory(item.url);
+}
+
 /// Writes progress for one playback session.
 ///
 /// Owns the write-rate limiting and every correctness guard, so callers only
@@ -179,6 +237,10 @@ class PlaybackProgressRecorder {
     if (sample.token != token) return false;
     if (item.contentType == MultimediaContentType.livestream) return false;
     if (!sample.isWritable) return false;
+    // Once this episode is finished, Continue Watching has been rolled forward
+    // to the next one. A later write - and dispose() always forces one - would
+    // point the row back at the episode just completed.
+    if (_completed) return false;
 
     if (!force) {
       final moved = (sample.position - _lastWritten).abs();

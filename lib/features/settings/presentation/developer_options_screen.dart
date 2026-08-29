@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
-import '../../player/presentation/vlc/vlc_engine_flag.dart';
 
 import 'dart:async';
 
@@ -71,25 +70,6 @@ class _DeveloperOptionsScreenState
                   title: l10n.streamTorrent,
                   subtitle: l10n.streamTorrentSubtitle,
                   onTap: () => _pickTorrentFile(context),
-                ),
-                // Phase 5 of docs/PLAYER_MIGRATION.md. Off by default; the
-                // media_kit / video_view path stays the shipping one until
-                // Phase 8. Deliberately unlocalised — it is developer-facing
-                // and temporary.
-                SettingsTile(
-                  icon: Icons.science_rounded,
-                  title: 'Experimental VLC engine',
-                  subtitle: ref.watch(vlcEngineEnabledProvider)
-                      ? 'On — plays through VLC. No tracks, subtitles, live, '
-                            'DRM or torrent yet, and progress is not saved.'
-                      : 'Off — using the current player',
-                  trailing: Switch(
-                    value: ref.watch(vlcEngineEnabledProvider),
-                    onChanged: (_) =>
-                        ref.read(vlcEngineEnabledProvider.notifier).toggle(),
-                  ),
-                  onTap: () =>
-                      ref.read(vlcEngineEnabledProvider.notifier).toggle(),
                 ),
                 if (kDebugMode)
                   SettingsTile(

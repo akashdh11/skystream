@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:isolate';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
+import '../media/cenc.dart';
+import '../media/dash_manifest.dart';
 import '../network/http_defaults.dart';
 
 class ProxyOptions {
@@ -156,6 +160,203 @@ class LocalProxyService {
     return url;
   }
 
+  /// Returns a local URL that serves [manifestUrl] with its segments decrypted.
+  ///
+  /// [key] is the 16-byte ClearKey; [keyId] is the KID it belongs to, checked
+  /// against what the media actually declares so a wrong or rotated key fails
+  /// loudly instead of rendering garbage.
+  String getDecryptingDashUrl(
+    String manifestUrl, {
+    required Uint8List key,
+    required Uint8List keyId,
+    Map<String, String>? headers,
+  }) {
+    if (_server == null) startServer();
+    final params = <String, String>{
+      'url': manifestUrl,
+      'k': _hex(key),
+      'kid': _hex(keyId),
+      'mpd': '1',
+    };
+    if (headers != null && headers.isNotEmpty) {
+      params['h'] = base64Url.encode(utf8.encode(jsonEncode(headers)));
+    }
+    final url = Uri(
+      scheme: 'http',
+      host: '127.0.0.1',
+      port: _serverPort,
+      path: '/cenc',
+      queryParameters: params,
+    ).toString();
+    if (kDebugMode) debugPrint('[CENC] serving $manifestUrl via proxy');
+    return url;
+  }
+
+  /// Undoes [Uri]'s percent-encoding of the dollar signs in a DASH template.
+  ///
+  /// VLC substitutes `$Number$` textually before issuing the request, so a
+  /// `%24Number%24` in the rewritten manifest means it never asks for a segment
+  /// at all - the failure is silence, not an error, which is why this is worth
+  /// its own function and its own test.
+  static String _restoreTemplateTokens(String url) =>
+      url.replaceAll('%24', r'$');
+
+  /// Serves a manifest, an init segment, or a decrypted media segment.
+  ///
+  /// Deliberately stateless per request: VLC fetches segments out of order and
+  /// in parallel, and any cross-request cipher or parser state here would show
+  /// up as intermittent, unreproducible corruption.
+  Future<void> _handleCencRequest(HttpRequest request) async {
+    final q = request.uri.queryParameters;
+    final target = q['url'];
+    final keyHex = q['k'];
+    if (target == null || keyHex == null || !_isProxyableUrl(target)) {
+      request.response.statusCode = HttpStatus.badRequest;
+      await request.response.close();
+      return;
+    }
+
+    final headers = q['h'] == null
+        ? <String, String>{}
+        : (jsonDecode(utf8.decode(base64Url.decode(q['h']!))) as Map)
+              .map((k, v) => MapEntry(k.toString(), v.toString()));
+
+    final client = HttpClient();
+    try {
+      final upstream = await _fetchBytes(client, target, headers);
+      if (kDebugMode) {
+        final kind = q['mpd'] == '1'
+            ? 'manifest'
+            : (q['init'] == '1' ? 'init' : 'segment');
+        debugPrint(
+          '[CENC] $kind ${upstream?.length ?? -1} bytes <- $target',
+        );
+      }
+      if (upstream == null) {
+        request.response.statusCode = HttpStatus.badGateway;
+        await request.response.close();
+        return;
+      }
+
+      final Uint8List body;
+      final String contentType;
+      if (q['mpd'] == '1') {
+        contentType = 'application/dash+xml';
+        body = utf8.encode(
+          rewriteDashManifest(
+            manifest: utf8.decode(upstream, allowMalformed: true),
+            manifestUrl: Uri.parse(target),
+            proxyUrlFor: (upstreamUrl, {required bool isInit}) => _restoreTemplateTokens(
+              Uri(
+                scheme: 'http',
+                host: '127.0.0.1',
+                port: _serverPort,
+                path: '/cenc',
+                queryParameters: <String, String>{
+                  'url': upstreamUrl,
+                  'k': keyHex,
+                  if (q['kid'] != null) 'kid': q['kid']!,
+                  if (q['h'] != null) 'h': q['h']!,
+                  if (isInit) 'init': '1',
+                },
+              ).toString(),
+            ),
+          ),
+        );
+      } else if (q['init'] == '1') {
+        contentType = 'video/mp4';
+        body = _rewriteInit(upstream, q['kid']);
+        if (kDebugMode) debugPrint('[CENC] init relabelled');
+      } else {
+        contentType = 'video/mp4';
+        body = await _decryptSegment(upstream, keyHex, q['iv']);
+        if (kDebugMode) debugPrint('[CENC] segment decrypted');
+      }
+
+      request.response
+        ..statusCode = HttpStatus.ok
+        ..headers.set(HttpHeaders.contentTypeHeader, contentType)
+        ..headers.set(HttpHeaders.contentLengthHeader, body.length.toString())
+        ..add(body);
+      await request.response.close();
+    } catch (e, st) {
+      if (kDebugMode) debugPrint('[CENC] ERROR on $target: $e\n$st');
+      try {
+        request.response.statusCode = HttpStatus.internalServerError;
+        await request.response.close();
+      } catch (_) {}
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Relabels an init segment so VLC sees a plaintext track.
+  ///
+  /// Also the only place the declared KID can be checked. A mismatch means the
+  /// key we hold is not the key this media needs, which would otherwise decrypt
+  /// to garbage silently - so it fails the request instead.
+  Uint8List _rewriteInit(Uint8List init, String? expectedKidHex) {
+    final info = parseInitSegment(init);
+    if (info == null) return init; // not encrypted; pass through untouched
+    if (expectedKidHex != null && expectedKidHex.isNotEmpty) {
+      final actual = _hex(info.keyId);
+      if (actual.toLowerCase() != expectedKidHex.toLowerCase()) {
+        throw StateError(
+          'CENC: media declares KID $actual but we hold $expectedKidHex',
+        );
+      }
+    }
+    return rewriteInitSegment(init);
+  }
+
+  /// Decrypts a media fragment off the UI isolate.
+  ///
+  /// A segment is a megabyte or so and decryption is pure computation, so it
+  /// runs on a worker isolate; on a low-powered TV box doing it inline would be
+  /// visible jank every few seconds.
+  Future<Uint8List> _decryptSegment(
+    Uint8List segment,
+    String keyHex,
+    String? ivSize,
+  ) {
+    final key = _unhex(keyHex);
+    final iv = int.tryParse(ivSize ?? '') ?? 8;
+    return Isolate.run(() {
+      decryptSegment(segment, key, ivSize: iv);
+      return segment;
+    });
+  }
+
+  Future<Uint8List?> _fetchBytes(
+    HttpClient client,
+    String url,
+    Map<String, String> headers,
+  ) async {
+    final req = await client.getUrl(Uri.parse(url));
+    headers.forEach(req.headers.set);
+    if (req.headers.value(HttpHeaders.userAgentHeader) == null) {
+      req.headers.set(HttpHeaders.userAgentHeader, kDefaultBrowserUserAgent);
+    }
+    final res = await _fetchWithRedirects(client, req, url, null);
+    if (res.statusCode >= 400) return null;
+    final builder = BytesBuilder(copy: false);
+    await for (final chunk in res) {
+      builder.add(chunk);
+    }
+    return builder.takeBytes();
+  }
+
+  static String _hex(Uint8List b) =>
+      b.map((x) => x.toRadixString(16).padLeft(2, '0')).join();
+
+  static Uint8List _unhex(String s) {
+    final out = Uint8List(s.length ~/ 2);
+    for (var i = 0; i < out.length; i++) {
+      out[i] = int.parse(s.substring(i * 2, i * 2 + 2), radix: 16);
+    }
+    return out;
+  }
+
   Future<void> _handleRequest(HttpRequest request) async {
     try {
       // Reject any non-loopback caller — defence-in-depth on top of the
@@ -171,6 +372,14 @@ class LocalProxyService {
       // PROXY HANDLER
       if (path == '/proxy') {
         await _handleProxyRequest(request);
+        return;
+      }
+
+      // ENCRYPTED DASH HANDLER
+      // libVLC cannot decrypt CENC on any build we ship, so encrypted DASH is
+      // decrypted here and handed to the engine as plaintext.
+      if (path == '/cenc') {
+        await _handleCencRequest(request);
         return;
       }
 

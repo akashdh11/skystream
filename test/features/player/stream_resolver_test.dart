@@ -107,4 +107,77 @@ void main() {
       );
     });
   });
+
+  group('isLiveSource', () {
+    MultimediaItem itemOf(MultimediaContentType type) => MultimediaItem(
+      title: 'T',
+      url: 'https://example.com/t',
+      posterUrl: '',
+      contentType: type,
+    );
+
+    test('a livestream item is live whatever the url looks like', () {
+      expect(
+        isLiveSource(
+          itemOf(MultimediaContentType.livestream),
+          'https://cdn.example/channel.m3u8',
+        ),
+        isTrue,
+      );
+    });
+
+    test('live protocols are live even on a movie item', () {
+      for (final url in const [
+        'rtmp://a/b',
+        'rtsp://a/b',
+        'mms://a/b',
+        'udp://a/b',
+        'rtp://a/b',
+      ]) {
+        expect(isLiveSource(itemOf(MultimediaContentType.movie), url), isTrue,
+            reason: url);
+      }
+    });
+
+    test('a plain http movie is not live', () {
+      expect(
+        isLiveSource(itemOf(MultimediaContentType.movie), 'https://a/b.mp4'),
+        isFalse,
+      );
+    });
+
+    // However the item is labelled, these are files and seek normally.
+    test('torrents and local files are never live', () {
+      final live = itemOf(MultimediaContentType.livestream);
+      expect(isLiveSource(live, 'magnet:?xt=urn:btih:abc'), isFalse);
+      expect(isLiveSource(live, 'https://a/b.torrent'), isFalse);
+      expect(isLiveSource(live, '/Users/me/Movies/a.mkv'), isFalse);
+    });
+
+    test('an empty url falls back to the content type', () {
+      expect(isLiveSource(itemOf(MultimediaContentType.livestream), ''), isTrue);
+      expect(isLiveSource(itemOf(MultimediaContentType.movie), ''), isFalse);
+    });
+  });
+
+  group('isTorrentSource', () {
+    StreamResult s(String url, String source) =>
+        StreamResult(url: url, source: source);
+
+    test('magnet links and .torrent files need the torrent service', () {
+      expect(isTorrentSource(s('magnet:?xt=urn:btih:abc', 'Torrent')), isTrue);
+      expect(isTorrentSource(s('https://a/b.torrent', 'Torrent')), isTrue);
+    });
+
+    test('an ordinary http stream does not', () {
+      expect(isTorrentSource(s('https://cdn.example/a.mp4', '1080p')), isFalse);
+    });
+
+    // A bare absolute path is normally a local file; only a torrent-sourced
+    // one is a seeded file the service already knows about.
+    test('a bare path counts only when the source says Torrent', () {
+      expect(isTorrentSource(s('/downloads/movie.mkv', 'Torrent')), isTrue);
+      expect(isTorrentSource(s('/Users/me/Movies/a.mkv', 'Video')), isFalse);
+    });
+  });
 }

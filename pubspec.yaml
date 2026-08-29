@@ -56,9 +56,6 @@ dependencies:
   hive_flutter: ^1.1.0
   flutter_js:
     path: packages/flutter_js_ng
-  media_kit: ^1.2.6
-  media_kit_video: ^2.0.1
-  media_kit_libs_video: ^1.0.7
   screen_brightness: ^2.1.7
   flutter_volume_controller: ^2.0.1
   dynamic_color: ^1.9.0
@@ -80,8 +77,6 @@ dependencies:
   flutter_svg: ^2.2.3
   dpad: ^3.0.0
   shimmer: ^4.0.0
-  video_view:
-    path: packages/video_view
   # Phase 0b build-viability gate: linked but not yet imported by any Dart code.
   vlc_player:
     path: packages/vlc_player

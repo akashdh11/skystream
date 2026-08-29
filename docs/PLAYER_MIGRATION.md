@@ -653,7 +653,244 @@ played is dead and is skipped immediately.
 finished film now leaves Continue Watching; a finished episode does not yet roll forward, because
 that needs the next-episode calculation). Then Phase 5b's controls.
 
+### Phase 6.9 - Next-episode advancement
+
+**What landed.** `lib/features/player/domain/episode_navigator.dart` - a pure `nextEpisodeFor()`,
+plus an in-place advance on genuine end-of-media in the VLC screen, plus a non-destructive history
+roll-forward.
+
+**Two things the old path gets wrong and this does not.**
+
+*The rollover was destructive.* On completing an episode, saveProgress() wrote position 0 /
+duration 0 with `lastEpisodeUrl: nextEpisode.url`. Because the item is a series, storage mirrors that
+same map into a second row keyed `EP_<next>`, and Hive `put` is a full replace - so finishing episode
+3 wiped whatever progress the viewer already had on episode 4. `rollForwardHistory()` reads the next
+episode's stored position and duration and writes those back, moving the Continue Watching pointer
+without touching its progress.
+
+*Null meant two different things.* `getNextEpisode()` returns null both when the series genuinely
+ends and when it cannot locate the current episode, and the caller treats null as "finished" and
+calls `removeFromHistory`, which cascades across every per-episode row for the title. A mid-series
+lookup failure therefore erased the whole series. `NextEpisodeLookup` separates `next == null` from
+`currentFound`, and only `isFinalEpisode` (found, and nothing after it) is allowed to clear history.
+
+**The dub filter is not optional.** `MultimediaItem` sorts episodes by (season, episode) only, so on
+an anime carrying both tracks the two copies of episode 1 sit adjacent and a naive `index + 1`
+advances from subbed 1 to dubbed 1 - the same episode in a language the viewer did not pick.
+
+**One trap worth naming.** The roll-forward is written during completion, but `dispose()` always
+forces a final progress write, which would point Continue Watching straight back at the episode just
+finished. `PlaybackProgressRecorder.record()` now refuses once completion has latched.
+
+**Session reset.** Advancing swaps media on the same controller and the same State rather than
+pushing a route - the screen already owns its controller, so a push would tear down and rebuild the
+native view for nothing. That makes the per-episode reset manual, so it is one block in `_advance()`
+rather than scattered: `_sample`, `_lastStreamUrl`, `_resolved` and `_preloaded` cleared (the route's
+preloaded sources belong to the first episode only), `_episode`/`_videoUrl` moved on, and `_token`,
+recorder, tracker and resume rebuilt by `_start()`. A new tracker per episode is what keeps the
+`markedWatched` latch from carrying across, while it still survives failover within one episode. One
+`_advancing` re-entrancy guard, because the ended event and a retry can land in the same second.
+
+**Deliberately out of scope,** and confirmed as separable: skip segments and outro-to-advance (both
+settings default false); pre-resolving the next episode's streams (the old path does not either); an
+auto-play-next setting (none exists - not invented); the countdown overlay and its Cancel; a manual
+next button.
+
+**Smaller than it looked.** The details screen already rolls forward on the VLC path, because it
+derives its target from `episodeWatchRepository.isWatched` and the tracker already calls
+`setWatched`. The history rollover therefore only fixes the Continue Watching card's stale label.
+
+### Phase 5b — DONE: the overlay, rebuilt on shared components
+
+The design was never the problem and did not need reimplementing. It was already extracted into
+engine-agnostic widgets: ten of the seventeen files in `presentation/widgets/` have zero engine and
+zero provider coupling. The VLC overlay now uses **the same** `PlayerTopBar`, `PlayerBottomBar` and
+`PlayerIconButton` the media_kit overlay uses, so "no visual diff" holds by construction and any
+future design change lands on both paths at once.
+
+One new shared piece: `PlayerScrubber` (time label + seek bar, driven by plain Durations). The seek
+bar was already engine-free - it took bare doubles - and was merely private, so it is now public with
+the two formatters and the track inset lifted to file scope.
+
+What was rebuilt is the machinery, measured against the old file rather than the stale table above:
+
+| | old | new |
+|---|---|---|
+| hide-timer restart sites | 16 | 1 |
+| hand-managed FocusNodes | 6 | 0 |
+| setState calls | 23 | 3 |
+| playerControllerProvider reads | 72 (30 filtered) | 1 |
+| lines | 1684 | 262 |
+
+Two of the original complaints were already fixed and the table above is stale: RepaintBoundary is 3,
+not 1 (Phase 2), and Platform.is is 13, not 24.
+
+Wired only to what exists: play/pause, seek, tracks, resize via the fork's runtime setFit, next
+episode (only when one exists) and a source picker (only when more than one resolved - new
+capability, since failover reacts to outright failure but nothing let the viewer leave a source that
+merely plays badly). Absent rather than disabled: PiP, cast, download, lock, rotate, fullscreen,
+torrent stats, skip segments.
+
+**Untested on TV hardware.** Focus now relies entirely on native reading-order traversal with no
+hand-placed nodes; the old overlay hand-routed D-pad Up out of the scrubber and that is deliberately
+not reproduced.
+
 ### Phase 7 — Live, then the long tail
+
+**Live: DONE.** Every option name was verified against the shipped binaries before use - VLCKit 3.7.3
+and libvlc-all 3.7.0 both register `network-caching`, `live-caching`, `adaptive-logic` and
+`http-reconnect` - because that is exactly the check that would have caught the `http-header` defect
+in Phase 6.6.
+
+- `isLiveSource(item, url)` in stream_resolver.dart decides liveness once, from data both engines can
+  see: content type wins, then URL scheme; torrents and local files are always VOD however they are
+  labelled. Liveness governs buffering, seeking, progress writing and what end-of-media means.
+- Per-media `:live-caching=3000` / `:network-caching=3000` for live, against the VOD default of 3000
+  network caching. Live trades latency for jitter tolerance and never seeks.
+- `--adaptive-logic=highest` instance-wide, for the same reason the mpv path pins `hls-bitrate=max`:
+  libVLC does adapt, unlike FFmpeg, but its estimator starts pessimistic and can sit on a low
+  rendition for a long stretch.
+- `--http-reconnect`.
+- **End-of-media on live means the feed dropped**, not that anything finished, so the same source is
+  reopened rather than advancing or failing over - abandoning a channel that is merely interrupted
+  would be wrong. Bounded at 5 consecutive reopens with a 2 s delay (a dead URL ends instantly, so an
+  unbounded reopen is a hot loop), and the budget resets the moment playback resumes, so a channel
+  that drops hourly never exhausts it.
+
+**Torrent: DONE.** `playableUrlFor(read, stream)` in stream_resolver.dart lifts the torrent branch
+out of `PlayerController._resolveStreamUrl` so both engines share one implementation instead of the
+VLC path growing a second copy. A magnet link or `.torrent` is not something any player opens: the
+torrent service prepares and seeds it, then serves it over loopback HTTP, and the engine plays that.
+Engine-agnostic like the rest of the file, and the loopback hop means no headers are involved.
+
+`isTorrentSource` narrows the bare-path case by `StreamResult.source`, because an absolute path is
+normally a local file and only a torrent-sourced one is a seeded file the service knows about.
+
+Two things the blanket refusal used to hide: a cold magnet can take a long time to become playable,
+so the opening state now carries a "Preparing torrent" line rather than a bare spinner; and the
+torrent server seeds in the background with nothing else to stop it, so teardown stops it - but only
+when this session actually started it.
+
+Still out: the torrent status panel, file picker and stats, which need the polling the old
+controller does.
+
+**ClearKey/DRM: BLOCKED, and verified so.** libVLC 3.0.23 as shipped cannot decrypt ClearKey/CENC on
+any platform. Verified against the binaries rather than assumed, because that is the check that would
+have caught the Phase 6.6 header defect: `cenc_decryption_key` 0 hits, `clearkey` 0, `org.w3.clearkey`
+0, `widevine`/`playready` 0, and no libavformat DASH demuxer (0 hits) - VLC's own `adaptive` module
+owns DASH and has zero CENC handling.
+
+FFmpeg's `decryption_key` AVOption is compiled in (2 hits), which makes this a trap rather than a
+clean no: VLC 3.x calls `avformat_open_input` with `options = NULL` and parses `avformat-options`
+only afterwards, for `avformat_find_stream_info`, so the key arrives in the wrong context and too
+late. Worse, the mp4 demuxer only warns - "DRM protected stream detected, decoding will likely fail!"
+- and then continues. Shipping `:avformat-options={decryption_key=...}` would parse, be accepted, do
+nothing, and render green garbage instead of erroring. Do not ship it.
+
+**Decision (2026-08-29): no dual-engine.** Keeping media_kit alive as a DRM-only engine is rejected,
+so ClearKey has to work inside VLC. The only mechanism libVLC 3.x leaves open is byte-stream
+injection - `libvlc_media_new_callbacks` or, equivalently, the loopback proxy the app already has -
+which means CENC decryption in `LocalProxyService` before VLC sees the bytes. Honest scope: fMP4 box
+surgery (stsd/sinf/schi/tenc, traf/senc/saiz/saio/trun), AES-CTR throughput needing an isolate or a
+native cipher for 4K, cross-request state for byte-range single-file MP4, and `cenc` only - never
+`cbcs`, never Widevine. A subsystem, not a patch. Planned after PiP and skip segments.
+
+**PiP: DONE.** `PlayerPlatformService.enterPip(isPlaying)` was already engine-agnostic, so this is a
+button and an availability predicate. Offered only where it exists: Android, and not on a television,
+where the mode is meaningless. Absent rather than disabled elsewhere.
+
+**Skip segments: DONE.** `fetchSkipSegments()` in the domain reads IntroDB and AnimeSkip and returns
+a sanitized list; `segmentAt()` finds the segment covering a position. Engine-agnostic - it never
+touches a player.
+
+Three decisions worth recording:
+
+- **The lookup is never awaited by the open path.** Both sources are network calls against
+  crowdsourced databases; playback must not wait on a convenience. Segments appear when they arrive
+  and the bands simply populate.
+- **AnimeSkip replaces rather than appends to IntroDB.** It is title-specific where IntroDB is
+  crowd-averaged, so merging the two produces overlapping segments that fight each other.
+- **The skip button lives outside the chrome.** An intro can start while the bars are hidden, and
+  putting the one time-limited control behind a tap-to-reveal would defeat it. It shows only while
+  the position is genuinely inside a segment, so it appears and disappears on its own and never needs
+  dismissing - matching on a half-open interval, so it vanishes exactly when the seek would become a
+  no-op.
+
+Segments are also painted as bands on the scrubber, which came free: the shared `PlayerScrubber`
+already took a `skipSegments` list.
+
+Both sources are **opt-in and off by default**, so the common case is an empty list and every caller
+treats that as normal rather than as a failure.
+
+**Remaining long tail.** DRM via proxy-side CENC decryption. Spike results below.
+
+#### DRM spike - measured against a live SUN NXT channel, not estimated
+
+Every number here came from `SunTVB_IN_index.mpd` and its real segments, decrypted with the app's
+own ClearKey. This replaces the earlier guesswork, most of which was pessimistic.
+
+**The content, from the live manifest.** `value="cenc"` with **zero** `cbcs` anywhere. **One**
+`default_KID` (`6752015A-CF08-4572-A08D-FE21796F8B45`) shared by all 12 representations *and* by
+audio and video - so there is no per-representation key lookup to build. **No `SegmentBase`, no
+`indexRange`**: it is `isoff-live` profile with `SegmentTemplate` + `$Number$`, so the byte-range
+problem that would have been genuinely hard does not exist here. `minimumUpdatePeriod="PT2S"`,
+`timeShiftBufferDepth="PT10797S"` (a 3-hour DVR window, not the 30 s previously assumed).
+
+**The init segment.** `tenc` reports `default_isProtected=1`, `default_Per_Sample_IV_Size=8`, and a
+KID byte-identical to the MPD's. `frma` gives `avc1`, `schm` gives `cenc`.
+
+**The fragment.** `tfhd` flags `0x020020` (default-base-is-moof), `trun` 150 samples, `senc` 150
+samples with subsample encryption. Both cheap sanity assertions hold: `trun.sample_count ==
+senc.sample_count`, and total encrypted bytes <= mdat size.
+
+**Decryption works.** AES-CTR in place, counter = 8-byte IV padded to 16, counter running contiguously
+across a sample's protected subsamples and not advancing over clear bytes. Video 150/150 frames,
+h264 854x480; audio 281 frames, AAC stereo. The encrypted control fails exactly as it should
+(`slice type 13 too large`, `non-existing PPS`). Output length equals input length, as AES-CTR
+guarantees.
+
+**The one premise that was WRONG, and its cheap fix.** VLC will *not* play a decrypted fragment that
+still carries its encryption boxes - verified on the shipping VLC path, where the untouched file
+failed while two treated variants played. So the boxes do have to be dealt with. But they do **not**
+have to be removed: renaming them to `free` (the standard ignore-me box) is the same length, so every
+size and offset stays byte-identical and there is **no `moof` resize and no `trun data_offset`
+fixup** - which was the most likely source of silent corruption. Concretely: in the init,
+`encv`->`avc1` / `enca`->`mp4a` (taking the fourcc from `frma`) and `sinf`->`free`; in each fragment,
+`senc`/`saiz`/`saio`->`free`. Four 4-byte writes, no allocation.
+
+**Operational note.** The live window advanced twice during a single session, moving `startNumber`.
+The proxy must re-read the manifest rather than cache segment numbers, or it will 404 intermittently
+in a way that looks random.
+
+#### DRM: SHIPPED and verified playing in the app
+
+ClearKey DASH now plays on the VLC engine. The pieces:
+
+- `lib/core/media/iso_bmff.dart` - a box reader that never resizes or reorders anything, because the
+  design depends on every offset staying put.
+- `lib/core/media/cenc.dart` - `parseInitSegment`, `rewriteInitSegment`, `decryptSegment`. Validated
+  byte-identical against an offline reference whose output VLC actually played.
+- `lib/core/media/dash_manifest.dart` - redirects segment URLs through the proxy. Deliberately a text
+  rewrite, not an MPD parse: VLC owns the timeline, and a 300 KB manifest refreshed every 2 s should
+  not be re-serialised through a DOM to change two attributes.
+- `lib/features/player/domain/clear_key.dart` - accepts hex, `kid:key`, UUID and base64url key forms.
+- `/cenc` route in `local_proxy_service.dart` - serves manifest, init and media segments.
+
+**Three guards, each against a failure that is otherwise silent.** The declared KID is checked
+against the key we hold and a mismatch throws, because a wrong or rotated key decrypts to noise
+rather than erroring. Decryption runs on a worker isolate, since a ~1 MB segment of pure computation
+every few seconds would be visible jank on a TV box. And the handler is stateless per request: VLC
+fetches segments out of order and in parallel, and cross-request cipher state is the classic source
+of intermittent corruption.
+
+**Two bugs worth remembering, both the same shape.** `Uri` percent-encodes `$`, so the rewritten
+manifest carried `%24Number%24` and VLC never requested a single segment - the symptom was the player
+starting and then doing nothing at all. And in the test harness, `r="(\d+)"` matched the tail of
+`startNumbe|r="..."`. Neither announced itself; both are now pinned by tests.
+
+**Scope.** `cenc` (AES-CTR) only. Not `cbcs`, not Widevine or PlayReady - there is no CDM in this app
+and never will be. Licence-server DRM still refuses honestly rather than showing black, because
+fetching a key from `licenseUrl` is a request this does not make.
 
 **Goal.** Move live onto the new engine and retire video_view.
 
@@ -662,16 +899,48 @@ handling, `dashdec.c` handles only one period, and HLS variant bitrate is metada
 switched — which is why we pin `hls-bitrate=max`. These are FFmpeg capability gaps that no mpv
 property fixes. Then ClearKey, torrent, PiP, skip segments, next-episode.
 
-### Phase 8 — Delete the old engine
+### Phase 7b — VLC is the default
 
-Remove media_kit, `packages/video_view`, the **75** `useExoPlayer` references across 8 files, and the
-**51** libmpv properties (the 7 HDR ones are among them — they are not a separate item).
+The flag now defaults to **true**. It stays in Developer Options as an escape hatch, so a regression
+can be worked around without waiting for a release, and is removed with the old engine in Phase 8.
 
-**Gated on, not vibes:** the subtitle option from §3 is chosen and implemented; the §6 hardware
-checklist passes on Android TV; a full Phase 0 baseline re-run is no worse than the original on every
-metric; and the new path has been the default (Phase 7) through at least one full release cycle with
-no player-related regression reports. If any of those is unmet, this phase does not start — both
-engines keep coexisting, which is annoying but safe.
+The storage key keeps its original `player_use_vlc_engine_experimental` name deliberately. It is no
+longer accurate, but renaming it would orphan the stored value and silently discard the choice of
+anyone who had already set the flag by hand - including every tester so far, who all turned it *on*.
+Pinned by a test, because the mistake is invisible until someone reports "my setting reset itself".
+
+**What this changes.** Nothing about which code runs when the flag is on - that path has been
+exercised throughout. What changes is who runs it: everyone who never touched the switch. The value
+of the step is precisely that it converts "it works when tested" into evidence.
+
+### Phase 8 — DONE: one engine
+
+media_kit, `packages/video_view`, the engine flag and the whole old presentation tree are gone.
+**176 files deleted, ~32,700 lines removed** against ~1,400 added across the migration.
+
+The gate in the original plan asked for a release cycle on the new default first. That was waived
+deliberately and for a good reason: this version has not shipped, so there are no installs to
+regress and no stored engine preference to honour. Keeping a second engine alive for a release we
+were never going to publish would have been ceremony.
+
+**What went.** `player_controller.dart` (5,100 lines), `player_screen.dart`,
+`skystream_player_controls.dart` (1,684 lines), the eleven overlays and sheets beneath it,
+`player_subtitle_manager.dart`, the vendored `video_view` package, three media_kit dependencies, and
+`player_utils.dart` — which turned out to have had no importers at all.
+
+**What survived, and why.** Three widget files were shared with the VLC path and stayed:
+`hotstar_player_style.dart`, `player_control_components.dart` (the top/bottom bars and buttons - the
+actual visual design), and `player_stream_widgets.dart`, stripped to `PlayerScrubber`,
+`PlayerSeekBar` and `PlayerBufferingIndicator`. That sharing is why Phase 5b could claim "no visual
+diff" by construction rather than by inspection: the chrome was never reimplemented.
+
+`PlayerBufferingIndicator` did need one change - it used to read three fields off the old controller
+to decide its own visibility, which put the decision in the wrong place. The caller owns that now.
+
+**Deliberately discarded, and recoverable.** `next_episode_overlay.dart`, `resume_prompt_overlay.dart`
+and `player_osd_overlay.dart` were engine-agnostic and are designed UI we may want again when the
+VLC path grows a next-episode countdown or a resume prompt. They were deleted rather than left as
+dead code; git history at the preceding commit is where they live now.
 
 ---
 

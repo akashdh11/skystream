@@ -3,236 +3,116 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:media_kit/media_kit.dart';
-import 'package:video_view/video_view.dart' as vv;
-import '../player_controller.dart';
 import '../../../../shared/widgets/custom_widgets.dart';
 import '../../../settings/presentation/player_settings_provider.dart';
 import 'hotstar_player_style.dart';
 import '../../../skip/data/skip_service.dart';
 
-/// A self-contained progress bar widget that uses StreamBuilder to avoid
-/// rebuilding the parent widget on every position update.
-class PlayerProgressBar extends ConsumerStatefulWidget {
-  final Player player;
-  final vv.VideoController? videoViewController;
-  final VoidCallback? onSeekStart;
-  final VoidCallback? onSeekEnd;
+/// The scrubber row — time label above, seek bar below — driven entirely by
+/// plain values.
+///
+/// Extracted so a second engine renders *the same widget* rather than a
+/// lookalike. Phase 5b's "no visual diff" criterion is then satisfied by
+/// construction: there is one implementation, and any future change to it
+/// necessarily lands on both paths at once.
+///
+/// Deliberately knows nothing about media_kit, libVLC or Riverpod player state.
+/// The one provider it touches is [playerSettingsProvider], for the persisted
+/// elapsed/remaining toggle, which is a user preference rather than engine
+/// state.
+/// Horizontal inset that aligns the time label with the seek bar's track.
+const double _kSliderTrackInset = 24;
 
-  /// On TV the scrubber becomes a focusable element: D-pad Left/Right seek by
-  /// the configured step and the thumb enlarges while focused. Off TV the
-  /// slider stays pointer-only (it is reached by touch/mouse, not focus).
-  final bool isTv;
+String _formatClock(Duration duration) {
+  final abs = duration.abs();
+  final hours = abs.inHours;
+  final minutes = abs.inMinutes.remainder(60);
+  final seconds = abs.inSeconds.remainder(60);
+  if (hours > 0) {
+    return '$hours:${minutes.toString().padLeft(2, '0')}:'
+        '${seconds.toString().padLeft(2, '0')}';
+  }
+  return '$minutes:${seconds.toString().padLeft(2, '0')}';
+}
+
+String _formatRemainingClock(Duration duration, Duration position) {
+  final remaining = duration - position;
+  return '-${_formatClock(remaining.isNegative ? Duration.zero : remaining)}';
+}
+
+class PlayerScrubber extends ConsumerWidget {
+  const PlayerScrubber({
+    super.key,
+    required this.position,
+    required this.duration,
+    required this.bufferRatio,
+    required this.canSeek,
+    this.isLive = false,
+    this.skipSegments = const <SkipSegment>[],
+    this.focusNode,
+    this.onArrowUp,
+    this.onArrowDown,
+    this.onChanged,
+    this.onChangeStart,
+    this.onChangeEnd,
+  });
+
+  /// What the label and thumb should show — the drag position while scrubbing,
+  /// the playback position otherwise.
+  final Duration position;
+  final Duration duration;
+
+  /// 0..1 of [duration] currently buffered.
+  final double bufferRatio;
+
+  final bool canSeek;
+  final bool isLive;
+  final List<SkipSegment> skipSegments;
+
   final FocusNode? focusNode;
   final VoidCallback? onArrowUp;
   final VoidCallback? onArrowDown;
 
-  const PlayerProgressBar({
-    super.key,
-    required this.player,
-    this.videoViewController,
-    this.onSeekStart,
-    this.onSeekEnd,
-    this.isTv = false,
-    this.focusNode,
-    this.onArrowUp,
-    this.onArrowDown,
-  });
+  /// Milliseconds, matching [PlayerSeekBar]'s value space.
+  final ValueChanged<double>? onChanged;
+  final ValueChanged<double>? onChangeStart;
+  final ValueChanged<double>? onChangeEnd;
 
   @override
-  ConsumerState<PlayerProgressBar> createState() => _PlayerProgressBarState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final durationMs = duration.inMilliseconds.toDouble();
+    final maxValue = durationMs > 0 ? durationMs : 1.0;
 
-class _PlayerProgressBarState extends ConsumerState<PlayerProgressBar> {
-  double? _dragValue;
-  late final FocusNode _scrubFocusNode;
-  static const double _sliderTrackInset = 24;
-  ProviderSubscription<int>? _streamIndexSub;
-
-  // ValueNotifiers so position/duration updates don't setState the whole widget.
-  final _vvPositionNotifier = ValueNotifier<int>(0);
-  final _vvDurationNotifier = ValueNotifier<int>(0);
-
-  /// Position, sampled down from mpv's raw rate.
-  ///
-  /// media_kit forwards every `time-pos` property change straight into
-  /// `player.stream.position` with no throttling (media_kit real.dart:1564-1572),
-  /// so on a 60 fps title this emits ~60 times a second. Each emission rebuilt
-  /// the seek row. A progress bar cannot show more than a pixel of change per
-  /// tick, so ~10 Hz is visually identical and cuts the rebuild rate by ~6x.
-  Stream<Duration>? _throttledPosition;
-  StreamSubscription<Duration>? _positionSub;
-  StreamController<Duration>? _positionController;
-
-  static const Duration _positionSampleInterval = Duration(milliseconds: 100);
-
-  Stream<Duration> get _positionStream =>
-      _throttledPosition ??= _makeThrottledPosition();
-
-  Stream<Duration> _makeThrottledPosition() {
-    final controller = StreamController<Duration>.broadcast(sync: true);
-    _positionController = controller;
-    DateTime last = DateTime.fromMillisecondsSinceEpoch(0);
-    Duration? pending;
-    Timer? flush;
-
-    _positionSub = widget.player.stream.position.listen((p) {
-      final now = DateTime.now();
-      if (now.difference(last) >= _positionSampleInterval) {
-        last = now;
-        pending = null;
-        flush?.cancel();
-        flush = null;
-        if (!controller.isClosed) controller.add(p);
-        return;
-      }
-      // Inside the sample window: remember the newest value and make sure it
-      // still lands, so the bar settles on the true position when playback
-      // pauses or the stream goes quiet.
-      pending = p;
-      flush ??= Timer(_positionSampleInterval, () {
-        flush = null;
-        final value = pending;
-        pending = null;
-        if (value != null) {
-          last = DateTime.now();
-          if (!controller.isClosed) controller.add(value);
-        }
-      });
-    });
-    return controller.stream;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _scrubFocusNode = widget.focusNode ?? FocusNode(debugLabel: 'scrubber');
-    widget.videoViewController?.position.addListener(_onVvPosition);
-    widget.videoViewController?.mediaInfo.addListener(_onVvMediaInfo);
-    _syncVideoViewProgress();
-    _watchStreamChanges();
-  }
-
-  void _watchStreamChanges() {
-    // `currentStreamIndex` ticks every time the active source changes
-    // (source picker, quality switch, episode autoplay). Cheap int
-    // comparison; no allocations.
-    _streamIndexSub = ref.listenManual<int>(
-      playerControllerProvider.select((s) => s.currentStreamIndex),
-      (prev, next) {
-        if (prev != null && prev != next && _dragValue != null && mounted) {
-          setState(() => _dragValue = null);
-        }
-      },
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _timeHeader(context, ref),
+        SizedBox(
+          height: 36,
+          child: PlayerSeekBar(
+            value: position.inMilliseconds.toDouble().clamp(0, maxValue),
+            min: 0.0,
+            max: maxValue,
+            step: 30 * 1000.0, // D-pad Left/Right jumps 30 seconds
+            focusNode: focusNode,
+            onArrowUp: onArrowUp,
+            onArrowDown: onArrowDown,
+            canSeek: canSeek,
+            bufferRatio: bufferRatio,
+            skipSegments: skipSegments,
+            onChanged: canSeek ? onChanged : null,
+            onChangeStart: canSeek ? onChangeStart : null,
+            onChangeEnd: canSeek ? onChangeEnd : null,
+          ),
+        ),
+      ],
     );
   }
 
-  @override
-  void didUpdateWidget(PlayerProgressBar old) {
-    super.didUpdateWidget(old);
-    if (old.videoViewController != widget.videoViewController) {
-      old.videoViewController?.position.removeListener(_onVvPosition);
-      old.videoViewController?.mediaInfo.removeListener(_onVvMediaInfo);
-      widget.videoViewController?.position.addListener(_onVvPosition);
-      widget.videoViewController?.mediaInfo.addListener(_onVvMediaInfo);
-      _syncVideoViewProgress();
-    }
-  }
+  Widget _timeHeader(BuildContext context, WidgetRef ref) {
+    if (isLive) return const _LivePill();
 
-  void _syncVideoViewProgress() {
-    _onVvPosition();
-    _onVvMediaInfo();
-  }
-
-  void _onVvPosition() {
-    _vvPositionNotifier.value = widget.videoViewController?.position.value ?? 0;
-  }
-
-  void _onVvMediaInfo() {
-    _vvDurationNotifier.value =
-        widget.videoViewController?.mediaInfo.value?.duration ?? 0;
-  }
-
-  @override
-  void dispose() {
-    widget.videoViewController?.position.removeListener(_onVvPosition);
-    widget.videoViewController?.mediaInfo.removeListener(_onVvMediaInfo);
-    _streamIndexSub?.close();
-    unawaited(_positionSub?.cancel());
-    unawaited(_positionController?.close());
-    _vvPositionNotifier.dispose();
-    _vvDurationNotifier.dispose();
-    if (widget.focusNode == null) {
-      _scrubFocusNode.dispose();
-    }
-    super.dispose();
-  }
-
-  String _formatDuration(Duration duration) {
-    final absDuration = duration.abs();
-    final hours = absDuration.inHours;
-    final minutes = absDuration.inMinutes.remainder(60);
-    final seconds = absDuration.inSeconds.remainder(60);
-    if (hours > 0) {
-      return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
-    }
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-
-  String _formatRemaining(Duration duration, Duration position) {
-    final remaining = duration - position;
-    final clamped = remaining.isNegative ? Duration.zero : remaining;
-    return '-${_formatDuration(clamped)}';
-  }
-
-  Widget _buildTimeHeader({
-    required bool isLive,
-    required Duration duration,
-    required Duration displayDuration,
-  }) {
-    if (isLive) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: _sliderTrackInset),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Container(
-            height: 22,
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(4),
-              border: Border.all(
-                color: Colors.red.withValues(alpha: 0.45),
-                width: 1,
-              ),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.circle, color: Colors.red, size: 7),
-                SizedBox(width: 5),
-                Text(
-                  'LIVE',
-                  style: TextStyle(
-                    color: Colors.red,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    final currentText = _formatDuration(displayDuration);
-    final remainingText = _formatRemaining(duration, displayDuration);
-    final durationText = _formatDuration(duration);
-    // Persisted across sessions — once a user toggles to remaining-time
-    // they almost always want it always. Stored in PlayerSettings so it
-    // survives episode change, source change, and app restart.
     final showRemaining =
         ref.watch(
           playerSettingsProvider.select(
@@ -241,22 +121,20 @@ class _PlayerProgressBarState extends ConsumerState<PlayerProgressBar> {
         ) ??
         false;
     final label = showRemaining
-        ? '$remainingText / $durationText'
-        : '$currentText / $durationText';
+        ? '${_formatRemainingClock(duration, position)} / ${_formatClock(duration)}'
+        : '${_formatClock(position)} / ${_formatClock(duration)}';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _sliderTrackInset),
+      padding: const EdgeInsets.symmetric(horizontal: _kSliderTrackInset),
       child: Align(
         alignment: Alignment.centerLeft,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () {
-              ref
-                  .read(playerSettingsProvider.notifier)
-                  .setShowRemainingTime(!showRemaining);
-            },
+            onTap: () => ref
+                .read(playerSettingsProvider.notifier)
+                .setShowRemainingTime(!showRemaining),
             child: Padding(
               padding: const EdgeInsets.only(bottom: 2),
               child: Text(
@@ -277,290 +155,46 @@ class _PlayerProgressBarState extends ConsumerState<PlayerProgressBar> {
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    final useExoPlayer = ref.watch(
-      playerControllerProvider.select((s) => s.useExoPlayer),
-    );
-    final canSeek = ref.watch(
-      playerControllerProvider.select((s) => s.canSeek),
-    );
-
-    final skipSegments = ref.watch(
-      playerControllerProvider.select((s) => s.skipSegments),
-    );
-
-    _scrubFocusNode.canRequestFocus = widget.isTv && canSeek;
-    _scrubFocusNode.skipTraversal = !(widget.isTv && canSeek);
-
-    if (useExoPlayer && widget.videoViewController != null) {
-      return _buildVideoViewBar(canSeek: canSeek, skipSegments: skipSegments);
-    }
-    return _buildMediaKitBar(canSeek: canSeek, skipSegments: skipSegments);
-  }
-
-  Widget _buildVideoViewBar({
-    required bool canSeek,
-    required List<SkipSegment> skipSegments,
-  }) {
-    final isLive = ref.watch(playerControllerProvider.select((s) => s.isLive));
-
-    return ValueListenableBuilder<int>(
-      valueListenable: _vvDurationNotifier,
-      builder: (context, durationMs, _) {
-        return ValueListenableBuilder<int>(
-          valueListenable: _vvPositionNotifier,
-          builder: (context, positionMs, _) {
-            final durationMsD = durationMs.toDouble();
-            final positionMsD = positionMs.toDouble();
-            final displayValue = _dragValue ?? positionMsD;
-            final displayDuration = Duration(
-              milliseconds: (_dragValue ?? positionMsD).toInt(),
-            );
-            final duration = Duration(milliseconds: durationMs);
-
-            return _buildRow(
-              duration: duration,
-              durationMs: durationMsD,
-              displayValue: displayValue,
-              displayDuration: displayDuration,
-              bufferRatio: 0.0,
-              canSeek: canSeek,
-              onSeekEnd: (val) => ref
-                  .read(playerControllerProvider.notifier)
-                  .seekTo(Duration(milliseconds: val.toInt())),
-              isLive: isLive,
-              skipSegments: skipSegments,
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildMediaKitBar({
-    required bool canSeek,
-    required List<SkipSegment> skipSegments,
-  }) {
-    final isLive = ref.watch(playerControllerProvider.select((s) => s.isLive));
-
-    return StreamBuilder<Duration>(
-      stream: widget.player.stream.duration,
-      initialData: widget.player.state.duration,
-      builder: (context, durationSnapshot) {
-        final duration = durationSnapshot.data ?? Duration.zero;
-        final durationMs = duration.inMilliseconds.toDouble();
-
-        return StreamBuilder<Duration>(
-          stream: _positionStream,
-          initialData: widget.player.state.position,
-          builder: (context, positionSnapshot) {
-            final position = positionSnapshot.data ?? Duration.zero;
-            final positionMs = position.inMilliseconds.toDouble();
-            final displayValue = _dragValue ?? positionMs;
-            final displayDuration = _dragValue != null
-                ? Duration(milliseconds: _dragValue!.toInt())
-                : position;
-
-            return StreamBuilder<Duration>(
-              stream: widget.player.stream.buffer,
-              initialData: widget.player.state.buffer,
-              builder: (context, bufferSnapshot) {
-                final buffer = bufferSnapshot.data ?? Duration.zero;
-                final bufferMs = buffer.inMilliseconds.toDouble();
-                final bufferRatio = durationMs > 0
-                    ? (bufferMs / durationMs).clamp(0.0, 1.0)
-                    : 0.0;
-
-                return _buildRow(
-                  duration: duration,
-                  durationMs: durationMs,
-                  displayValue: displayValue,
-                  displayDuration: displayDuration,
-                  bufferRatio: bufferRatio,
-                  canSeek: canSeek,
-                  onSeekEnd: (val) => ref
-                      .read(playerControllerProvider.notifier)
-                      .seekTo(Duration(milliseconds: val.toInt())),
-                  isLive: isLive,
-                  skipSegments: skipSegments,
-                );
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildRow({
-    required Duration duration,
-    required double durationMs,
-    required double displayValue,
-    required Duration displayDuration,
-    required double bufferRatio,
-    required bool canSeek,
-    required void Function(double val) onSeekEnd,
-    required List<SkipSegment> skipSegments,
-    bool isLive = false,
-  }) {
-    // Sizes to content (time row + the fixed-height track band) so it never
-    // overflows its slot — no magic outer height.
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildTimeHeader(
-          isLive: isLive,
-          duration: duration,
-          displayDuration: displayDuration,
-        ),
-        SizedBox(
-          height: 36,
-          child: _buildSlider(
-            durationMs: durationMs,
-            displayValue: displayValue,
-            canSeek: canSeek,
-            onSeekEnd: onSeekEnd,
-            bufferRatio: bufferRatio,
-            skipSegments: skipSegments,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSlider({
-    required double durationMs,
-    required double displayValue,
-    required bool canSeek,
-    required void Function(double val) onSeekEnd,
-    required double bufferRatio,
-    required List<SkipSegment> skipSegments,
-  }) {
-    final maxValue = durationMs > 0 ? durationMs : 1.0;
-    return _SeekBar(
-      value: displayValue.clamp(0, maxValue),
-      min: 0.0,
-      max: maxValue,
-      step: 30 * 1000.0, // D-pad Left/Right jumps 30 seconds on the remote
-      focusNode: _scrubFocusNode,
-      onArrowUp: widget.onArrowUp,
-      onArrowDown: widget.onArrowDown,
-      canSeek: canSeek,
-      bufferRatio: bufferRatio,
-      skipSegments: skipSegments,
-      onChanged: canSeek ? (val) => setState(() => _dragValue = val) : null,
-      onChangeStart: canSeek
-          ? (val) {
-              widget.onSeekStart?.call();
-              setState(() => _dragValue = val);
-            }
-          : null,
-      onChangeEnd: canSeek
-          ? (val) {
-              onSeekEnd(val);
-              widget.onSeekEnd?.call();
-              setState(() => _dragValue = null);
-            }
-          : null,
-    );
-  }
 }
 
-class PlayerPlayPauseButton extends StatelessWidget {
-  final Player player;
-  final vv.VideoController? videoViewController;
-  final bool isLoading;
-  final bool isTv;
-  final double size;
-  final FocusNode? focusNode;
-  final VoidCallback? onPressed;
-
-  /// When false the button shows the play/pause icon even while buffering — the
-  /// buffering state is surfaced by the centered [PlayerBufferingIndicator]
-  /// instead. Used for the corner button on desktop/TV so the spinner isn't
-  /// hidden away where it's easy to miss.
-  final bool showBufferingSpinner;
-
-  /// Optional circular fill behind the glyph (used for the big touch-center
-  /// button so it reads as a tappable target over bright video).
-  final Color? backgroundColor;
-
-  const PlayerPlayPauseButton({
-    super.key,
-    required this.player,
-    this.videoViewController,
-    this.isLoading = false,
-    this.isTv = false,
-    this.size = 82,
-    this.focusNode,
-    this.onPressed,
-    this.showBufferingSpinner = true,
-    this.backgroundColor,
-  });
+/// The red LIVE badge shown instead of a time label on a live stream.
+class _LivePill extends StatelessWidget {
+  const _LivePill();
 
   @override
   Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, _) {
-        final isBuffering =
-            ref.watch(playerControllerProvider.select((s) => s.isBuffering)) &&
-            showBufferingSpinner;
-        final useExoPlayer = ref.watch(
-          playerControllerProvider.select((s) => s.useExoPlayer),
-        );
-
-        if (useExoPlayer && videoViewController != null) {
-          return ListenableBuilder(
-            listenable: videoViewController!.playbackState,
-            builder: (context, _) {
-              final isPlaying =
-                  videoViewController!.playbackState.value ==
-                  vv.VideoControllerPlaybackState.playing;
-              return _buildButton(
-                isPlaying: isPlaying,
-                isSpinning: isBuffering,
-              );
-            },
-          );
-        }
-
-        return StreamBuilder<bool>(
-          stream: player.stream.playing,
-          initialData: player.state.playing,
-          builder: (context, snapshot) {
-            return _buildButton(
-              isPlaying: snapshot.data ?? false,
-              isSpinning: isBuffering,
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildButton({required bool isPlaying, required bool isSpinning}) {
-    return CustomButton(
-      focusNode: focusNode,
-      onPressed: onPressed ?? () => player.playOrPause(),
-      showFocusHighlight: isTv,
-      shape: const CircleBorder(),
-      child: Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: backgroundColor != null
-            ? BoxDecoration(shape: BoxShape.circle, color: backgroundColor)
-            : null,
-        child: isSpinning
-            ? const _PlayerSpinner()
-            : Icon(
-                isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                color: Colors.white,
-                size: size * 0.88,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: _kSliderTrackInset),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          height: 22,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: Colors.red.withValues(alpha: 0.45),
+              width: 1,
+            ),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.circle, color: Colors.red, size: 7),
+              SizedBox(width: 5),
+              Text(
+                'LIVE',
+                style: TextStyle(
+                  color: Colors.red,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                  letterSpacing: 0.5,
+                ),
               ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -582,46 +216,18 @@ class _PlayerSpinner extends StatelessWidget {
   }
 }
 
+/// The centred buffering spinner.
+///
+/// Deliberately has no opinion about when it should appear: it used to read
+/// three fields off the old player controller to decide, which meant the
+/// decision lived in the wrong place and could disagree with the overlay
+/// around it. The caller owns visibility now.
 class PlayerBufferingIndicator extends StatelessWidget {
-  final bool isVisible;
-
-  /// On touch the play/pause button lives in the screen centre and shows its
-  /// own spinner, so this indicator is suppressed while the controls are
-  /// visible. On desktop/TV the play/pause button is in the corner, so the
-  /// centered indicator stays shown even with controls visible — otherwise a
-  /// stall is easy to miss.
-  final bool isTouch;
-
-  const PlayerBufferingIndicator({
-    super.key,
-    this.isVisible = false,
-    this.isTouch = false,
-  });
+  const PlayerBufferingIndicator({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, _) {
-        final isBuffering = ref.watch(
-          playerControllerProvider.select((s) => s.isBuffering),
-        );
-        final isLoading = ref.watch(
-          playerControllerProvider.select((s) => s.isLoading),
-        );
-        final userSkippedOverlay = ref.watch(
-          playerControllerProvider.select((s) => s.userSkippedOverlay),
-        );
-
-        if (!isBuffering && !isLoading) return const SizedBox.shrink();
-        // Touch + controls visible → the centered play/pause spinner covers it.
-        if (isVisible && isTouch) return const SizedBox.shrink();
-        // While the primary (blocking) loading overlay is up, defer to it.
-        if (isLoading && !userSkippedOverlay) return const SizedBox.shrink();
-
-        return const IgnorePointer(child: Center(child: _PlayerSpinner()));
-      },
-    );
-  }
+  Widget build(BuildContext context) =>
+      const IgnorePointer(child: Center(child: _PlayerSpinner()));
 }
 
 class _TrackInterval {
@@ -636,7 +242,7 @@ class _TrackInterval {
   });
 }
 
-class _SeekBar extends StatefulWidget {
+class PlayerSeekBar extends StatefulWidget {
   final double value;
   final double min;
   final double max;
@@ -651,7 +257,8 @@ class _SeekBar extends StatefulWidget {
   final ValueChanged<double>? onChangeStart;
   final ValueChanged<double>? onChangeEnd;
 
-  const _SeekBar({
+  const PlayerSeekBar({
+    super.key,
     required this.value,
     required this.min,
     required this.max,
@@ -668,10 +275,10 @@ class _SeekBar extends StatefulWidget {
   });
 
   @override
-  State<_SeekBar> createState() => _SeekBarState();
+  State<PlayerSeekBar> createState() => _PlayerSeekBarState();
 }
 
-class _SeekBarState extends State<_SeekBar> {
+class _PlayerSeekBarState extends State<PlayerSeekBar> {
   late final FocusNode _focusNode;
   bool _isFocused = false;
   bool _isDragging = false;
