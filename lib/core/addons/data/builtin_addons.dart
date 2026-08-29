@@ -11,7 +11,8 @@ import '../models/addon_manifest.dart';
 class BuiltInAddons {
   const BuiltInAddons._();
 
-  static const String cinemetaUrl = 'https://v3-cinemeta.strem.io/manifest.json';
+  static const String cinemetaUrl =
+      'https://v3-cinemeta.strem.io/manifest.json';
 
   static final ManagedAddon cinemeta = ManagedAddon(
     manifestUrl: cinemetaUrl,

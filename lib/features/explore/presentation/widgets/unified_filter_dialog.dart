@@ -34,7 +34,7 @@ class _UnifiedFilterDialogState extends ConsumerState<UnifiedFilterDialog>
 
   @override
   Widget build(BuildContext context) {
-    final isAnime = ref.watch(exploreModeProvider);
+    final isAnime = ref.watch(exploreModeProvider) == ExploreModeType.anime;
 
     return BackdropFilter(
       filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),

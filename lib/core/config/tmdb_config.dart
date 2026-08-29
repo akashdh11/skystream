@@ -19,30 +19,41 @@ class TmdbConfig {
   /// TMDB API key baked in at build time.
   /// Pass via: flutter run --dart-define=TMDB_API_KEY=your_key_here
   ///
-  /// This is only the *fallback*. Prefer [apiKey], which lets a user-supplied
-  /// key (entered in Settings) take precedence over the build-time value.
+  /// This is only the fallback when the user has not configured a key.
   static const String buildTimeApiKey = String.fromEnvironment('TMDB_API_KEY');
 
-  /// User-supplied key, mirrored here from Hive at boot by [setUserApiKey].
-  ///
-  /// Same rationale as [_profile]: TMDB URLs and query parameters are built by
-  /// pure functions and model constructors that have no Riverpod `Ref`, so a
-  /// set-once global is the least invasive way to make the key reachable.
+  /// User-supplied key from Settings, mirrored here from storage at boot by [setUserApiKey].
   static String _userApiKey = '';
 
-  /// The effective TMDB key: a key the user pasted in Settings wins, otherwise
-  /// the compile-time `--dart-define` value. Empty when neither is configured,
-  /// which every call site already treats as "TMDB unavailable".
-  static String get apiKey =>
-      _userApiKey.isNotEmpty ? _userApiKey : buildTimeApiKey;
+  /// User-supplied key from Nuvio plugins screen, mirrored here by [setNuvioApiKey].
+  static String _nuvioApiKey = '';
 
-  /// True when the key came from the user rather than the build.
-  static bool get usingUserApiKey => _userApiKey.isNotEmpty;
+  /// The effective TMDB key:
+  /// 1. If the user configured a TMDB API key in Settings, use that key.
+  /// 2. Else if the user configured a TMDB API key in the Nuvio plugins screen, use that key.
+  /// 3. Otherwise, use the build-time developer key provided via `--dart-define=TMDB_API_KEY`.
+  static String get apiKey {
+    if (_userApiKey.isNotEmpty) {
+      return _userApiKey;
+    } else if (_nuvioApiKey.isNotEmpty) {
+      return _nuvioApiKey;
+    } else {
+      return buildTimeApiKey;
+    }
+  }
 
-  /// Called at boot from `_MyAppState` and again whenever the user saves a new
-  /// key. Trimmed so a stray newline from a paste can't corrupt the query.
+  /// True when the key came from the user (Settings or Nuvio plugins) rather than the build.
+  static bool get usingUserApiKey =>
+      _userApiKey.isNotEmpty || _nuvioApiKey.isNotEmpty;
+
+  /// Called at boot and whenever the user saves a new key in Settings.
   static void setUserApiKey(String? key) {
     _userApiKey = key?.trim() ?? '';
+  }
+
+  /// Called at boot and whenever the user saves a new key in Nuvio plugins screen.
+  static void setNuvioApiKey(String? key) {
+    _nuvioApiKey = key?.trim() ?? '';
   }
 
   static const String baseUrl = 'https://api.themoviedb.org/3';

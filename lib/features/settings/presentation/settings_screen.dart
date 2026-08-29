@@ -17,6 +17,7 @@ import 'app_version_provider.dart';
 import 'account_settings_screen.dart';
 import 'developer_options_screen.dart';
 import '../../extensions/screens/extensions_screen.dart';
+import '../../addons/presentation/addons_screen.dart';
 
 import 'package:skystream/l10n/generated/app_localizations.dart';
 import '../../../core/providers/locale_provider.dart';
@@ -29,19 +30,46 @@ enum SettingsCategory {
   player,
   accounts,
   extensions,
+  addons,
   developer,
   about,
 }
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  final String? initialCategory;
+  const SettingsScreen({super.key, this.initialCategory});
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
-  SettingsCategory _selectedCategory = SettingsCategory.general;
+  late SettingsCategory _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCategory = _parseCategory(widget.initialCategory);
+  }
+
+  @override
+  void didUpdateWidget(covariant SettingsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCategory != oldWidget.initialCategory &&
+        widget.initialCategory != null) {
+      setState(() {
+        _selectedCategory = _parseCategory(widget.initialCategory);
+      });
+    }
+  }
+
+  SettingsCategory _parseCategory(String? name) {
+    if (name == null) return SettingsCategory.general;
+    return SettingsCategory.values.firstWhere(
+      (c) => c.name.toLowerCase() == name.toLowerCase(),
+      orElse: () => SettingsCategory.general,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -94,6 +122,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       (SettingsCategory.player, l10n.player, Icons.smart_display_rounded),
       (SettingsCategory.accounts, l10n.accounts, Icons.account_circle_rounded),
       (SettingsCategory.extensions, l10n.extensions, Icons.extension_rounded),
+      (
+        SettingsCategory.addons,
+        'Stremio Add-ons',
+        Icons.dashboard_customize_rounded,
+      ),
       (
         SettingsCategory.developer,
         l10n.developerOptions,
@@ -225,8 +258,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   generalSettings,
                 ),
                 const SizedBox(height: LayoutConstants.spacingLg),
-                _buildLibrarySettingsGroup(context, l10n),
-                const SizedBox(height: LayoutConstants.spacingLg),
                 _buildDownloadsSettingsGroup(context, l10n, generalSettings),
                 const SizedBox(height: LayoutConstants.spacingLg),
                 _buildNetworkSettingsGroup(context, l10n, generalSettings),
@@ -261,6 +292,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
       case SettingsCategory.extensions:
         return const ExtensionsScreen(isEmbedded: true);
+
+      case SettingsCategory.addons:
+        return const AddonsScreen(isEmbedded: true);
 
       case SettingsCategory.developer:
         return const DeveloperOptionsScreen(isEmbedded: true);
@@ -311,8 +345,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               generalSettings,
             ),
             const SizedBox(height: LayoutConstants.spacingLg),
-            _buildLibrarySettingsGroup(context, l10n),
-            const SizedBox(height: LayoutConstants.spacingLg),
             _buildDownloadsSettingsGroup(context, l10n, generalSettings),
             const SizedBox(height: LayoutConstants.spacingLg),
             _buildPlayerSettingsGroup(
@@ -352,6 +384,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   subtitle: l10n.installRemoveProviders,
                   isLast: true,
                   onTap: () => const ExtensionsRoute().go(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: LayoutConstants.spacingLg),
+            SettingsGroup(
+              title: 'Stremio Add-ons',
+              children: [
+                SettingsTile(
+                  icon: Icons.dashboard_customize_rounded,
+                  title: 'Stremio Add-ons',
+                  subtitle: 'Manage and discover installed add-ons',
+                  isLast: true,
+                  onTap: () => const AddonsRoute().push<void>(context),
                 ),
               ],
             ),
@@ -448,31 +493,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           isLast: true,
           onTap: () =>
               showLanguageDialog(context, ref, ref.read(localeProvider)),
-        ),
-      ],
-    );
-  }
-
-  /// Library is no longer a navigation destination — its two screens live here.
-  Widget _buildLibrarySettingsGroup(
-    BuildContext context,
-    AppLocalizations l10n,
-  ) {
-    return SettingsGroup(
-      title: l10n.library,
-      children: [
-        SettingsTile(
-          icon: Icons.download_rounded,
-          title: l10n.downloads,
-          subtitle: 'Manage and open your downloads',
-          onTap: () => const LibraryRoute().push<void>(context),
-        ),
-        SettingsTile(
-          icon: Icons.bookmark_rounded,
-          title: 'Bookmarks',
-          subtitle: 'Everything you saved to watch later',
-          onTap: () => const LibraryRoute(tab: 1).push<void>(context),
-          isLast: true,
         ),
       ],
     );

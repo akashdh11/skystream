@@ -103,3 +103,11 @@
 # ─────────────────────────────────────────────────────────────────────────
 -dontwarn javax.annotation.**
 -dontwarn org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement
+
+# ─────────────────────────────────────────────────────────────────────────
+# AndroidX Window / Foldable extensions & sidecar (OEM vendor classes
+# dynamically resolved at runtime on physical foldable devices).
+# ─────────────────────────────────────────────────────────────────────────
+-dontwarn androidx.window.extensions.**
+-dontwarn androidx.window.sidecar.**
+

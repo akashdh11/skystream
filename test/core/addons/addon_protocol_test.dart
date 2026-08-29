@@ -32,10 +32,7 @@ void main() {
     test('keeps the configuration query string', () {
       const url = 'https://torrentio.strem.fun/manifest.json?providers=yts';
       expect(AddonTransport.normalizeManifestUrl(url), url);
-      expect(
-        AddonTransport.baseUrl(url),
-        'https://torrentio.strem.fun',
-      );
+      expect(AddonTransport.baseUrl(url), 'https://torrentio.strem.fun');
 
       final resource = AddonTransport.resourceUrl(
         url,
@@ -185,10 +182,7 @@ void main() {
         episode: 5,
         tmdbId: 1399,
       );
-      expect(request.idCandidates, [
-        'tt0944947:1:5',
-        'tmdb:1399:1:5',
-      ]);
+      expect(request.idCandidates, ['tt0944947:1:5', 'tmdb:1399:1:5']);
     });
 
     test('non-IMDb series still gets an IMDb episode candidate', () {
@@ -199,10 +193,7 @@ void main() {
         episode: 3,
         imdbId: 'tt2560140',
       );
-      expect(request.idCandidates, [
-        'kitsu:2:3',
-        'tt2560140:2:3',
-      ]);
+      expect(request.idCandidates, ['kitsu:2:3', 'tt2560140:2:3']);
     });
   });
 
@@ -342,13 +333,10 @@ void main() {
     });
 
     test('honours a preferred filename from the add-on', () {
-      final id = DebridService.pickBestFileId(
-        const [
-          {'id': 3, 'path': '/Show/S01E01.mkv', 'bytes': 900000000},
-          {'id': 4, 'path': '/Show/S01E02.mkv', 'bytes': 1900000000},
-        ],
-        preferredFilename: 'S01E01.mkv',
-      );
+      final id = DebridService.pickBestFileId(const [
+        {'id': 3, 'path': '/Show/S01E01.mkv', 'bytes': 900000000},
+        {'id': 4, 'path': '/Show/S01E02.mkv', 'bytes': 1900000000},
+      ], preferredFilename: 'S01E01.mkv');
       expect(id, 3);
     });
 
@@ -383,7 +371,11 @@ void main() {
               'status': 'Ready',
               'links': [
                 {'link': 'https://small', 'size': 100, 'filename': 'a.mkv'},
-                {'link': 'https://sample', 'size': 900, 'filename': 'sample.mkv'},
+                {
+                  'link': 'https://sample',
+                  'size': 900,
+                  'filename': 'sample.mkv',
+                },
                 {'link': 'https://big', 'size': 800, 'filename': 'b.mkv'},
               ],
             },

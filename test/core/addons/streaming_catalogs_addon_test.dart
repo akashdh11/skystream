@@ -33,7 +33,8 @@ void main() {
     'year': '2024',
     'moviedb_id': 558449,
     'poster': 'https://images.justwatch.com/poster/344681920/s332/img',
-    'background': 'https://images.metahub.space/background/medium/tt9218128/img',
+    'background':
+        'https://images.metahub.space/background/medium/tt9218128/img',
     'id': 'tt9218128',
     'releaseInfo': '2024',
     'genres': ['Action', 'Drama'],
@@ -74,7 +75,9 @@ void main() {
       'https://host.example/manifest.json',
     );
     expect(
-      AddonTransport.normalizeManifestUrl('stremio://host.example/manifest.json'),
+      AddonTransport.normalizeManifestUrl(
+        'stremio://host.example/manifest.json',
+      ),
       'https://host.example/manifest.json',
     );
   });
@@ -112,10 +115,7 @@ void main() {
     expect(restored.manifest!.hasResource('catalog'), isTrue);
     expect(restored.manifest!.idPrefixes, ['tt']);
     // String resources must still inherit the manifest-level types.
-    expect(restored.manifest!.resource('catalog')!.types, [
-      'movie',
-      'series',
-    ]);
+    expect(restored.manifest!.resource('catalog')!.types, ['movie', 'series']);
     expect(restored.enabled, isTrue);
   });
 

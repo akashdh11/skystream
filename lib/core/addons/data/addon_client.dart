@@ -249,7 +249,11 @@ class AddonClient {
     if (forceRefresh) _cache.invalidatePrefix('stream:$url');
 
     return _cache.run('stream:$url', streamTtl, () async {
-      final json = await _getJson(url, timeout: _slow, cancelToken: cancelToken);
+      final json = await _getJson(
+        url,
+        timeout: _slow,
+        cancelToken: cancelToken,
+      );
       final streams = json?['streams'];
       if (streams is! List) return const <AddonStreamSource>[];
       final out = <AddonStreamSource>[];

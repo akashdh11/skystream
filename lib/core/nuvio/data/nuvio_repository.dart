@@ -39,8 +39,7 @@ class NuvioState {
 
   /// Scrapers whose version changed on the most recent refresh.
   Set<String> get recentlyUpdatedScraperIds => {
-    for (final repo in repos)
-      ...?repo.lastUpdate?.changedScraperIds,
+    for (final repo in repos) ...?repo.lastUpdate?.changedScraperIds,
   };
 
   int get pendingUpdateCount => repos.fold(
@@ -165,7 +164,9 @@ class NuvioRepository extends _$NuvioRepository {
       ),
     );
     if ((response.statusCode ?? 0) >= 400) {
-      throw NuvioException('HTTP ${response.statusCode} fetching the manifest.');
+      throw NuvioException(
+        'HTTP ${response.statusCode} fetching the manifest.',
+      );
     }
     final data = response.data;
     final decoded = data is String ? jsonDecode(data) : data;
@@ -214,7 +215,8 @@ class NuvioRepository extends _$NuvioRepository {
   Future<void> removeRepository(String manifestUrl) async {
     final removed = state.repos.firstWhere(
       (r) => r.manifestUrl == manifestUrl,
-      orElse: () => NuvioRepo(manifestUrl: manifestUrl, addedAt: DateTime.now()),
+      orElse: () =>
+          NuvioRepo(manifestUrl: manifestUrl, addedAt: DateTime.now()),
     );
     await _persist(
       state.repos.where((r) => r.manifestUrl != manifestUrl).toList(),
@@ -266,9 +268,7 @@ class NuvioRepository extends _$NuvioRepository {
           .where((s) => s.id == scraperId)
           .firstOrNull;
       if (scraper != null) {
-        unawaited(
-          codeFor(repo, scraper).catchError((Object _) => ''),
-        );
+        unawaited(codeFor(repo, scraper).catchError((Object _) => ''));
       }
     }
   }
@@ -415,13 +415,11 @@ class NuvioRepository extends _$NuvioRepository {
   }
 
   /// Drop cached code for the given scrapers (any version).
-  Future<void> _invalidateCode(
-    String manifestUrl,
-    Set<String> scraperIds,
-  ) => _codeStore.deleteScrapers(
-    manifestUrl: manifestUrl,
-    scraperIds: scraperIds,
-  );
+  Future<void> _invalidateCode(String manifestUrl, Set<String> scraperIds) =>
+      _codeStore.deleteScrapers(
+        manifestUrl: manifestUrl,
+        scraperIds: scraperIds,
+      );
 
   /// Remove code cached for versions (or scrapers) the manifest no longer
   /// lists, so an old bundle can never be run after an update.
@@ -462,10 +460,7 @@ class NuvioRepository extends _$NuvioRepository {
     _settingsCache[scraperId] = values;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        '$_settingsPrefix$scraperId',
-        jsonEncode(values),
-      );
+      await prefs.setString('$_settingsPrefix$scraperId', jsonEncode(values));
     } catch (error) {
       if (kDebugMode) debugPrint('[Nuvio] save settings $scraperId: $error');
     }

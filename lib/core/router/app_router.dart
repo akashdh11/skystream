@@ -5,7 +5,6 @@ import 'package:skystream/features/home/presentation/home_screen.dart';
 import 'package:skystream/features/search/presentation/search_screen.dart';
 import '../../features/explore/presentation/explore_screen.dart';
 import 'package:skystream/features/library/presentation/library_screen.dart';
-import 'package:skystream/features/nuvio/presentation/nuvio_screen.dart';
 import 'package:skystream/features/addons/presentation/addons_screen.dart';
 import 'package:skystream/features/addons/presentation/addon_detail_screen.dart';
 import 'package:skystream/features/addons/presentation/addon_catalog_screen.dart';
@@ -38,11 +37,8 @@ part 'app_router.g.dart';
     TypedStatefulShellBranch<ExploreBranchData>(
       routes: [TypedGoRoute<ExploreRoute>(path: '/explore')],
     ),
-    TypedStatefulShellBranch<NuvioBranchData>(
-      routes: [TypedGoRoute<NuvioRoute>(path: '/nuvio')],
-    ),
-    TypedStatefulShellBranch<AddonsBranchData>(
-      routes: [TypedGoRoute<AddonsRoute>(path: '/addons')],
+    TypedStatefulShellBranch<LibraryBranchData>(
+      routes: [TypedGoRoute<LibraryRoute>(path: '/library')],
     ),
     TypedStatefulShellBranch<SettingsBranchData>(
       routes: [
@@ -102,26 +98,27 @@ class ExploreRoute extends GoRouteData with $ExploreRoute {
       const ExploreScreen();
 }
 
-class NuvioBranchData extends StatefulShellBranchData {
-  const NuvioBranchData();
+class LibraryBranchData extends StatefulShellBranchData {
+  const LibraryBranchData();
 }
 
-class NuvioRoute extends GoRouteData with $NuvioRoute {
-  const NuvioRoute();
+class LibraryRoute extends GoRouteData with $LibraryRoute {
+  final int? tab;
+  const LibraryRoute({this.tab});
+
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      const NuvioScreen();
+      LibraryScreen(initialTab: tab ?? 0);
 }
 
-class AddonsBranchData extends StatefulShellBranchData {
-  const AddonsBranchData();
-}
-
+@TypedGoRoute<AddonsRoute>(path: '/addons')
 class AddonsRoute extends GoRouteData with $AddonsRoute {
-  const AddonsRoute();
+  final int? initialTab;
+  const AddonsRoute({this.initialTab});
+
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      const AddonsScreen();
+      AddonsScreen(initialTab: initialTab ?? 0);
 }
 
 class SettingsBranchData extends StatefulShellBranchData {
@@ -129,10 +126,12 @@ class SettingsBranchData extends StatefulShellBranchData {
 }
 
 class SettingsRoute extends GoRouteData with $SettingsRoute {
-  const SettingsRoute();
+  final String? category;
+  const SettingsRoute({this.category});
+
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      const SettingsScreen();
+      SettingsScreen(initialCategory: category);
 }
 
 // --- Sub-routes of Settings ---
@@ -276,25 +275,9 @@ class PlayerRoute extends GoRouteData with $PlayerRoute {
   }
 }
 
-
-/// Library is no longer a tab: Settings opens Downloads / Bookmarks here.
-@TypedGoRoute<LibraryRoute>(path: '/library')
-class LibraryRoute extends GoRouteData with $LibraryRoute {
-  const LibraryRoute({this.tab = 0});
-  final int tab;
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      LibraryScreen(initialTab: tab);
-}
-
 @TypedGoRoute<AddonDetailRoute>(path: '/addon-detail')
 class AddonDetailRoute extends GoRouteData with $AddonDetailRoute {
-  const AddonDetailRoute({
-    required this.type,
-    required this.id,
-    this.addonUrl,
-  });
+  const AddonDetailRoute({required this.type, required this.id, this.addonUrl});
   final String type;
   final String id;
   final String? addonUrl;
@@ -340,21 +323,14 @@ const List<String> kShellBranchRoutes = [
   '/home',
   '/search',
   '/explore',
-  '/nuvio',
-  '/addons',
+  '/library',
   '/settings',
 ];
 
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
   final saved = ref.read(settingsRepositoryProvider).getDefaultHomeScreen();
-  final initial = kShellBranchRoutes.contains(saved)
-      ? saved
-      : (saved == '/stream'
-            ? '/addons'
-            : saved == '/library'
-            ? '/nuvio'
-            : '/home');
+  final initial = kShellBranchRoutes.contains(saved) ? saved : '/home';
 
   return GoRouter(
     initialLocation: initial,

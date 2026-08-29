@@ -70,10 +70,7 @@ void main() {
         await service.parseRepoUrl('raw.githubusercontent.com/u/r/main/x.json'),
         'https://raw.githubusercontent.com/u/r/main/x.json',
       );
-      expect(
-        await service.parseRepoUrl('example.com'),
-        'https://example.com',
-      );
+      expect(await service.parseRepoUrl('example.com'), 'https://example.com');
     });
 
     test('accepts a custom scheme share link', () async {

@@ -24,6 +24,8 @@ class TmdbDetailsState {
 
 @riverpod
 class TmdbDetailsController extends _$TmdbDetailsController {
+  final Map<int, Future<Map<String, dynamic>?>> _seasonsCache = {};
+
   @override
   TmdbDetailsState build(int movieId, {String? source}) {
     if (source == 'anilist') {
@@ -35,10 +37,12 @@ class TmdbDetailsController extends _$TmdbDetailsController {
     // Watch language so we re-fetch if it changes
     final lang = ref.watch(languageProvider);
 
+    _seasonsCache.clear();
     // Start fetching season 1 by default
     final future = ref
         .read(tmdbServiceProvider)
         .getTvSeasonDetails(movieId, 1, language: lang);
+    _seasonsCache[1] = future;
 
     return TmdbDetailsState(selectedSeason: 1, episodesFuture: future);
   }
@@ -49,7 +53,7 @@ class TmdbDetailsController extends _$TmdbDetailsController {
     }
     final lang = ref.read(languageProvider);
 
-    final future = ref
+    final future = _seasonsCache[season] ??= ref
         .read(tmdbServiceProvider)
         .getTvSeasonDetails(movieId, season, language: lang);
 

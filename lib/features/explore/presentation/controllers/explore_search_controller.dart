@@ -4,6 +4,7 @@ import '../../data/explore_tmdb_provider.dart';
 import '../../data/explore_mode_provider.dart';
 import '../../data/anilist_repository.dart';
 import '../../data/explore_filter_provider.dart';
+import '../../../addons/presentation/addon_providers.dart';
 import '../../../../core/domain/entity/multimedia_item.dart';
 
 part 'explore_search_controller.g.dart';
@@ -71,12 +72,15 @@ class ExploreSearchController extends _$ExploreSearchController {
 
     _debounce = Timer(const Duration(milliseconds: 500), () async {
       try {
-        final isAnime = ref.read(exploreModeProvider);
+        final mode = ref.read(exploreModeProvider);
         final List<MultimediaItem> results;
-        if (isAnime) {
+        if (mode == ExploreModeType.anime) {
           final anilist = ref.read(anilistRepositoryProvider);
           final titleLang = ref.read(animeTitleLanguageProvider);
           results = await anilist.searchAnime(query, titleLang: titleLang);
+        } else if (mode == ExploreModeType.stremio) {
+          final previews = await ref.read(addonSearchProvider(query).future);
+          results = previews.map((p) => p.toMultimediaItem()).toList();
         } else {
           final tmdb = ref.read(tmdbServiceProvider);
           results = await tmdb.multiSearch(query: query, language: 'en-US');
@@ -107,9 +111,9 @@ class ExploreSearchController extends _$ExploreSearchController {
     );
 
     try {
-      final isAnime = ref.read(exploreModeProvider);
+      final mode = ref.read(exploreModeProvider);
       final List<MultimediaItem> results;
-      if (isAnime) {
+      if (mode == ExploreModeType.anime) {
         final anilist = ref.read(anilistRepositoryProvider);
         final titleLang = ref.read(animeTitleLanguageProvider);
         results = await anilist.searchAnime(
@@ -117,6 +121,9 @@ class ExploreSearchController extends _$ExploreSearchController {
           page: 1,
           titleLang: titleLang,
         );
+      } else if (mode == ExploreModeType.stremio) {
+        final previews = await ref.read(addonSearchProvider(query).future);
+        results = previews.map((p) => p.toMultimediaItem()).toList();
       } else {
         final tmdb = ref.read(tmdbServiceProvider);
         results = await tmdb.multiSearch(
@@ -130,7 +137,7 @@ class ExploreSearchController extends _$ExploreSearchController {
         state = state.copyWith(
           results: results,
           isLoading: false,
-          hasMore: results.isNotEmpty,
+          hasMore: mode != ExploreModeType.stremio && results.isNotEmpty,
         );
       }
     } catch (e) {
@@ -143,13 +150,18 @@ class ExploreSearchController extends _$ExploreSearchController {
   Future<void> fetchNextPage() async {
     if (state.isLoading || !state.hasMore) return;
 
+    final mode = ref.read(exploreModeProvider);
+    if (mode == ExploreModeType.stremio) {
+      state = state.copyWith(hasMore: false, isLoading: false);
+      return;
+    }
+
     state = state.copyWith(isLoading: true);
 
     try {
-      final isAnime = ref.read(exploreModeProvider);
       final nextPage = state.page + 1;
       final List<MultimediaItem> results;
-      if (isAnime) {
+      if (mode == ExploreModeType.anime) {
         final anilist = ref.read(anilistRepositoryProvider);
         final titleLang = ref.read(animeTitleLanguageProvider);
         results = await anilist.searchAnime(

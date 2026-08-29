@@ -101,8 +101,7 @@ Future<_InstallResult> _installPluginIsolate(_InstallArgs args) async {
   }
 
   final repoId = args.explicitRepoId ?? 'UnknownRepo';
-  final targetPath =
-      resolvePluginPathWithin(args.pluginsRootPath, packageName);
+  final targetPath = resolvePluginPathWithin(args.pluginsRootPath, packageName);
   if (targetPath == null) {
     throw Exception('Invalid .sky: packageName escapes the plugin directory');
   }

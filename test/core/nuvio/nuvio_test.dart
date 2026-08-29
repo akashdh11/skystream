@@ -156,7 +156,8 @@ void main() {
   });
 
   group('cheerio bridge', () {
-    const html = '<html><body>'
+    const html =
+        '<html><body>'
         '<div class="card" data-id="1"><a href="/one">First</a></div>'
         '<div class="card" data-id="2"><a href="/two">Second</a></div>'
         '</body></html>';
@@ -440,12 +441,14 @@ void main() {
   });
 
   group('plugin updates', () {
-    NuvioManifest manifest(List<Map<String, dynamic>> scrapers, String version) =>
-        NuvioManifest.fromJson({
-          'name': 'Repo',
-          'version': version,
-          'scrapers': scrapers,
-        });
+    NuvioManifest manifest(
+      List<Map<String, dynamic>> scrapers,
+      String version,
+    ) => NuvioManifest.fromJson({
+      'name': 'Repo',
+      'version': version,
+      'scrapers': scrapers,
+    });
 
     Map<String, dynamic> scraper(String id, String version) => {
       'id': id,
@@ -525,7 +528,12 @@ void main() {
           {'label': '1080p', 'value': '1080p'},
         ],
       },
-      {'type': 'toggle', 'key': 'dubbed', 'label': 'Dubbed', 'defaultValue': true},
+      {
+        'type': 'toggle',
+        'key': 'dubbed',
+        'label': 'Dubbed',
+        'defaultValue': true,
+      },
       {'type': 'nonsense', 'key': 'x'},
     ];
 
@@ -539,12 +547,15 @@ void main() {
       expect(fields[3].defaultValue, true);
     });
 
-    test('defaults are what the plugin sees before the user edits anything', () {
-      final defaults = NuvioSettingsField.defaults(
-        NuvioSettingsField.parseLayout(layout),
-      );
-      expect(defaults, {'quality': '1080p', 'dubbed': true});
-    });
+    test(
+      'defaults are what the plugin sees before the user edits anything',
+      () {
+        final defaults = NuvioSettingsField.defaults(
+          NuvioSettingsField.parseLayout(layout),
+        );
+        expect(defaults, {'quality': '1080p', 'dubbed': true});
+      },
+    );
 
     test('a malformed layout is empty, not a crash', () {
       expect(NuvioSettingsField.parseLayout('nope'), isEmpty);
@@ -555,20 +566,24 @@ void main() {
   group('stream results from real providers', () {
     test('takes headers out of behaviorHints.proxyHeaders.request', () {
       // Shape returned by 4KHDHub: the CDN 403s without that Referer.
-      final result = NuvioStreamResult.fromJson(const {
-        'name': '4KHDHub | 2160p',
-        'title': 'Spider-Man',
-        'url': 'https://cdn.example/file.mkv',
-        'behaviorHints': {
-          'notWebReady': true,
-          'proxyHeaders': {
-            'request': {
-              'Referer': 'https://4khdhub.one/',
-              'User-Agent': 'Mozilla/5.0',
+      final result = NuvioStreamResult.fromJson(
+        const {
+          'name': '4KHDHub | 2160p',
+          'title': 'Spider-Man',
+          'url': 'https://cdn.example/file.mkv',
+          'behaviorHints': {
+            'notWebReady': true,
+            'proxyHeaders': {
+              'request': {
+                'Referer': 'https://4khdhub.one/',
+                'User-Agent': 'Mozilla/5.0',
+              },
             },
           },
         },
-      }, scraperId: 's', scraperName: '4KHDHub');
+        scraperId: 's',
+        scraperName: '4KHDHub',
+      );
 
       expect(result, isNotNull);
       expect(result!.headers?['Referer'], 'https://4khdhub.one/');
@@ -577,52 +592,67 @@ void main() {
     });
 
     test('strips the zero-width sort padding providers add', () {
-      final result = NuvioStreamResult.fromJson(const {
-        'name': '\u200b\ufeff\u200bProvider | 1080p',
-        'title': '\ufeffMovie title',
-        'url': 'https://cdn.example/a.mkv',
-      }, scraperId: 's', scraperName: 'P');
+      final result = NuvioStreamResult.fromJson(
+        const {
+          'name': '\u200b\ufeff\u200bProvider | 1080p',
+          'title': '\ufeffMovie title',
+          'url': 'https://cdn.example/a.mkv',
+        },
+        scraperId: 's',
+        scraperName: 'P',
+      );
 
       expect(result!.title, 'Movie title');
       expect(result.name, 'Provider | 1080p');
     });
 
     test('derives quality when only the title carries it', () {
-      final result = NuvioStreamResult.fromJson(const {
-        'title': 'Movie 2160p HDR',
-        'url': 'https://cdn.example/a.mkv',
-      }, scraperId: 's', scraperName: 'P');
+      final result = NuvioStreamResult.fromJson(
+        const {'title': 'Movie 2160p HDR', 'url': 'https://cdn.example/a.mkv'},
+        scraperId: 's',
+        scraperName: 'P',
+      );
       expect(result!.quality, '2160p');
     });
 
     test('formats a byte count when the provider sends one', () {
-      final result = NuvioStreamResult.fromJson(const {
-        'title': 'Movie',
-        'url': 'https://cdn.example/a.mkv',
-        'sizeBytes': 2147483648,
-      }, scraperId: 's', scraperName: 'P');
+      final result = NuvioStreamResult.fromJson(
+        const {
+          'title': 'Movie',
+          'url': 'https://cdn.example/a.mkv',
+          'sizeBytes': 2147483648,
+        },
+        scraperId: 's',
+        scraperName: 'P',
+      );
       expect(result!.size, '2.0 GB');
     });
 
     test('accepts alternative url fields and object urls', () {
-      final asObject = NuvioStreamResult.fromJson(const {
-        'title': 'A',
-        'url': {'url': 'https://cdn.example/b.mkv'},
-      }, scraperId: 's', scraperName: 'P');
+      final asObject = NuvioStreamResult.fromJson(
+        const {
+          'title': 'A',
+          'url': {'url': 'https://cdn.example/b.mkv'},
+        },
+        scraperId: 's',
+        scraperName: 'P',
+      );
       expect(asObject!.url, 'https://cdn.example/b.mkv');
 
-      final asLink = NuvioStreamResult.fromJson(const {
-        'title': 'A',
-        'link': 'https://cdn.example/c.mkv',
-      }, scraperId: 's', scraperName: 'P');
+      final asLink = NuvioStreamResult.fromJson(
+        const {'title': 'A', 'link': 'https://cdn.example/c.mkv'},
+        scraperId: 's',
+        scraperName: 'P',
+      );
       expect(asLink!.url, 'https://cdn.example/c.mkv');
     });
 
     test('an infoHash-only result becomes a magnet', () {
-      final result = NuvioStreamResult.fromJson(const {
-        'title': 'T',
-        'infoHash': 'abc123',
-      }, scraperId: 's', scraperName: 'P');
+      final result = NuvioStreamResult.fromJson(
+        const {'title': 'T', 'infoHash': 'abc123'},
+        scraperId: 's',
+        scraperName: 'P',
+      );
       expect(result!.url, startsWith('magnet:?xt=urn:btih:abc123'));
       expect(result.isTorrent, isTrue);
     });
@@ -718,8 +748,9 @@ void main() {
       // flutter_js decodes each message with jsonDecode before handing it to
       // Dart. A bare string (a log line) makes that throw, which used to kill
       // every plugin that called console.log — 38 of the 61 real providers.
-      final calls = RegExp(r"sendMessage\(\s*'([a-z_]+)'\s*,\s*([^;]+?)\)\s*;")
-          .allMatches(js);
+      final calls = RegExp(
+        r"sendMessage\(\s*'([a-z_]+)'\s*,\s*([^;]+?)\)\s*;",
+      ).allMatches(js);
       expect(calls, isNotEmpty);
       for (final call in calls) {
         final channel = call.group(1)!;
@@ -733,7 +764,10 @@ void main() {
     });
 
     test('console logging goes through JSON.stringify', () {
-      expect(js, contains("sendMessage('nuvio_log', JSON.stringify(String(text)))"));
+      expect(
+        js,
+        contains("sendMessage('nuvio_log', JSON.stringify(String(text)))"),
+      );
       expect(js, isNot(contains("sendMessage('nuvio_log', fmt(")));
     });
 
@@ -824,54 +858,64 @@ void main() {
       expect(() => jsonEncode(request.toMap()), returnsNormally);
     });
 
-    test('the pool answers with JSON instead of hanging or throwing', () async {
-      final pool = NuvioIsolatePool(size: 1);
-      addTearDown(pool.dispose);
+    test(
+      'the pool answers with JSON instead of hanging or throwing',
+      () async {
+        final pool = NuvioIsolatePool(size: 1);
+        addTearDown(pool.dispose);
 
-      // QuickJS is not available in the test host, so this exercises the
-      // spawn / send / reply / error path rather than real scraping: the
-      // contract is that a caller always gets a JSON document back.
-      final raw = await pool
-          .execute(
-            const NuvioEngineRequest(
-              code: 'module.exports = { getStreams: function () { return []; } };',
-              scraperId: 'test',
-              scraperName: 'Test',
-              tmdbId: '603',
-              timeoutMs: 4000,
+        // QuickJS is not available in the test host, so this exercises the
+        // spawn / send / reply / error path rather than real scraping: the
+        // contract is that a caller always gets a JSON document back.
+        final raw = await pool
+            .execute(
+              const NuvioEngineRequest(
+                code:
+                    'module.exports = { getStreams: function () { return []; } };',
+                scraperId: 'test',
+                scraperName: 'Test',
+                tmdbId: '603',
+                timeoutMs: 4000,
+              ),
+            )
+            .timeout(const Duration(seconds: 40));
+
+        final decoded = jsonDecode(raw);
+        expect(decoded, isA<Map<String, dynamic>>());
+        expect(
+          (decoded as Map).containsKey('streams') ||
+              decoded.containsKey('error'),
+          isTrue,
+        );
+      },
+      timeout: const Timeout(Duration(seconds: 60)),
+    );
+
+    test(
+      'parallel jobs reserve at most `size` isolates',
+      () async {
+        final pool = NuvioIsolatePool(size: 2);
+        addTearDown(pool.dispose);
+
+        // Eight jobs starting at once used to spawn eight isolates, because each
+        // of them checked the worker count before any of them had finished
+        // spawning.
+        await Future.wait([
+          for (var i = 0; i < 8; i++)
+            pool.execute(
+              NuvioEngineRequest(
+                code: 'module.exports = {};',
+                scraperId: 'p$i',
+                scraperName: 'P$i',
+                timeoutMs: 3000,
+              ),
             ),
-          )
-          .timeout(const Duration(seconds: 40));
+        ]).timeout(const Duration(seconds: 45));
 
-      final decoded = jsonDecode(raw);
-      expect(decoded, isA<Map<String, dynamic>>());
-      expect(
-        (decoded as Map).containsKey('streams') || decoded.containsKey('error'),
-        isTrue,
-      );
-    }, timeout: const Timeout(Duration(seconds: 60)));
-
-    test('parallel jobs reserve at most `size` isolates', () async {
-      final pool = NuvioIsolatePool(size: 2);
-      addTearDown(pool.dispose);
-
-      // Eight jobs starting at once used to spawn eight isolates, because each
-      // of them checked the worker count before any of them had finished
-      // spawning.
-      await Future.wait([
-        for (var i = 0; i < 8; i++)
-          pool.execute(
-            NuvioEngineRequest(
-              code: 'module.exports = {};',
-              scraperId: 'p$i',
-              scraperName: 'P$i',
-              timeoutMs: 3000,
-            ),
-          ),
-      ]).timeout(const Duration(seconds: 45));
-
-      expect(pool.workerCount, lessThanOrEqualTo(2));
-    }, timeout: const Timeout(Duration(seconds: 60)));
+        expect(pool.workerCount, lessThanOrEqualTo(2));
+      },
+      timeout: const Timeout(Duration(seconds: 60)),
+    );
 
     test('a disposed pool refuses new work', () {
       final pool = NuvioIsolatePool(size: 1)..dispose();
@@ -947,7 +991,10 @@ void main() {
       expect(result['ok'], isTrue);
       expect(result['status'], 200);
       expect(result['body'], 'hello');
-      expect((result['headers'] as Map)['content-type'], contains('text/plain'));
+      expect(
+        (result['headers'] as Map)['content-type'],
+        contains('text/plain'),
+      );
     });
 
     test('sends a browser user agent by default', () async {

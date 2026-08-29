@@ -192,9 +192,7 @@ void _workerMain(SendPort initialReply) {
 
     unawaited(() async {
       try {
-        final json = await NuvioEngine.execute(
-          NuvioEngineRequest.fromMap(raw),
-        );
+        final json = await NuvioEngine.execute(NuvioEngineRequest.fromMap(raw));
         initialReply.send({'id': id, 'ok': true, 'json': json});
       } catch (error) {
         initialReply.send({'id': id, 'ok': false, 'error': error.toString()});

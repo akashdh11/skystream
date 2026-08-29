@@ -190,6 +190,21 @@ class AppTheme {
         space: 1,
         color: Color(0xFF22222E),
       ),
+
+      // Switch Theme
+      switchTheme: SwitchThemeData(
+        thumbIcon: WidgetStateProperty.resolveWith<Icon?>((states) {
+          if (states.contains(WidgetState.focused) ||
+              states.contains(WidgetState.hovered)) {
+            if (states.contains(WidgetState.selected)) {
+              return const Icon(Icons.check_rounded, size: 14);
+            } else {
+              return const Icon(Icons.close_rounded, size: 14);
+            }
+          }
+          return null;
+        }),
+      ),
     );
   }
 
@@ -349,15 +364,14 @@ class AppTheme {
 
       // Switch Theme
       switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return colorScheme.primary;
-          }
-          return null;
-        }),
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return colorScheme.primary.withValues(alpha: 0.5);
+        thumbIcon: WidgetStateProperty.resolveWith<Icon?>((states) {
+          if (states.contains(WidgetState.focused) ||
+              states.contains(WidgetState.hovered)) {
+            if (states.contains(WidgetState.selected)) {
+              return const Icon(Icons.check_rounded, size: 14);
+            } else {
+              return const Icon(Icons.close_rounded, size: 14);
+            }
           }
           return null;
         }),

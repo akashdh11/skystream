@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,14 +8,12 @@ import '../../../core/nuvio/data/nuvio_repository.dart';
 import '../../../core/nuvio/data/nuvio_runtime.dart';
 import '../../../core/nuvio/data/nuvio_stream_service.dart';
 import '../../../core/nuvio/models/nuvio_models.dart';
+import '../../../core/utils/layout_constants.dart';
+import '../../../shared/widgets/custom_widgets.dart';
+import '../../../shared/widgets/loading_indicator.dart';
 import 'nuvio_scraper_settings_dialog.dart';
 
 /// Manage Nuvio-format plugin repositories.
-///
-/// Mirrors what NuvioMobile's plugin settings screen does: every repository is
-/// re-checked so versions published by the developer arrive on their own, each
-/// scraper shows its own version (and what it moved from), scrapers with
-/// `hasSettings` get their own form, and any scraper can be test-run.
 class NuvioPluginsView extends ConsumerStatefulWidget {
   const NuvioPluginsView({super.key});
 
@@ -29,50 +26,58 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
   bool _checking = false;
 
   Future<void> _addRepository() async {
-    // Captured before the dialog await so the context isn't used across gaps.
     final messenger = ScaffoldMessenger.of(context);
     final controller = TextEditingController();
     final url = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Add Nuvio plugin repository'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Paste the plugin manifest URL (the JSON listing "scrapers"). '
-              'A bare host works too.',
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              autofocus: true,
-              keyboardType: TextInputType.url,
-              decoration: InputDecoration(
-                hintText: 'https://example.com/plugins/manifest.json',
-                border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  tooltip: 'Paste',
-                  icon: const Icon(Icons.content_paste_rounded),
-                  onPressed: () async {
-                    final data = await Clipboard.getData('text/plain');
-                    final text = data?.text;
-                    if (text != null) controller.text = text.trim();
-                  },
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Add Nuvio Repository'),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Paste the plugin manifest URL (the JSON listing "scrapers"). A bare host works too.',
+                style: Theme.of(dialogContext).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
                 ),
               ),
-              onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
-            ),
-          ],
+              const SizedBox(height: LayoutConstants.spacingMd),
+              CustomTextField(
+                controller: controller,
+                hintText: 'https://example.com/plugins/manifest.json',
+                autofocus: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (value) {
+                  if (value.isNotEmpty) {
+                    Navigator.pop(dialogContext, value.trim());
+                  }
+                },
+              ),
+            ],
+          ),
         ),
         actions: [
-          TextButton(
+          CustomButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Theme.of(dialogContext).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+          const SizedBox(width: LayoutConstants.spacingXs),
+          CustomButton(
+            isPrimary: true,
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                Navigator.pop(dialogContext, controller.text.trim());
+              }
+            },
             child: const Text('Add'),
           ),
         ],
@@ -89,9 +94,7 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            'Added ${repo.displayName} '
-            '${repo.manifest?.version ?? ''} · '
-            '${repo.manifest?.scrapers.length ?? 0} plugins',
+            'Added ${repo.displayName} ${repo.manifest?.version ?? ''} · ${repo.manifest?.scrapers.length ?? 0} plugins',
           ),
         ),
       );
@@ -109,7 +112,6 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
       final changes = await ref
           .read(nuvioRepositoryProvider.notifier)
           .refreshAll();
-      // New plugin code means old results are stale.
       ref.read(nuvioStreamServiceProvider).clearCache();
       messenger.showSnackBar(
         SnackBar(
@@ -132,28 +134,63 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
     final cs = theme.colorScheme;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
+      padding: const EdgeInsets.only(
+        top: LayoutConstants.spacingMd,
+        bottom: 100,
+      ),
+      addAutomaticKeepAlives: false,
       children: [
-        Card(
-          margin: EdgeInsets.zero,
+        // Master Control Card
+        _FocusableCard(
+          margin: const EdgeInsets.symmetric(
+            horizontal: LayoutConstants.spacingMd,
+            vertical: LayoutConstants.spacingXs,
+          ),
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(LayoutConstants.spacingMd),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.extension_rounded, color: cs.primary),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Nuvio plugins',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: cs.primaryContainer.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(
+                        Icons.extension_outlined,
+                        color: cs.primary,
+                        size: 22,
                       ),
                     ),
-                    Switch(
+                    const SizedBox(width: LayoutConstants.spacingSm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Nuvio Scrapers',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: cs.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'JS scrapers feed the Explore sources sheet alongside SkyStream plugins.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: LayoutConstants.spacingXs),
+                    CustomSwitch(
                       value: state.enabled,
                       onChanged: (value) => unawaited(
                         ref
@@ -163,96 +200,186 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Scraper plugins in Nuvio\'s format. Their links appear in '
-                  'the same sources sheet as SkyStream plugins, tagged NUVIO.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-                const SizedBox(height: 12),
+                const SizedBox(height: LayoutConstants.spacingMd),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
+                  spacing: LayoutConstants.spacingSm,
+                  runSpacing: LayoutConstants.spacingXs,
                   children: [
-                    FilledButton.icon(
-                      onPressed: _busy ? null : () => unawaited(_addRepository()),
-                      icon: _busy
-                          ? const SizedBox(
+                    CustomButton(
+                      isPrimary: true,
+                      onPressed: _busy
+                          ? null
+                          : () => unawaited(_addRepository()),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_busy) ...[
+                            const SizedBox(
                               width: 16,
                               height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.add_link_rounded),
-                      label: const Text('Add repository'),
+                              child: AppLoadingIndicator(
+                                constraints: BoxConstraints(
+                                  maxWidth: 16,
+                                  maxHeight: 16,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ] else ...[
+                            const Icon(Icons.add_circle_outline, size: 18),
+                            const SizedBox(width: 8),
+                          ],
+                          const Text('Add Repository'),
+                        ],
+                      ),
                     ),
                     if (state.repos.isNotEmpty)
-                      OutlinedButton.icon(
+                      CustomButton(
+                        isOutlined: true,
                         onPressed: _checking
                             ? null
                             : () => unawaited(_checkForUpdates()),
-                        icon: _checking
-                            ? const SizedBox(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_checking) ...[
+                              const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.system_update_alt_rounded),
-                        label: Text(
-                          _checking ? 'Checking…' : 'Check for updates',
+                                child: AppLoadingIndicator(
+                                  constraints: BoxConstraints(
+                                    maxWidth: 16,
+                                    maxHeight: 16,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                            ] else ...[
+                              const Icon(Icons.refresh_rounded, size: 18),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(_checking ? 'Checking…' : 'Check Updates'),
+                          ],
                         ),
                       ),
                   ],
                 ),
                 if (state.repos.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  SwitchListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    value: state.autoUpdate,
-                    onChanged: (value) => unawaited(
-                      ref
-                          .read(nuvioRepositoryProvider.notifier)
-                          .setAutoUpdate(value),
-                    ),
-                    title: Text(
-                      'Update plugins automatically',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    subtitle: Text(
-                      'Checks each repository on launch (at most every '
-                      '${NuvioRepository.autoUpdateInterval.inHours} h) and '
-                      'downloads the versions the developer published.',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
+                  const SizedBox(height: LayoutConstants.spacingSm),
+                  Divider(
+                    height: 1,
+                    color: theme.dividerColor.withValues(alpha: 0.5),
+                  ),
+                  const SizedBox(height: LayoutConstants.spacingXs),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Auto-update scrapers on launch',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Text(
+                              'Checks each repository (max once every ${NuvioRepository.autoUpdateInterval.inHours}h).',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: cs.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+                      CustomSwitch(
+                        value: state.autoUpdate,
+                        onChanged: (value) => unawaited(
+                          ref
+                              .read(nuvioRepositoryProvider.notifier)
+                              .setAutoUpdate(value),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
+
+        const SizedBox(height: LayoutConstants.spacingSm),
+
+        // Loading State
         if (state.isLoading && state.repos.isEmpty)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(child: CircularProgressIndicator()),
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: AppLoadingIndicator()),
           ),
+
+        // Empty State
         if (!state.isLoading && state.repos.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
-            child: Text(
-              'No Nuvio repositories yet. Add one and its scrapers will start '
-              'contributing links to Explore playback.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
+            padding: const EdgeInsets.symmetric(
+              horizontal: LayoutConstants.spacingMd,
+              vertical: LayoutConstants.spacingSm,
+            ),
+            child: _FocusableCard(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(LayoutConstants.spacingLg),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.snippet_folder_outlined,
+                      size: 48,
+                      color: cs.primary,
+                    ),
+                    const SizedBox(height: LayoutConstants.spacingMd),
+                    Text(
+                      'No Nuvio Repositories Yet',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: LayoutConstants.spacingSm),
+                    Text(
+                      'Add a repository URL to load scrapers for stream extraction.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: cs.onSurfaceVariant,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: LayoutConstants.spacingLg),
+                    CustomButton(
+                      isPrimary: true,
+                      onPressed: () => unawaited(_addRepository()),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add_circle_outline, size: 18),
+                          SizedBox(width: 8),
+                          Text('Add Repository'),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        for (final repo in state.repos) _RepoCard(repo: repo),
+
+        // Repositories List
+        for (final repo in state.repos)
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: LayoutConstants.spacingMd,
+              vertical: LayoutConstants.spacingXs,
+            ),
+            child: _RepoCard(repo: repo),
+          ),
       ],
     );
   }
@@ -276,8 +403,6 @@ class _RepoCard extends ConsumerStatefulWidget {
 }
 
 class _RepoCardState extends ConsumerState<_RepoCard> {
-  bool _expanded = true;
-
   Future<void> _refresh() async {
     final messenger = ScaffoldMessenger.of(context);
     final summary = await ref
@@ -296,6 +421,45 @@ class _RepoCardState extends ConsumerState<_RepoCard> {
     );
   }
 
+  void _confirmDeleteRepo(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        surfaceTintColor: Colors.transparent,
+        title: Text('Remove ${widget.repo.displayName}?'),
+        content: const Text(
+          'This will remove the repository and disable all its scraper plugins from source extraction.',
+        ),
+        actions: [
+          CustomButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              'Cancel',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: LayoutConstants.spacingXs),
+          CustomButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              unawaited(
+                ref
+                    .read(nuvioRepositoryProvider.notifier)
+                    .removeRepository(widget.repo.manifestUrl),
+              );
+            },
+            child: Text(
+              'Remove',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final repo = widget.repo;
@@ -306,149 +470,180 @@ class _RepoCardState extends ConsumerState<_RepoCard> {
     final update = repo.lastUpdate;
     final changed = update?.changedScraperIds ?? const <String>{};
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 6, 8),
-        child: Column(
+    return _FocusableCard(
+      margin: EdgeInsets.zero,
+      child: ExpansionTile(
+        key: PageStorageKey('nuvio_repo_${repo.manifestUrl}'),
+        shape: const Border(),
+        collapsedShape: const Border(),
+        initiallyExpanded: true,
+        backgroundColor: Colors.transparent,
+        collapsedBackgroundColor: Colors.transparent,
+        tilePadding: const EdgeInsets.symmetric(
+          horizontal: LayoutConstants.spacingMd,
+          vertical: LayoutConstants.spacingXs,
+        ),
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              repo.displayName,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          _Badge(
-                            text: 'v${manifest?.version ?? '?'}',
-                            color: cs.primary,
-                          ),
-                          if (repo.isRefreshing) ...[
-                            const SizedBox(width: 6),
-                            const SizedBox(
-                              width: 12,
-                              height: 12,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${scrapers.length} plugins · checked '
-                        '${_relativeTime(repo.lastCheckedAt)}'
-                        '${repo.lastUpdatedAt != null ? ' · updated ${_relativeTime(repo.lastUpdatedAt)}' : ''}',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    repo.displayName,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: cs.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                IconButton(
-                  tooltip: 'Check this repository',
-                  icon: const Icon(Icons.refresh_rounded),
-                  onPressed: repo.isRefreshing
-                      ? null
-                      : () => unawaited(_refresh()),
-                ),
-                IconButton(
-                  tooltip: 'Remove',
-                  icon: const Icon(Icons.delete_outline_rounded),
-                  onPressed: () => unawaited(
-                    ref
-                        .read(nuvioRepositoryProvider.notifier)
-                        .removeRepository(repo.manifestUrl),
+                if (manifest?.version != null) ...[
+                  const SizedBox(width: LayoutConstants.spacingXs),
+                  _Badge(text: 'v${manifest!.version}', color: cs.primary),
+                ],
+                if (repo.isRefreshing) ...[
+                  const SizedBox(width: LayoutConstants.spacingXs),
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: AppLoadingIndicator(
+                      constraints: BoxConstraints(maxWidth: 14, maxHeight: 14),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
-            if (update != null && update.hasChanges)
-              Padding(
-                padding: const EdgeInsets.only(right: 8, bottom: 6),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.new_releases_rounded,
-                      size: 14,
-                      color: cs.tertiary,
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        update.label,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: cs.tertiary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: 2),
+            Text(
+              '${scrapers.length} scrapers · checked ${_relativeTime(repo.lastCheckedAt)}'
+              '${repo.lastUpdatedAt != null ? ' · updated ${_relativeTime(repo.lastUpdatedAt)}' : ''}',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
               ),
-            if (repo.errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.only(right: 8, bottom: 6),
-                child: Text(
-                  repo.errorMessage!,
-                  style: theme.textTheme.labelSmall?.copyWith(color: cs.error),
-                ),
-              ),
-            Row(
+            ),
+          ],
+        ),
+        children: [
+          // Repository Action Row
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: LayoutConstants.spacingMd,
+              vertical: LayoutConstants.spacingXs,
+            ),
+            child: Row(
               children: [
-                TextButton.icon(
-                  onPressed: () => setState(() => _expanded = !_expanded),
-                  icon: Icon(
-                    _expanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                  ),
-                  label: Text(_expanded ? 'Hide plugins' : 'Show plugins'),
-                ),
-                const Spacer(),
-                TextButton(
+                CustomButton(
                   onPressed: () => unawaited(
                     ref
                         .read(nuvioRepositoryProvider.notifier)
                         .setAllScrapersEnabled(repo.manifestUrl, true),
                   ),
-                  child: const Text('Enable all'),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.check_circle_outline, size: 16),
+                      SizedBox(width: 6),
+                      Text('Enable all'),
+                    ],
+                  ),
                 ),
-                TextButton(
+                const SizedBox(width: LayoutConstants.spacingXs),
+                CustomButton(
                   onPressed: () => unawaited(
                     ref
                         .read(nuvioRepositoryProvider.notifier)
                         .setAllScrapersEnabled(repo.manifestUrl, false),
                   ),
-                  child: const Text('Disable all'),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.cancel_outlined, size: 16),
+                      SizedBox(width: 6),
+                      Text('Disable all'),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 4),
+                const Spacer(),
+                _TvIconButton(
+                  tooltip: 'Refresh Repository',
+                  icon: Icons.refresh_rounded,
+                  onPressed: repo.isRefreshing
+                      ? null
+                      : () => unawaited(_refresh()),
+                ),
+                _TvIconButton(
+                  tooltip: 'Remove Repository',
+                  icon: Icons.delete_outline,
+                  color: cs.error,
+                  onPressed: () => _confirmDeleteRepo(context),
+                ),
               ],
             ),
-            if (_expanded)
-              for (final scraper in scrapers)
-                _ScraperTile(
-                  repo: repo,
-                  scraper: scraper,
-                  justUpdated: changed.contains(scraper.id),
-                  previousVersion: update?.updated
-                      .where((entry) => entry.scraper.id == scraper.id)
-                      .map((entry) => entry.from)
-                      .firstOrNull,
-                ),
+          ),
+
+          if (update != null && update.hasChanges)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: LayoutConstants.spacingMd,
+                vertical: LayoutConstants.spacingXs,
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.new_releases_outlined,
+                    size: 16,
+                    color: cs.tertiary,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      update.label,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: cs.tertiary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          if (repo.errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: LayoutConstants.spacingMd,
+                vertical: LayoutConstants.spacingXs,
+              ),
+              child: Text(
+                repo.errorMessage!,
+                style: theme.textTheme.labelSmall?.copyWith(color: cs.error),
+              ),
+            ),
+
+          Divider(height: 1, color: theme.dividerColor.withValues(alpha: 0.5)),
+
+          // Scrapers inside this repo
+          for (int i = 0; i < scrapers.length; i++) ...[
+            _ScraperTile(
+              repo: repo,
+              scraper: scrapers[i],
+              justUpdated: changed.contains(scrapers[i].id),
+              previousVersion: update?.updated
+                  .where((entry) => entry.scraper.id == scrapers[i].id)
+                  .map((entry) => entry.from)
+                  .firstOrNull,
+            ),
+            if (i < scrapers.length - 1)
+              Divider(
+                height: 1,
+                indent: 64,
+                endIndent: LayoutConstants.spacingMd,
+                color: theme.dividerColor.withValues(alpha: 0.5),
+              ),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -475,8 +670,7 @@ class _ScraperTileState extends ConsumerState<_ScraperTile> {
   bool _testing = false;
   String? _testResult;
 
-  /// Nuvio tests a provider against TMDB 603 (The Matrix).
-  static const String _testTmdbId = '603';
+  static const String _testTmdbId = '603'; // The Matrix
 
   Future<void> _test() async {
     setState(() {
@@ -504,12 +698,12 @@ class _ScraperTileState extends ConsumerState<_ScraperTile> {
       if (!mounted) return;
       setState(() {
         _testResult = results.isEmpty
-            ? 'No links for the test title'
-            : '${results.length} links · ${results.first.label}';
+            ? 'No streams returned for test title'
+            : '${results.length} streams found · ${results.first.label}';
       });
     } catch (error) {
       if (!mounted) return;
-      setState(() => _testResult = 'Failed: $error');
+      setState(() => _testResult = 'Test failed: $error');
     } finally {
       if (mounted) setState(() => _testing = false);
     }
@@ -538,7 +732,9 @@ class _ScraperTileState extends ConsumerState<_ScraperTile> {
     if (!mounted) return;
     if (layout.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('This plugin exposes no settings')),
+        const SnackBar(
+          content: Text('This scraper exposes no configuration options'),
+        ),
       );
       return;
     }
@@ -567,119 +763,226 @@ class _ScraperTileState extends ConsumerState<_ScraperTile> {
     final enabled = widget.repo.isScraperEnabled(scraper);
     final unsupported = !scraper.isSupportedOn(NuvioRepository.platformName);
 
-    final chips = <String>[
-      scraper.supportedTypes.map(NuvioScraperInfo.normalizeType).toSet().join('/'),
-      if (scraper.contentLanguage.isNotEmpty)
-        scraper.contentLanguage.take(3).join(', '),
-      if (scraper.formats.isNotEmpty) scraper.formats.take(3).join('/'),
+    final typeChips = scraper.supportedTypes
+        .map(NuvioScraperInfo.normalizeType)
+        .toSet()
+        .join(' / ');
+    final languages = scraper.contentLanguage.take(3).join(', ');
+    final formats = scraper.formats.take(3).join(' / ');
+
+    final metaList = [
+      if (typeChips.isNotEmpty) typeChips.toUpperCase(),
+      if (languages.isNotEmpty) languages.toUpperCase(),
+      if (formats.isNotEmpty) formats.toUpperCase(),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 4, bottom: 2),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: LayoutConstants.spacingMd,
+        vertical: 4,
+      ),
+      leading: _ScraperLogo(url: scraper.logo, name: scraper.name),
+      title: Row(
         children: [
-          Row(
-            children: [
-              _ScraperLogo(url: scraper.logo, name: scraper.name),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            scraper.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        _Badge(
-                          text: widget.previousVersion != null
-                              ? '${widget.previousVersion} → v${scraper.version}'
-                              : 'v${scraper.version}',
-                          color: widget.justUpdated ? cs.tertiary : cs.outline,
-                        ),
-                        if (!scraper.manifestEnabled) ...[
-                          const SizedBox(width: 4),
-                          _Badge(text: 'off by default', color: cs.outline),
-                        ],
-                        if (scraper.limited) ...[
-                          const SizedBox(width: 4),
-                          _Badge(text: 'limited', color: cs.outline),
-                        ],
-                        if (unsupported) ...[
-                          const SizedBox(width: 4),
-                          _Badge(text: 'unsupported here', color: cs.error),
-                        ],
-                      ],
-                    ),
-                    Text(
-                      chips.where((c) => c.isNotEmpty).join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+          Flexible(
+            child: Text(
+              scraper.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-              if (scraper.hasSettings)
-                IconButton(
-                  tooltip: '${scraper.name} settings',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.tune_rounded, size: 20),
-                  onPressed: () => unawaited(_openSettings()),
-                ),
-              IconButton(
-                tooltip: 'Test this plugin',
-                visualDensity: VisualDensity.compact,
-                icon: _testing
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.play_circle_outline_rounded, size: 20),
-                onPressed: _testing ? null : () => unawaited(_test()),
-              ),
-              Switch(
-                // Repositories often publish torrent providers disabled. The
-                // user can always turn one on; only a platform the plugin
-                // cannot run on keeps the switch locked.
-                value: enabled && !unsupported,
-                onChanged: unsupported
-                    ? null
-                    : (value) => unawaited(
-                        ref
-                            .read(nuvioRepositoryProvider.notifier)
-                            .setScraperEnabled(
-                              widget.repo.manifestUrl,
-                              scraper.id,
-                              value,
-                            ),
-                      ),
-              ),
-            ],
+            ),
           ),
-          if (_testResult != null)
-            Padding(
-              padding: const EdgeInsets.only(left: 44, bottom: 6),
+          const SizedBox(width: LayoutConstants.spacingXs),
+          _Badge(
+            text: widget.previousVersion != null
+                ? '${widget.previousVersion} → v${scraper.version}'
+                : 'v${scraper.version}',
+            color: widget.justUpdated ? cs.tertiary : cs.outline,
+          ),
+          if (!scraper.manifestEnabled) ...[
+            const SizedBox(width: 4),
+            _Badge(text: 'off by default', color: cs.outline),
+          ],
+          if (scraper.limited) ...[
+            const SizedBox(width: 4),
+            _Badge(text: 'limited', color: cs.outline),
+          ],
+          if (unsupported) ...[
+            const SizedBox(width: 4),
+            _Badge(text: 'unsupported', color: cs.error),
+          ],
+        ],
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (metaList.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(
+              metaList.join(' • '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          ],
+          if (_testResult != null) ...[
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: _testResult!.startsWith('Test failed')
+                    ? cs.errorContainer.withValues(alpha: 0.4)
+                    : cs.secondaryContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(6),
+              ),
               child: Text(
                 _testResult!,
                 style: theme.textTheme.labelSmall?.copyWith(
-                  color: _testResult!.startsWith('Failed')
+                  color: _testResult!.startsWith('Test failed')
                       ? cs.error
-                      : cs.onSurfaceVariant,
+                      : cs.onSecondaryContainer,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
+          ],
         ],
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (scraper.hasSettings)
+            _TvIconButton(
+              tooltip: '${scraper.name} Settings',
+              icon: Icons.settings_outlined,
+              onPressed: () => unawaited(_openSettings()),
+            ),
+          _TvIconButton(
+            tooltip: 'Test Scraper',
+            icon: Icons.play_circle_outline_rounded,
+            customIcon: _testing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: AppLoadingIndicator(
+                      constraints: BoxConstraints(maxWidth: 18, maxHeight: 18),
+                    ),
+                  )
+                : null,
+            onPressed: _testing ? null : () => unawaited(_test()),
+          ),
+          const SizedBox(width: 4),
+          CustomSwitch(
+            value: enabled && !unsupported,
+            onChanged: unsupported
+                ? null
+                : (value) => unawaited(
+                    ref
+                        .read(nuvioRepositoryProvider.notifier)
+                        .setScraperEnabled(
+                          widget.repo.manifestUrl,
+                          scraper.id,
+                          value,
+                        ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TvIconButton extends StatefulWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+  final Color? color;
+  final Widget? customIcon;
+
+  const _TvIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.color,
+    this.customIcon,
+  });
+
+  @override
+  State<_TvIconButton> createState() => _TvIconButtonState();
+}
+
+class _TvIconButtonState extends State<_TvIconButton> {
+  bool _isFocused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final primary = cs.primary;
+    final enabled = widget.onPressed != null;
+
+    return Focus(
+      canRequestFocus: enabled,
+      onFocusChange: (focused) => setState(() => _isFocused = focused),
+      onKeyEvent: (node, event) {
+        if (!enabled) return KeyEventResult.ignored;
+        if (event is KeyDownEvent &&
+            (event.logicalKey == LogicalKeyboardKey.select ||
+                event.logicalKey == LogicalKeyboardKey.enter ||
+                event.logicalKey == LogicalKeyboardKey.space)) {
+          widget.onPressed!();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Tooltip(
+        message: widget.tooltip,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: 38,
+          height: 38,
+          margin: const EdgeInsets.symmetric(horizontal: 2),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _isFocused
+                ? (widget.color ?? primary).withValues(alpha: 0.2)
+                : Colors.transparent,
+            border: _isFocused
+                ? Border.all(color: widget.color ?? primary, width: 2)
+                : null,
+            boxShadow: _isFocused
+                ? [
+                    BoxShadow(
+                      color: (widget.color ?? primary).withValues(alpha: 0.5),
+                      blurRadius: 12,
+                      spreadRadius: 1,
+                    ),
+                  ]
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: widget.onPressed,
+              child: Center(
+                child:
+                    widget.customIcon ??
+                    Icon(
+                      widget.icon,
+                      size: 20,
+                      color: _isFocused
+                          ? (widget.color ?? primary)
+                          : (widget.color ?? cs.onSurfaceVariant),
+                    ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -695,23 +998,30 @@ class _ScraperLogo extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final letter = name.isEmpty ? '?' : name.substring(0, 1).toUpperCase();
     final fallback = Container(
-      width: 28,
-      height: 28,
+      width: 40,
+      height: 40,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
+        color: cs.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(letter, style: Theme.of(context).textTheme.labelMedium),
+      child: Text(
+        letter,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+          color: cs.primary,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
+
     final logo = url;
     if (logo == null || logo.isEmpty) return fallback;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: Image.network(
         logo,
-        width: 28,
-        height: 28,
+        width: 40,
+        height: 40,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => fallback,
         loadingBuilder: (context, child, progress) =>
@@ -729,17 +1039,70 @@ class _Badge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.5)),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(
         text,
-        style: Theme.of(
-          context,
-        ).textTheme.labelSmall?.copyWith(color: color, fontSize: 10),
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _FocusableCard extends StatefulWidget {
+  final Widget child;
+  final EdgeInsetsGeometry? margin;
+
+  const _FocusableCard({required this.child, this.margin});
+
+  @override
+  State<_FocusableCard> createState() => _FocusableCardState();
+}
+
+class _FocusableCardState extends State<_FocusableCard> {
+  bool _isFocused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (focused) => setState(() => _isFocused = focused),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        margin:
+            widget.margin ?? const EdgeInsets.all(LayoutConstants.spacingMd),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: _isFocused
+                ? theme.colorScheme.primary
+                : theme.dividerColor.withValues(alpha: 0.5),
+            width: _isFocused ? 2.0 : 1.0,
+          ),
+          boxShadow: _isFocused
+              ? [
+                  BoxShadow(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ]
+              : null,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Material(color: Colors.transparent, child: widget.child),
       ),
     );
   }

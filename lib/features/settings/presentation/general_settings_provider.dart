@@ -48,8 +48,7 @@ class GeneralSettings {
       alwaysOnTop: alwaysOnTop ?? this.alwaysOnTop,
       titlePosition: titlePosition ?? this.titlePosition,
       downloadDirectory: downloadDirectory ?? this.downloadDirectory,
-      downloadConcurrency:
-          downloadConcurrency ?? this.downloadConcurrency,
+      downloadConcurrency: downloadConcurrency ?? this.downloadConcurrency,
       downloadChunks: downloadChunks ?? this.downloadChunks,
       tmdbApiKey: tmdbApiKey ?? this.tmdbApiKey,
     );

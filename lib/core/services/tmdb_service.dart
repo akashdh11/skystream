@@ -2,20 +2,29 @@ import '../domain/entity/multimedia_item.dart';
 import 'package:dio/dio.dart';
 import '../models/tmdb_genre.dart';
 import '../config/tmdb_config.dart';
+import '../logger/app_logger.dart';
 
 class TmdbService {
   static final _yearRegex = RegExp(r'\b(19|20)\d{2}\b');
   static const _suggestionsCacheTtl = Duration(days: 1);
+  static const _detailsCacheTtl = Duration(hours: 1);
   final Dio _dio;
   final Map<String, _SuggestionCacheEntry> _suggestionsCache = {};
+  final Map<String, _CacheEntry<Map<String, dynamic>>> _seasonDetailsCache = {};
+  final Map<String, _CacheEntry<Map<String, dynamic>>> _tvExtraCache = {};
+  final Map<String, Future<Map<String, dynamic>?>> _inFlightRequests = {};
 
   TmdbService(Dio baseDio)
     : _dio = Dio(baseDio.options.copyWith(baseUrl: TmdbConfig.baseUrl)) {
+    _dio.httpClientAdapter = baseDio.httpClientAdapter;
     _dio.interceptors.addAll(baseDio.interceptors);
   }
 
   Future<List<TmdbGenre>> getGenres({String language = 'en-US'}) async {
-    if (TmdbConfig.apiKey.isEmpty) return [];
+    if (TmdbConfig.apiKey.isEmpty) {
+      talker.warning('TmdbService.getGenres: No TMDB API key configured');
+      return [];
+    }
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '/genre/movie/list',
@@ -26,12 +35,18 @@ class TmdbService {
             .map((dynamic i) => TmdbGenre.fromJson(i as Map<String, dynamic>))
             .toList();
       }
-    } catch (_) {}
+      talker.warning('TmdbService.getGenres: status ${response.statusCode}');
+    } catch (e, st) {
+      talker.error('TmdbService.getGenres failed', e, st);
+    }
     return [];
   }
 
   Future<List<TmdbGenre>> getTvGenres({String language = 'en-US'}) async {
-    if (TmdbConfig.apiKey.isEmpty) return [];
+    if (TmdbConfig.apiKey.isEmpty) {
+      talker.warning('TmdbService.getTvGenres: No TMDB API key configured');
+      return [];
+    }
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '/genre/tv/list',
@@ -42,7 +57,10 @@ class TmdbService {
             .map((dynamic i) => TmdbGenre.fromJson(i as Map<String, dynamic>))
             .toList();
       }
-    } catch (_) {}
+      talker.warning('TmdbService.getTvGenres: status ${response.statusCode}');
+    } catch (e, st) {
+      talker.error('TmdbService.getTvGenres failed', e, st);
+    }
     return [];
   }
 
@@ -66,7 +84,16 @@ class TmdbService {
         },
       );
       if (response.statusCode == 200) return response.data;
-    } catch (_) {}
+      talker.warning(
+        'TmdbService.getDetailsForCarousel: status ${response.statusCode} for $mediaType $id',
+      );
+    } catch (e, st) {
+      talker.error(
+        'TmdbService.getDetailsForCarousel failed for $mediaType $id',
+        e,
+        st,
+      );
+    }
     return null;
   }
 
@@ -235,6 +262,23 @@ class TmdbService {
   }) => _fetchWithFilterFallback(
     discoverPath: '/discover/movie',
     directPath: '/trending/all/day',
+    sortBy: 'popularity.desc',
+    language: language,
+    genreId: genreId,
+    year: year,
+    minRating: minRating,
+    page: page,
+  );
+
+  Future<List<MultimediaItem>> getTrendingTV({
+    String language = 'en-US',
+    int? genreId,
+    int? year,
+    double? minRating,
+    int page = 1,
+  }) => _fetchWithFilterFallback(
+    discoverPath: '/discover/tv',
+    directPath: '/trending/tv/week',
     sortBy: 'popularity.desc',
     language: language,
     genreId: genreId,
@@ -456,7 +500,10 @@ class TmdbService {
             .map((i) => MultimediaItem.fromTmdbJson(i))
             .toList();
       }
-    } catch (_) {}
+      talker.warning('TmdbService.multiSearch: status ${response.statusCode}');
+    } catch (e, st) {
+      talker.error('TmdbService.multiSearch failed for "$cleanQuery"', e, st);
+    }
     return [];
   }
 
@@ -517,7 +564,8 @@ class TmdbService {
       );
 
       return suggestions;
-    } catch (_) {
+    } catch (e, st) {
+      talker.error('TmdbService.getSuggestions failed for "$trimmed"', e, st);
       return [];
     }
   }
@@ -562,7 +610,12 @@ class TmdbService {
     }
     if (minRating != null) query['vote_average.gte'] = minRating;
 
-    if (TmdbConfig.apiKey.isEmpty) return [];
+    if (TmdbConfig.apiKey.isEmpty) {
+      talker.warning(
+        'TmdbService: No TMDB API key configured for discovery on $path',
+      );
+      return [];
+    }
 
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -575,7 +628,12 @@ class TmdbService {
             .map((i) => MultimediaItem.fromTmdbJson(i as Map<String, dynamic>))
             .toList();
       }
-    } catch (_) {}
+      talker.warning(
+        'TmdbService discovery on $path: status ${response.statusCode}',
+      );
+    } catch (e, st) {
+      talker.error('TmdbService discovery failed on $path', e, st);
+    }
     return [];
   }
 
@@ -585,7 +643,10 @@ class TmdbService {
     String language = 'en-US',
     int page = 1,
   }) async {
-    if (TmdbConfig.apiKey.isEmpty) return [];
+    if (TmdbConfig.apiKey.isEmpty) {
+      talker.warning('TmdbService: No TMDB API key configured for $path');
+      return [];
+    }
 
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -601,7 +662,12 @@ class TmdbService {
             .map((i) => MultimediaItem.fromTmdbJson(i as Map<String, dynamic>))
             .toList();
       }
-    } catch (_) {}
+      talker.warning(
+        'TmdbService request on $path: status ${response.statusCode}',
+      );
+    } catch (e, st) {
+      talker.error('TmdbService request failed on $path', e, st);
+    }
     return [];
   }
 
@@ -628,7 +694,12 @@ class TmdbService {
         );
         return pickBestLogo(logos, language);
       }
-    } catch (_) {}
+      talker.warning(
+        'TmdbService.getBestLogo: status ${response.statusCode} for $mediaType $id',
+      );
+    } catch (e, st) {
+      talker.error('TmdbService.getBestLogo failed for $mediaType $id', e, st);
+    }
     return null;
   }
 
@@ -730,7 +801,12 @@ class TmdbService {
       if (response.statusCode == 200) {
         return response.data;
       }
-    } catch (_) {}
+      talker.warning(
+        'TmdbService.getMovieDetails: status ${response.statusCode} for $movieId',
+      );
+    } catch (e, st) {
+      talker.error('TmdbService.getMovieDetails failed for $movieId', e, st);
+    }
     return null;
   }
 
@@ -753,7 +829,12 @@ class TmdbService {
       if (response.statusCode == 200) {
         return response.data;
       }
-    } catch (_) {}
+      talker.warning(
+        'TmdbService.getMovieExtra: status ${response.statusCode} for $movieId',
+      );
+    } catch (e, st) {
+      talker.error('TmdbService.getMovieExtra failed for $movieId', e, st);
+    }
     return null;
   }
 
@@ -772,7 +853,12 @@ class TmdbService {
       if (response.statusCode == 200) {
         return response.data;
       }
-    } catch (_) {}
+      talker.warning(
+        'TmdbService.getCredits: status ${response.statusCode} for $movieId',
+      );
+    } catch (e, st) {
+      talker.error('TmdbService.getCredits failed for $movieId', e, st);
+    }
     return null;
   }
 
@@ -794,8 +880,28 @@ class TmdbService {
       if (response.statusCode == 200) {
         return response.data;
       }
-    } catch (_) {}
+      talker.warning(
+        'TmdbService.getTvDetails: status ${response.statusCode} for $tvId',
+      );
+    } catch (e, st) {
+      talker.error('TmdbService.getTvDetails failed for $tvId', e, st);
+    }
     return null;
+  }
+
+  bool _isTransientError(dynamic e) {
+    if (e is DioException) {
+      final msg = e.error?.toString() ?? e.message ?? '';
+      return e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.sendTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError ||
+          msg.contains('HandshakeException') ||
+          msg.contains('SocketException') ||
+          msg.contains('Connection terminated') ||
+          msg.contains('ClientException');
+    }
+    return false;
   }
 
   Future<Map<String, dynamic>?> getTvExtra(
@@ -804,20 +910,61 @@ class TmdbService {
   }) async {
     if (TmdbConfig.apiKey.isEmpty) return null;
 
+    final cacheKey = '$tvId:$language';
+    final cached = _tvExtraCache[cacheKey];
+    if (cached != null &&
+        DateTime.now().difference(cached.cachedAt) < _detailsCacheTtl) {
+      return cached.data;
+    }
+
+    if (_inFlightRequests.containsKey(cacheKey)) {
+      return await _inFlightRequests[cacheKey];
+    }
+
+    final future = _fetchTvExtra(tvId, language: language, cacheKey: cacheKey);
+    _inFlightRequests[cacheKey] = future;
     try {
-      final response = await _dio.get<Map<String, dynamic>>(
-        '/tv/$tvId',
-        queryParameters: {
-          'api_key': TmdbConfig.apiKey,
-          'language': language,
-          'append_to_response': 'videos,images,translations,external_ids',
-          'include_image_language': '$language,null,en',
-        },
-      );
-      if (response.statusCode == 200) {
-        return response.data;
+      return await future;
+    } finally {
+      _inFlightRequests.remove(cacheKey);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _fetchTvExtra(
+    int tvId, {
+    required String language,
+    required String cacheKey,
+  }) async {
+    int attempts = 0;
+    while (attempts < 3) {
+      attempts++;
+      try {
+        final response = await _dio.get<Map<String, dynamic>>(
+          '/tv/$tvId',
+          queryParameters: {
+            'api_key': TmdbConfig.apiKey,
+            'language': language,
+            'append_to_response': 'videos,images,translations,external_ids',
+            'include_image_language': '$language,null,en',
+          },
+        );
+        if (response.statusCode == 200 && response.data != null) {
+          _tvExtraCache[cacheKey] = _CacheEntry(response.data!, DateTime.now());
+          return response.data;
+        }
+        talker.warning(
+          'TmdbService.getTvExtra: status ${response.statusCode} for $tvId',
+        );
+        return null;
+      } catch (e, st) {
+        if (attempts < 3 && _isTransientError(e)) {
+          await Future<void>.delayed(Duration(milliseconds: 300 * attempts));
+          continue;
+        }
+        talker.error('TmdbService.getTvExtra failed for $tvId', e, st);
+        break;
       }
-    } catch (_) {}
+    }
     return null;
   }
 
@@ -828,17 +975,78 @@ class TmdbService {
   }) async {
     if (TmdbConfig.apiKey.isEmpty) return null;
 
+    final cacheKey = '$tvId:$seasonNumber:$language';
+    final cached = _seasonDetailsCache[cacheKey];
+    if (cached != null &&
+        DateTime.now().difference(cached.cachedAt) < _detailsCacheTtl) {
+      return cached.data;
+    }
+
+    if (_inFlightRequests.containsKey(cacheKey)) {
+      return await _inFlightRequests[cacheKey];
+    }
+
+    final future = _fetchTvSeasonDetails(
+      tvId,
+      seasonNumber,
+      language: language,
+      cacheKey: cacheKey,
+    );
+    _inFlightRequests[cacheKey] = future;
     try {
-      final response = await _dio.get<Map<String, dynamic>>(
-        '/tv/$tvId/season/$seasonNumber',
-        queryParameters: {'api_key': TmdbConfig.apiKey, 'language': language},
-      );
-      if (response.statusCode == 200) {
-        return response.data;
+      return await future;
+    } finally {
+      _inFlightRequests.remove(cacheKey);
+    }
+  }
+
+  Future<Map<String, dynamic>?> _fetchTvSeasonDetails(
+    int tvId,
+    int seasonNumber, {
+    required String language,
+    required String cacheKey,
+  }) async {
+    int attempts = 0;
+    while (attempts < 3) {
+      attempts++;
+      try {
+        final response = await _dio.get<Map<String, dynamic>>(
+          '/tv/$tvId/season/$seasonNumber',
+          queryParameters: {'api_key': TmdbConfig.apiKey, 'language': language},
+        );
+        if (response.statusCode == 200 && response.data != null) {
+          _seasonDetailsCache[cacheKey] = _CacheEntry(
+            response.data!,
+            DateTime.now(),
+          );
+          return response.data;
+        }
+        talker.warning(
+          'TmdbService.getTvSeasonDetails: status ${response.statusCode} for $tvId S$seasonNumber',
+        );
+        return null;
+      } catch (e, st) {
+        if (attempts < 3 && _isTransientError(e)) {
+          await Future<void>.delayed(Duration(milliseconds: 300 * attempts));
+          continue;
+        }
+        talker.error(
+          'TmdbService.getTvSeasonDetails failed for $tvId S$seasonNumber',
+          e,
+          st,
+        );
+        break;
       }
-    } catch (_) {}
+    }
     return null;
   }
+}
+
+class _CacheEntry<T> {
+  final T data;
+  final DateTime cachedAt;
+
+  const _CacheEntry(this.data, this.cachedAt);
 }
 
 class _SuggestionCacheEntry {

@@ -47,6 +47,35 @@ class ProbeBadge extends StatelessWidget {
     this.isPeerToPeer = false,
   });
 
+  static String _shortReason(String? reason) {
+    if (reason == null || reason.isEmpty) return 'Dead link';
+    final lower = reason.toLowerCase();
+    if (lower.contains('failed host lookup') ||
+        lower.contains('socketexception') ||
+        lower.contains('connection refused') ||
+        lower.contains('connection terminated')) {
+      return 'Unreachable';
+    }
+    if (lower.contains('timeout') || lower.contains('timed out')) {
+      return 'Timed out';
+    }
+    if (lower.contains('403') || lower.contains('forbidden')) {
+      return 'Blocked (403)';
+    }
+    if (lower.contains('404') || lower.contains('not found')) {
+      return 'Not found (404)';
+    }
+    if (lower.contains('500') ||
+        lower.contains('502') ||
+        lower.contains('503')) {
+      return 'Server error';
+    }
+    if (reason.length > 18) {
+      return 'Dead link';
+    }
+    return reason;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -85,9 +114,13 @@ class ProbeBadge extends StatelessWidget {
       children: [
         Icon(Icons.error_outline_rounded, size: 12, color: cs.error),
         const SizedBox(width: 2),
-        Text(
-          result.failureReason ?? 'Dead link',
-          style: theme.textTheme.labelSmall?.copyWith(color: cs.error),
+        Flexible(
+          child: Text(
+            _shortReason(result.failureReason),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.labelSmall?.copyWith(color: cs.error),
+          ),
         ),
       ],
     );
@@ -113,7 +146,7 @@ class SourceSheetHeader extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 10),
+      padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
       child: Row(
         children: [
           Expanded(

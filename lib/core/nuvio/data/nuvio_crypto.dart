@@ -21,12 +21,7 @@ class NuvioCrypto {
       final op = request['op']?.toString() ?? '';
       switch (op) {
         case 'digest':
-          return _hex(
-            _digest(
-              _alg(request['alg']),
-              _bytes(request['data']),
-            ),
-          );
+          return _hex(_digest(_alg(request['alg']), _bytes(request['data'])));
         case 'hmac':
           return _hex(
             Uint8List.fromList(
@@ -61,7 +56,10 @@ class NuvioCrypto {
           final count = (request['bytes'] as num?)?.toInt() ?? 0;
           return _hex(
             Uint8List.fromList(
-              List<int>.generate(count.clamp(0, 1 << 16), (_) => _random.nextInt(256)),
+              List<int>.generate(
+                count.clamp(0, 1 << 16),
+                (_) => _random.nextInt(256),
+              ),
             ),
           );
         default:
@@ -75,11 +73,18 @@ class NuvioCrypto {
   // --- helpers -------------------------------------------------------------
 
   static String _alg(dynamic raw) {
-    final name = (raw?.toString() ?? 'SHA256')
-        .toUpperCase()
-        .replaceAll(RegExp('[^A-Z0-9]'), '');
-    return const {'MD5', 'SHA1', 'SHA224', 'SHA256', 'SHA384', 'SHA512'}
-            .contains(name)
+    final name = (raw?.toString() ?? 'SHA256').toUpperCase().replaceAll(
+      RegExp('[^A-Z0-9]'),
+      '',
+    );
+    return const {
+          'MD5',
+          'SHA1',
+          'SHA224',
+          'SHA256',
+          'SHA384',
+          'SHA512',
+        }.contains(name)
         ? name
         : 'SHA256';
   }
@@ -145,10 +150,7 @@ class NuvioCrypto {
 
     if (normalized.contains('CTR')) {
       final cipher = pc.CTRStreamCipher(pc.AESEngine())
-        ..init(
-          encrypt,
-          pc.ParametersWithIV(pc.KeyParameter(key), _iv16(iv)),
-        );
+        ..init(encrypt, pc.ParametersWithIV(pc.KeyParameter(key), _iv16(iv)));
       return cipher.process(data);
     }
 
@@ -173,10 +175,10 @@ class NuvioCrypto {
     final padded = pc.PaddedBlockCipherImpl(pc.PKCS7Padding(), base)
       ..init(
         encrypt,
-        pc.PaddedBlockCipherParameters<pc.CipherParameters, pc.CipherParameters>(
-          params,
-          null,
-        ),
+        pc.PaddedBlockCipherParameters<
+          pc.CipherParameters,
+          pc.CipherParameters
+        >(params, null),
       );
     return padded.process(data);
   }
