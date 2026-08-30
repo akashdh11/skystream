@@ -182,8 +182,9 @@ class NuvioDom {
   String textOf(String docId, List<String> nodeIds) {
     final doc = _docs[docId];
     if (doc == null) return '';
-    if (nodeIds.isEmpty)
+    if (nodeIds.isEmpty) {
       return doc.document.body?.text ?? doc.document.text ?? '';
+    }
     final buffer = StringBuffer();
     for (final id in nodeIds) {
       buffer.write(doc.nodes[id]?.text ?? '');

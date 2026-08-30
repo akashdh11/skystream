@@ -386,7 +386,7 @@ class _HostWebView {
 
       if (html == null && retries > 0) {
         await Future<void>.delayed(const Duration(milliseconds: 500));
-        return navigate(url, retries: retries - 1);
+        return await navigate(url, retries: retries - 1);
       }
       // Re-silence console after each navigation (page reload replaces overrides).
       await silenceConsole();

@@ -81,8 +81,9 @@ class AddonPlaybackResolver {
             }
             onStatus?.call('Not cached on debrid — using peers…');
           } catch (error) {
-            if (kDebugMode)
+            if (kDebugMode) {
               debugPrint('[AddonPlaybackResolver] debrid: $error');
+            }
             onStatus?.call('Debrid unavailable — using peers…');
           }
         }

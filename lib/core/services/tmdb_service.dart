@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../domain/entity/multimedia_item.dart';
 import 'package:dio/dio.dart';
 import '../models/tmdb_genre.dart';
@@ -926,7 +928,7 @@ class TmdbService {
     try {
       return await future;
     } finally {
-      _inFlightRequests.remove(cacheKey);
+      unawaited(_inFlightRequests.remove(cacheKey));
     }
   }
 
@@ -996,7 +998,7 @@ class TmdbService {
     try {
       return await future;
     } finally {
-      _inFlightRequests.remove(cacheKey);
+      unawaited(_inFlightRequests.remove(cacheKey));
     }
   }
 

@@ -608,7 +608,7 @@ class JsBasedProvider extends SkyStreamProvider {
           // Process in bounded-concurrency chunks. Audit M23 — was
           // unbounded Future.wait, allowing N parallel compute() spawns +
           // proxy fetches for an N-entry plugin response.
-          return _processInChunks(bounded, _kStreamFanoutConcurrency, (
+          return await _processInChunks(bounded, _kStreamFanoutConcurrency, (
             e,
           ) async {
             final map = Map<String, dynamic>.from(e as Map);
