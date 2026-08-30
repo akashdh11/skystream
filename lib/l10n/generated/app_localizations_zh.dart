@@ -411,7 +411,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get min => '分';
 
   @override
-  String get internalPlayer => '内置播放器 (media_kit)';
+  String get internalPlayer => '内置播放器 (VLC)';
 
   @override
   String get builtInPlayer => '内置播放器';
@@ -566,9 +566,6 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get subtitleStyles => '字幕样式';
-
-  @override
-  String get mediaKitStylingWarning => '字幕样式设置目前仅支持 media_kit 播放器。';
 
   @override
   String get resetToDefault => '恢复默认';
@@ -1688,7 +1685,7 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   String get min => '分';
 
   @override
-  String get internalPlayer => '內建播放器 (media_kit)';
+  String get internalPlayer => '內建播放器 (VLC)';
 
   @override
   String get builtInPlayer => '內建播放器';
@@ -1843,9 +1840,6 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
 
   @override
   String get subtitleStyles => '字幕樣式';
-
-  @override
-  String get mediaKitStylingWarning => '字幕樣式設定目前僅支援 media_kit 播放器。';
 
   @override
   String get resetToDefault => '恢復成預設';

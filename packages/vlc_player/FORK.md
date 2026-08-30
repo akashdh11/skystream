@@ -114,11 +114,12 @@ deliberately **not** done here; 24 is Flutter's own floor and going lower means
 fighting the toolchain for devices that cannot decode modern codecs anyway.
 
 Verified by reading the AAR manifest and the plugin source. **Not yet verified by
-an Android build** — the package is not in the host `pubspec.yaml` yet.
+an Android build** at the time of writing. The package is now the host's
+only playback engine.
 
 ### 6. Dropped upstream repo scaffolding
 
-Removed `.github/` and `.vscode/`, matching how `video_view`, `flutter_js_ng`
+Removed `.github/` and `.vscode/`, matching how `flutter_js_ng`
 and `flutter_torrent_server` are vendored here — the host repo owns CI.
 
 `test/release_metadata_test.dart` went with them. It asserted on upstream's

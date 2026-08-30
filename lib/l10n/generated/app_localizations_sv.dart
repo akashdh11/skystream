@@ -419,7 +419,7 @@ class AppLocalizationsSv extends AppLocalizations {
   String get min => 'min';
 
   @override
-  String get internalPlayer => 'Intern (media_kit)';
+  String get internalPlayer => 'Intern (VLC)';
 
   @override
   String get builtInPlayer => 'Inbyggd spelare';
@@ -580,10 +580,6 @@ class AppLocalizationsSv extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Undertextstilar';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Stilinställningar för undertexter är för tillfället endast tillgängliga i media_kit-spelaren.';
 
   @override
   String get resetToDefault => 'Återställ till standard';

@@ -422,7 +422,7 @@ class AppLocalizationsTe extends AppLocalizations {
   String get min => 'నిమిషం';
 
   @override
-  String get internalPlayer => 'అంతర్గత ప్లేయర్ (media_kit)';
+  String get internalPlayer => 'అంతర్గత ప్లేయర్ (VLC)';
 
   @override
   String get builtInPlayer => 'బిల్ట్-ఇన్ ప్లేయర్';
@@ -583,10 +583,6 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'సబ్‌టైటిల్ స్టైల్స్';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'సబ్‌టైటిల్ స్టైలింగ్ ప్రస్తుతం media_kit ప్లేయర్‌లో మాత్రమే అందుబాటులో ఉంది.';
 
   @override
   String get resetToDefault => 'డిఫాల్ట్‌కు రీసెట్ చేయండి';

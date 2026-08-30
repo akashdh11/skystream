@@ -37,7 +37,7 @@ class SkipSegment {
   ///   to a point earlier than the current position, sending the user
   ///   *backwards*. Almost always a data-entry mistake; reorder them.
   /// - **Out-of-range segments** (`end > duration`, negative starts) —
-  ///   tapping Skip would seek past the end of the file. media_kit clamps
+  ///   tapping Skip would seek past the end of the file. The engine clamps
   ///   but the UX is a jarring snap-to-EOF.
   ///
   /// Sorting by startTime also lets `_checkPosition` early-exit once it

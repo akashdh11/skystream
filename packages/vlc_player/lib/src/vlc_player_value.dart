@@ -218,8 +218,30 @@ class VlcPlayerValue {
       return previous;
     }
 
-    final state =
-        _stateFromString(_stringValue(event['state'])) ?? previous.state;
+    var state = _stateFromString(_stringValue(event['state'])) ?? previous.state;
+
+    // libVLC's state machine cannot be taken at face value. VLCKit reports
+    // `buffering` for the whole of healthy playback with `isPlaying` false, and
+    // libVLC on Android emits a Buffering event on nearly every tick. A
+    // consumer that trusts the enum shows a spinner over a playing video and,
+    // worse, never learns that playback started at all.
+    //
+    // An advancing position cannot lie, so it corrects the enum here - once,
+    // for every platform and every consumer - rather than in each UI that hits
+    // the problem.
+    //
+    // Deliberately narrow. The correction applies only when playback was
+    // ALREADY running and the position moved forward, which is exactly the
+    // spurious case. A genuine buffer at startup arrives from `opening`, and a
+    // genuine rebuffer mid-playback does not advance the position - both are
+    // left alone, as are paused, stopped, ended and error.
+    if (state == VlcPlaybackState.buffering &&
+        previous.state == VlcPlaybackState.playing) {
+      final position = _durationFromMilliseconds(event['position']);
+      if (position != null && position > previous.position) {
+        state = VlcPlaybackState.playing;
+      }
+    }
     final hasVideoSize = event.containsKey('videoSize');
     final videoSize = hasVideoSize ? _sizeFromMap(event['videoSize']) : null;
     final hasBufferingProgress = event.containsKey('bufferingProgress');

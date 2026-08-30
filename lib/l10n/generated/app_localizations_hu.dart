@@ -420,7 +420,7 @@ class AppLocalizationsHu extends AppLocalizations {
   String get min => 'perc';
 
   @override
-  String get internalPlayer => 'Belső lejátszó (media_kit)';
+  String get internalPlayer => 'Belső lejátszó (VLC)';
 
   @override
   String get builtInPlayer => 'Beépített lejátszó';
@@ -581,10 +581,6 @@ class AppLocalizationsHu extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Felirat stílusok';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'A feliratok stílusának megváltoztatása jelenleg csak media_kit esetén érhető el.';
 
   @override
   String get resetToDefault => 'Alaphelyzet';

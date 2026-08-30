@@ -422,7 +422,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get min => 'நிமிடம்';
 
   @override
-  String get internalPlayer => 'உள் பிளேயர் (media_kit)';
+  String get internalPlayer => 'உள் பிளேயர் (VLC)';
 
   @override
   String get builtInPlayer => 'உள்ளமைக்கப்பட்ட பிளேயர்';
@@ -583,10 +583,6 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'துணைத்தலைப்பு ஸ்டைல்கள்';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'துணைத்தலைப்பு ஸ்டைலிங் இப்போது media_kit பிளேயரில் மட்டுமே கிடைக்கிறது.';
 
   @override
   String get resetToDefault => 'இயல்புநிலைக்கு மீட்டமை';

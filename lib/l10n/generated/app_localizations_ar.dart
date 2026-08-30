@@ -418,7 +418,7 @@ class AppLocalizationsAr extends AppLocalizations {
   String get min => 'دقيقة';
 
   @override
-  String get internalPlayer => 'مشغل داخلي (media_kit)';
+  String get internalPlayer => 'مشغل داخلي (VLC)';
 
   @override
   String get builtInPlayer => 'المشغل المدمج';
@@ -579,10 +579,6 @@ class AppLocalizationsAr extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'أنماط الترجمة';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'تنسيق الترجمة متاح فقط على مشغل media_kit حالياً.';
 
   @override
   String get resetToDefault => 'إعادة الضبط للافتراضي';
@@ -1726,7 +1722,7 @@ class AppLocalizationsArApc extends AppLocalizationsAr {
   String get min => 'دقيقة';
 
   @override
-  String get internalPlayer => 'داخلي (media_kit)';
+  String get internalPlayer => 'داخلي (VLC)';
 
   @override
   String get builtInPlayer => 'مشغل مدمج';
@@ -1885,10 +1881,6 @@ class AppLocalizationsArApc extends AppLocalizationsAr {
 
   @override
   String get subtitleStyles => 'ستايلات الترجمة';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'تغيير ستايل الترجمة بس للـ media_kit حالياً.';
 
   @override
   String get resetToDefault => 'الافتراضي';

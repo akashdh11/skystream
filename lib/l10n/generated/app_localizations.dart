@@ -958,7 +958,7 @@ abstract class AppLocalizations {
   /// No description provided for @internalPlayer.
   ///
   /// In en, this message translates to:
-  /// **'Internal (media_kit)'**
+  /// **'Internal (VLC)'**
   String get internalPlayer;
 
   /// No description provided for @builtInPlayer.
@@ -1260,12 +1260,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Subtitle Styles'**
   String get subtitleStyles;
-
-  /// No description provided for @mediaKitStylingWarning.
-  ///
-  /// In en, this message translates to:
-  /// **'Subtitle styling is only available on the media_kit player right now.'**
-  String get mediaKitStylingWarning;
 
   /// No description provided for @resetToDefault.
   ///

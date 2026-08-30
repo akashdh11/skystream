@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../shared/widgets/custom_widgets.dart';
 import '../../../settings/presentation/player_settings_provider.dart';
 import 'hotstar_player_style.dart';
 import '../../../skip/data/skip_service.dart';
@@ -16,7 +15,8 @@ import '../../../skip/data/skip_service.dart';
 /// construction: there is one implementation, and any future change to it
 /// necessarily lands on both paths at once.
 ///
-/// Deliberately knows nothing about media_kit, libVLC or Riverpod player state.
+/// Deliberately knows nothing about the playback engine or Riverpod player
+/// state.
 /// The one provider it touches is [playerSettingsProvider], for the persisted
 /// elapsed/remaining toggle, which is a user preference rather than engine
 /// state.

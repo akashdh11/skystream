@@ -412,7 +412,7 @@ class AppLocalizationsKo extends AppLocalizations {
   String get min => '분';
 
   @override
-  String get internalPlayer => '내부 플레이어 (media_kit)';
+  String get internalPlayer => '내부 플레이어 (VLC)';
 
   @override
   String get builtInPlayer => '내장 플레이어';
@@ -569,9 +569,6 @@ class AppLocalizationsKo extends AppLocalizations {
 
   @override
   String get subtitleStyles => '자막 스타일';
-
-  @override
-  String get mediaKitStylingWarning => '자막 스타일 설정은 현재 media_kit 플레이어에서만 가능합니다.';
 
   @override
   String get resetToDefault => '기본값으로 복원';

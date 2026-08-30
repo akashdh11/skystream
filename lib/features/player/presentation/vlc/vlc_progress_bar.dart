@@ -8,7 +8,7 @@ import '../widgets/player_stream_widgets.dart';
 ///
 /// Deliberately thin: it holds only the drag position, and renders through the
 /// shared [PlayerScrubber]. Nothing here decides what the chrome looks like, so
-/// the VLC overlay cannot drift from the media_kit one — there is one scrubber
+/// the overlay cannot drift from the shared design — there is one scrubber
 /// implementation and both engines feed it.
 ///
 /// It listens to the controller directly rather than through Riverpod, so a

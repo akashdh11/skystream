@@ -88,29 +88,6 @@ if(PLUGIN_BUNDLED_LIBRARIES)
     COMPONENT Runtime)
 endif()
 
-# Windows MPV override:
-# Prefer a custom Shinchiro winbuild libmpv when provided.
-# This is installed AFTER plugin bundled libraries so it replaces
-# media_kit's default libmpv-2.dll in the final bundle.
-set(SKYSTREAM_WINDOWS_MPV_DLL "$ENV{SKYSTREAM_WINDOWS_MPV_DLL}")
-if(NOT SKYSTREAM_WINDOWS_MPV_DLL)
-  set(
-    SKYSTREAM_WINDOWS_MPV_DLL
-    "${CMAKE_CURRENT_SOURCE_DIR}/third_party/mpv/shinchiro/libmpv-2.dll"
-  )
-endif()
-
-if(EXISTS "${SKYSTREAM_WINDOWS_MPV_DLL}")
-  message(STATUS "Using custom Windows libmpv: ${SKYSTREAM_WINDOWS_MPV_DLL}")
-  install(
-    FILES "${SKYSTREAM_WINDOWS_MPV_DLL}"
-    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
-    COMPONENT Runtime
-  )
-else()
-  message(STATUS "Custom Windows libmpv not found; using default bundled libmpv-2.dll")
-endif()
-
 # Copy the native assets provided by the build.dart from all packages.
 set(NATIVE_ASSETS_DIR "${PROJECT_BUILD_DIR}native_assets/windows/")
 install(DIRECTORY "${NATIVE_ASSETS_DIR}"

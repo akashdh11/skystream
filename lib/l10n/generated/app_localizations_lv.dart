@@ -422,7 +422,7 @@ class AppLocalizationsLv extends AppLocalizations {
   String get min => 'min.';
 
   @override
-  String get internalPlayer => 'Iekšējais (media_kit)';
+  String get internalPlayer => 'Iekšējais (VLC)';
 
   @override
   String get builtInPlayer => 'Iebūvētais atskaņotājs';
@@ -583,10 +583,6 @@ class AppLocalizationsLv extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Subtitru stili';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Subtitru stila maiņa pašlaik pieejama tikai media_kit.';
 
   @override
   String get resetToDefault => 'Atjaunot noklusējumu';

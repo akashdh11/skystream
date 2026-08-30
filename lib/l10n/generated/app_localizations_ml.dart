@@ -422,7 +422,7 @@ class AppLocalizationsMl extends AppLocalizations {
   String get min => 'മിനിറ്റ്';
 
   @override
-  String get internalPlayer => 'ആന്തരിക പ്ലെയർ (media_kit)';
+  String get internalPlayer => 'ആന്തരിക പ്ലെയർ (VLC)';
 
   @override
   String get builtInPlayer => 'ബിൽറ്റ്-ഇൻ പ്ലെയർ';
@@ -583,10 +583,6 @@ class AppLocalizationsMl extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'സബ്ടൈറ്റിൽ ശൈലികൾ';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'സബ്ടൈറ്റിൽ സ്റ്റൈലിംഗ് ഇപ്പോൾ media_kit പ്ലെയറിൽ മാത്രമേ ലഭ്യമാകൂ.';
 
   @override
   String get resetToDefault => 'ഡിഫോൾട്ടിലേക്ക് മാറ്റുക';

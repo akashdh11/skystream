@@ -441,9 +441,20 @@ internal class VlcPlayerPlatformView(
                 updateState(STATE_OPENING)
             }
             MediaPlayer.Event.Buffering -> {
-                bufferingProgress =
-                    event.getBuffering().coerceIn(0.0f, 100.0f).toDouble() / 100.0
-                updateState(STATE_BUFFERING)
+                val percent = event.getBuffering().coerceIn(0.0f, 100.0f)
+                bufferingProgress = percent.toDouble() / 100.0
+                // libVLC emits Buffering CONTINUOUSLY during healthy playback,
+                // reaching 100 each time. Mapping every one to STATE_BUFFERING
+                // overwrote STATE_PLAYING, so the player never reported that it
+                // was playing: the spinner never cleared, the play/pause icon
+                // was wrong, and every host feature gated on "playing" -
+                // progress, scrobbling, completion, next episode - silently
+                // stopped working. Only a partial buffer is a real stall.
+                if (percent < 100.0f) {
+                    updateState(STATE_BUFFERING)
+                } else if (mediaPlayer.isPlaying) {
+                    updateState(STATE_PLAYING)
+                }
             }
             MediaPlayer.Event.Playing -> {
                 bufferingProgress = null

@@ -416,7 +416,7 @@ class AppLocalizationsHr extends AppLocalizations {
   String get min => 'min';
 
   @override
-  String get internalPlayer => 'Interni (media_kit)';
+  String get internalPlayer => 'Interni (VLC)';
 
   @override
   String get builtInPlayer => 'Ugrađeni reproduktor';
@@ -577,10 +577,6 @@ class AppLocalizationsHr extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Stilovi titlova';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Stiliziranje titlova trenutno je dostupno samo za media_kit.';
 
   @override
   String get resetToDefault => 'Vrati na zadano';

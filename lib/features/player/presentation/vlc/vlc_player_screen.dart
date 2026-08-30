@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,7 +12,9 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../../core/domain/entity/multimedia_item.dart';
 import '../../../../core/network/http_defaults.dart';
 import '../../../../core/providers/device_info_provider.dart';
+import '../../../settings/presentation/player_settings_provider.dart';
 import '../../../../core/extensions/providers.dart';
+import '../../../../core/models/torrent_status.dart';
 import '../../../../core/services/local_proxy_service.dart';
 import '../../domain/episode_navigator.dart';
 import '../../../skip/data/skip_service.dart';
@@ -20,16 +23,13 @@ import '../../domain/playback_progress.dart';
 import '../../domain/skip_segments.dart';
 import '../../domain/playback_tracker.dart';
 import '../../domain/stream_resolver.dart';
+import '../../domain/subtitle_style.dart';
 import '../player_platform_service.dart';
 import 'vlc_player_controls.dart';
 
 /// Playback on the VLC engine.
 ///
-/// Reached only when [VlcEngineEnabled] is on. The media_kit / video_view
-/// screen is untouched and remains the default, so this cannot regress
-/// shipping playback.
-///
-/// Built up over docs/PLAYER_MIGRATION.md phases 5 through 6.8: engine-owned
+/// Built up over the migration notes phases 5 through 6.8: engine-owned
 /// tracks, resolution of the route's plugin token into a real stream, headers
 /// that libVLC can actually transmit, progress and resume, completion and
 /// scrobbling, and source failover.
@@ -148,6 +148,13 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// Consecutive live reopen attempts that have not yet produced playback.
   int _liveReconnects = 0;
 
+  /// The last position observed, used to tell real playback from a stuck state
+  /// enum.
+  Duration _lastSeenPosition = Duration.zero;
+
+  /// Desktop window state, mirrored so the button icon can follow it.
+  bool _isFullscreen = false;
+
   /// Whether this session ever started the torrent engine, so teardown only
   /// stops something it actually started.
   bool _startedTorrent = false;
@@ -157,6 +164,14 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   List<SkipSegment> _skipSegments = const <SkipSegment>[];
 
   final PlayerPlatformService _platform = PlayerPlatformService();
+
+  /// Live torrent statistics, polled only while a torrent is actually playing.
+  TorrentStatus? _torrentStatus;
+  Timer? _torrentPoll;
+
+  /// Guards against a slow poll overlapping the next tick, which would queue
+  /// requests against the torrent server rather than skipping a beat.
+  bool _pollingTorrent = false;
 
   @override
   void initState() {
@@ -168,14 +183,20 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     WakelockPlus.enable();
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
+    // Subtitles are drawn by the engine, so the user's appearance settings have
+    // to be supplied at construction. Without them VLC uses its own default
+    // relative size of 16, which is enormous on a full-screen video.
+    final settings =
+        ref.read(playerSettingsProvider).asData?.value ?? const PlayerSettings();
+
     _controller = VlcPlayerController(
       autoPlay: true,
       // Native events are not throttled by default and position ticks are not
       // deduped, so every tick would rebuild the overlay and run the progress
       // listener. Four updates a second is plenty for a seek bar.
       eventThrottleInterval: const Duration(milliseconds: 250),
-      config: const VlcPlayerConfig(
-        network: VlcNetworkConfig(
+      config: VlcPlayerConfig(
+        network: const VlcNetworkConfig(
           // VOD default; a live source overrides it per-media in _openAttempt.
           networkCaching: 3000,
           userAgent: kDefaultBrowserUserAgent,
@@ -184,6 +205,15 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
           // its estimator starts pessimistic and can sit on a low rendition for
           // a long stretch, so pin the highest for the same reason.
           adaptiveLogic: VlcAdaptiveLogic.highest,
+        ),
+        subtitleStyle: subtitleStyleFrom(settings),
+        // The user's hardware-decoding preference. libVLC has no equivalent for
+        // the tone-mapping settings that sat beside this one, but it does have
+        // --avcodec-hw, so this switch is honoured rather than ignored.
+        decoding: VlcDecodingConfig(
+          hardwareAcceleration: settings.hardwareDecoding
+              ? VlcHardwareAcceleration.automatic
+              : VlcHardwareAcceleration.disabled,
         ),
       ),
       // Verified present in both shipped libVLC builds (VLCKit 3.7.3 and
@@ -296,7 +326,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     if (isTorrent && mounted && _stage != _Stage.playing) {
       setState(() => _status = 'Preparing torrent…');
     }
-    if (isTorrent) _startedTorrent = true;
+    if (isTorrent && !_startedTorrent) {
+      _startedTorrent = true;
+      _startTorrentPolling();
+    }
     final playable = await playableUrlFor(read: ref.read, stream: stream);
     if (_disposed || generation != _generation) return;
     if (playable == null) {
@@ -461,11 +494,42 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       ).next !=
       null;
 
+  /// Polls the torrent server while a torrent is playing.
+  ///
+  /// Three seconds matches the old controller. The status is only meaningful
+  /// while the engine is seeding, so polling starts with playback rather than
+  /// with the screen, and stops with it.
+  void _startTorrentPolling() {
+    _torrentPoll?.cancel();
+    _torrentPoll = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (_disposed || _pollingTorrent) return;
+      _pollingTorrent = true;
+      try {
+        final status = await ref.read(torrentServiceProvider).getCurrentStatus();
+        if (!_disposed && mounted) setState(() => _torrentStatus = status);
+      } catch (e) {
+        if (kDebugMode) debugPrint('Torrent status poll failed: $e');
+      } finally {
+        _pollingTorrent = false;
+      }
+    });
+  }
+
   /// Picture-in-picture is an Android activity mode; there is no equivalent on
   /// the other platforms this ships to, and it is meaningless on a television.
   bool get _pipAvailable =>
       Platform.isAndroid &&
       !(ref.read(deviceProfileProvider).asData?.value.isTv ?? false);
+
+  /// Only a desktop window can change size; mobile and TV are already full
+  /// screen, so the affordance is absent rather than inert.
+  bool get _fullscreenAvailable =>
+      Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+
+  Future<void> _toggleFullscreen() async {
+    final now = await _platform.toggleFullscreen();
+    if (mounted && !_disposed) setState(() => _isFullscreen = now);
+  }
 
   void _enterPip() {
     unawaited(_platform.enterPip(_controller.value.isPlaying));
@@ -617,7 +681,18 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       return;
     }
 
-    if (value.state == VlcPlaybackState.playing) {
+    // Advancing position is the only trustworthy sign of playback, so it - not
+    // the state enum - decides whether this counts as progress. libVLC reports
+    // `buffering` throughout healthy playback on some builds, and gating on the
+    // enum meant progress, scrobbling and completion never fired at all.
+    final advanced = value.position != _lastSeenPosition;
+    _lastSeenPosition = value.position;
+    final running =
+        value.state != VlcPlaybackState.paused &&
+        value.state != VlcPlaybackState.stopped &&
+        (value.isPlaying || advanced);
+
+    if (running) {
       final sample = ProgressSample(
         position: value.position,
         duration: value.duration,
@@ -748,6 +823,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     _flushProgress();
     _tracker?.finish();
     _disposed = true;
+    _torrentPoll?.cancel();
+    // A window left full screen after the video closes traps the user in a
+    // chrome-less shell, so undo it on the way out.
+    if (_isFullscreen) unawaited(_platform.toggleFullscreen());
     WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_onPlaybackValue);
     _controller.dispose();
@@ -792,7 +871,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
           fit: StackFit.expand,
           children: [
             VlcPlayer(controller: _controller),
-            VlcPlayerControls(
+            // The overlay gets its own layer so a chrome repaint never forces
+            // the embedder to recomposite the video surface beneath it.
+            RepaintBoundary(
+              child: VlcPlayerControls(
               controller: _controller,
               title: widget.item.title,
               subtitle: _currentEpisode?.name,
@@ -804,8 +886,12 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
                   ? _openSourcePicker
                   : null,
               onEnterPip: _pipAvailable ? _enterPip : null,
+              onToggleFullscreen: _fullscreenAvailable ? _toggleFullscreen : null,
+              isFullscreen: _isFullscreen,
               isLive: _isLive,
               skipSegments: _skipSegments,
+              torrentStatus: _torrentStatus,
+              ),
             ),
           ],
         ),

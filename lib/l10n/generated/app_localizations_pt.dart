@@ -418,7 +418,7 @@ class AppLocalizationsPt extends AppLocalizations {
   String get min => 'min';
 
   @override
-  String get internalPlayer => 'Interno (media_kit)';
+  String get internalPlayer => 'Interno (VLC)';
 
   @override
   String get builtInPlayer => 'Reprodutor integrado';
@@ -579,10 +579,6 @@ class AppLocalizationsPt extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Estilos de Legendas';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'A estilização de legendas só está disponível no reprodutor media_kit.';
 
   @override
   String get resetToDefault => 'Repor Padrão';
@@ -1730,7 +1726,7 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
   String get min => 'min';
 
   @override
-  String get internalPlayer => 'Interno (media_kit)';
+  String get internalPlayer => 'Interno (VLC)';
 
   @override
   String get builtInPlayer => 'Player integrado';
@@ -1891,10 +1887,6 @@ class AppLocalizationsPtBr extends AppLocalizationsPt {
 
   @override
   String get subtitleStyles => 'Estilos de Legendas';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'A estilização de legendas só está disponível no player media_kit.';
 
   @override
   String get resetToDefault => 'Redefinir Padrão';

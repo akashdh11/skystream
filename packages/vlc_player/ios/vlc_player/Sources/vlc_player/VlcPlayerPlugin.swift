@@ -654,7 +654,11 @@ final class VlcPlayerPlatformView: NSObject, FlutterPlatformView, VLCMediaPlayer
     case .opening:
       return "opening"
     case .buffering:
-      return "buffering"
+      // VLCKit reports .buffering throughout healthy playback, not just while
+      // stalled. Reporting it verbatim meant the player never said it was
+      // playing - the spinner stuck, and every host feature gated on "playing"
+      // (progress, scrobbling, completion, next episode) stopped firing.
+      return player.isPlaying ? "playing" : "buffering"
     case .playing:
       return "playing"
     case .paused:

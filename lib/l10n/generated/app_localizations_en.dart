@@ -416,7 +416,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get min => 'min';
 
   @override
-  String get internalPlayer => 'Internal (media_kit)';
+  String get internalPlayer => 'Internal (VLC)';
 
   @override
   String get builtInPlayer => 'Built-in player';
@@ -577,10 +577,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Subtitle Styles';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Subtitle styling is only available on the media_kit player right now.';
 
   @override
   String get resetToDefault => 'Reset to Default';

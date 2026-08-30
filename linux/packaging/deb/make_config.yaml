@@ -9,7 +9,8 @@ section: utils
 depends:
   - libgtk-3-0
   - liblzma5
-  - libmpv-dev
+  - libvlc5
+  - vlc-plugin-base
   - libasound2
 installed_size: 0
 icon: ios/Runner/Assets.xcassets/AppIcon.appiconset/AppIcon~ios-marketing.png

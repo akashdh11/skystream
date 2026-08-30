@@ -420,7 +420,7 @@ class AppLocalizationsRo extends AppLocalizations {
   String get min => 'min';
 
   @override
-  String get internalPlayer => 'Intern (media_kit)';
+  String get internalPlayer => 'Intern (VLC)';
 
   @override
   String get builtInPlayer => 'Player încorporat';
@@ -581,10 +581,6 @@ class AppLocalizationsRo extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Stiluri subtitrare';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Stilizarea subtitrărilor este disponibilă momentan doar pentru player-ul media_kit.';
 
   @override
   String get resetToDefault => 'Resetează la implicit';

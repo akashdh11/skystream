@@ -414,7 +414,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get min => 'phút';
 
   @override
-  String get internalPlayer => 'Trình phát nội bộ (media_kit)';
+  String get internalPlayer => 'Trình phát nội bộ (VLC)';
 
   @override
   String get builtInPlayer => 'Trình phát tích hợp';
@@ -575,10 +575,6 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Kiểu phụ đề';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Tùy chỉnh kiểu phụ đề hiện chỉ khả dụng trên trình phát media_kit.';
 
   @override
   String get resetToDefault => 'Đặt về mặc định';

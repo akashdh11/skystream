@@ -419,7 +419,7 @@ class AppLocalizationsRu extends AppLocalizations {
   String get min => 'мин';
 
   @override
-  String get internalPlayer => 'Внутренний (media_kit)';
+  String get internalPlayer => 'Внутренний (VLC)';
 
   @override
   String get builtInPlayer => 'Встроенный плеер';
@@ -580,10 +580,6 @@ class AppLocalizationsRu extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Стили субтитров';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Стилизация субтитров доступна только в плеере media_kit.';
 
   @override
   String get resetToDefault => 'Сбросить по умолчанию';

@@ -220,7 +220,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
       
-      # Re-sign all frameworks to fix media_kit MPV crash (Issue #830)
+      # Re-sign all frameworks: vlc_player's podspec runs install_name_tool on
+      # VLCKit.framework after compile, which invalidates its signature, and
+      # arm64 macOS refuses to load an unsigned framework.
       - name: Re-sign Frameworks
         run: |
           APP_PATH="build/macos/Build/Products/Release/skystream.app"
@@ -294,32 +296,6 @@ jobs:
         run: |
           cd packages/flutter_torrent_server/assets/torrserver
           Get-ChildItem -File | Where-Object { $_.Name -ne "${{ matrix.torrserver_binary }}" } | Remove-Item
-
-      - name: Download libmpv-2.dll
-        shell: pwsh
-        run: |
-          choco install 7zip -y --no-progress
-          $assetPattern = '^mpv-dev-x86_64-(?!v\d+-)\d{8}-git-[a-f0-9]+\.7z$'
-
-          $release = Invoke-RestMethod -Uri 'https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest'
-          $asset = $release.assets | Where-Object { $_.name -match $assetPattern } | Select-Object -First 1
-          if (-not $asset) {
-            throw "Could not find matching mpv asset for pattern: $assetPattern"
-          }
-
-          $archivePath = Join-Path $env:RUNNER_TEMP 'mpv-dev.7z'
-          $extractDir = Join-Path $env:RUNNER_TEMP 'mpv-dev-extract'
-          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $archivePath
-          New-Item -ItemType Directory -Path $extractDir -Force | Out-Null
-          & 7z x $archivePath "-o$extractDir" -y | Out-Null
-
-          $dll = Get-ChildItem -Path $extractDir -Filter 'libmpv-2.dll' -Recurse | Select-Object -First 1
-          if (-not $dll) {
-            throw 'libmpv-2.dll was not found in extracted mpv archive'
-          }
-
-          "SKYSTREAM_WINDOWS_MPV_DLL=$($dll.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          Write-Host "Using downloaded libmpv: $($dll.FullName)"
 
       - name: Generate dart-defines file
         shell: bash
@@ -403,7 +379,7 @@ jobs:
           # 3. Install required libraries with --no-install-recommends to avoid fetching 190+ bloated recommended packages (tilix, pocketsphinx, etc.)
           sudo apt-get install -y --no-install-recommends \
             clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libmpv-dev libasound2-dev libsecret-1-dev
+            libgtk-3-dev liblzma-dev libvlc-dev libasound2-dev libsecret-1-dev
           
       - name: Install Flutter Dependencies
         run: |

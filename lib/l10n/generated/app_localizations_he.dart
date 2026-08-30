@@ -413,7 +413,7 @@ class AppLocalizationsHe extends AppLocalizations {
   String get min => 'דק\'';
 
   @override
-  String get internalPlayer => 'נגן פנימי (media_kit)';
+  String get internalPlayer => 'נגן פנימי (VLC)';
 
   @override
   String get builtInPlayer => 'נגן מובנה';
@@ -572,10 +572,6 @@ class AppLocalizationsHe extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'סגנונות כתוביות';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'עיצוב כתוביות זמין כרגע רק ב-media_kit.';
 
   @override
   String get resetToDefault => 'חזור לברירת מחדל';

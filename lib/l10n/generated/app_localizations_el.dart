@@ -421,7 +421,7 @@ class AppLocalizationsEl extends AppLocalizations {
   String get min => 'λεπτά';
 
   @override
-  String get internalPlayer => 'Εσωτερικό (media_kit)';
+  String get internalPlayer => 'Εσωτερικό (VLC)';
 
   @override
   String get builtInPlayer => 'Ενσωματωμένο πρόγραμμα αναπαραγωγής';
@@ -582,10 +582,6 @@ class AppLocalizationsEl extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Στυλ υπότιτλων';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Το στυλ υπότιτλων είναι προς το παρόν διαθέσιμο μόνο στο media_kit.';
 
   @override
   String get resetToDefault => 'Επαναφορά στις προεπιλογές';

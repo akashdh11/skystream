@@ -10,7 +10,7 @@
 ///     [{"source":"https://…","quality":"480p"},{"source":…}]
 ///
 /// Resolution is entirely engine-agnostic — it ends at a [StreamResult], and
-/// nothing here knows or cares whether libVLC, libmpv or ExoPlayer opens it.
+/// nothing here knows or cares which engine opens it.
 /// So it lives here rather than in either player, and both can share it.
 ///
 /// The old PlayerController still has its own private copies of these steps

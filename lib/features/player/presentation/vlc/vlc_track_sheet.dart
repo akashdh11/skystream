@@ -3,7 +3,7 @@ import 'package:vlc_player/vlc_player.dart';
 
 /// Audio and subtitle track selection for the VLC engine.
 ///
-/// Phase 6 of docs/PLAYER_MIGRATION.md, whose whole point is that **the engine
+/// Phase 6 of the migration notes, whose whole point is that **the engine
 /// owns the track list**. Nothing here caches, mirrors or merges tracks: the
 /// list is read from the engine when the sheet opens and thrown away when it
 /// closes.
@@ -167,7 +167,7 @@ class _VlcTrackSheetState extends State<VlcTrackSheet> {
   }
 
   /// Subtitle delay is one of the few things VLC genuinely exposes at runtime,
-  /// unlike appearance — see docs/PLAYER_MIGRATION.md section 3.
+  /// unlike appearance — see the migration notes section 3.
   Widget _delayRow() {
     return ValueListenableBuilder<VlcPlayerValue>(
       valueListenable: widget.controller,

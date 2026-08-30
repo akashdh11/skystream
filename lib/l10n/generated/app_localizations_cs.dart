@@ -417,7 +417,7 @@ class AppLocalizationsCs extends AppLocalizations {
   String get min => 'min';
 
   @override
-  String get internalPlayer => 'Interní (media_kit)';
+  String get internalPlayer => 'Interní (VLC)';
 
   @override
   String get builtInPlayer => 'Vestavěný přehrávač';
@@ -578,10 +578,6 @@ class AppLocalizationsCs extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Styly titulků';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Stylování titulků je zatím dostupné pouze pro media_kit.';
 
   @override
   String get resetToDefault => 'Obnovit výchozí';

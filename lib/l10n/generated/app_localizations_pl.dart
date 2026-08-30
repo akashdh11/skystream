@@ -414,7 +414,7 @@ class AppLocalizationsPl extends AppLocalizations {
   String get min => 'min';
 
   @override
-  String get internalPlayer => 'Wewnętrzny (media_kit)';
+  String get internalPlayer => 'Wewnętrzny (VLC)';
 
   @override
   String get builtInPlayer => 'Wbudowany odtwarzacz';
@@ -575,10 +575,6 @@ class AppLocalizationsPl extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Style napisów';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Stylizowanie napisów jest dostępne tylko dla media_kit.';
 
   @override
   String get resetToDefault => 'Domyślne';

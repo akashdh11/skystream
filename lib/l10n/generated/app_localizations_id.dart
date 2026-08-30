@@ -418,7 +418,7 @@ class AppLocalizationsId extends AppLocalizations {
   String get min => 'mnt';
 
   @override
-  String get internalPlayer => 'Internal (media_kit)';
+  String get internalPlayer => 'Internal (VLC)';
 
   @override
   String get builtInPlayer => 'Pemutar bawaan';
@@ -579,10 +579,6 @@ class AppLocalizationsId extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Gaya Terjemahan';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Gaya terjemahan hanya tersedia di pemutar media_kit saat ini.';
 
   @override
   String get resetToDefault => 'Reset ke Default';

@@ -57,14 +57,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.3"
-  app_restarter:
-    dependency: "direct main"
-    description:
-      name: app_restarter
-      sha256: a11315bad5ed1427be5b36f63da6e3ab370b7eb5b417a90bdb130a4c3997bbd7
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.2.0"
   archive:
     dependency: "direct main"
     description:
@@ -393,14 +385,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.11.0"
-  dio_cookie_manager:
-    dependency: "direct main"
-    description:
-      name: dio_cookie_manager
-      sha256: "4ed4669cacb11931517c1158876a2189f19386674b9dab498abcca063dbe4c61"
-      url: "https://pub.dev"
-    source: hosted
-    version: "3.5.0"
   dio_web_adapter:
     dependency: transitive
     description:
@@ -513,14 +497,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.2"
-  filesystem_picker:
-    dependency: "direct main"
-    description:
-      name: filesystem_picker
-      sha256: cc2bfe7e5a4ce21afd5b1b03824c0e6e5386a981ed6cce7bda062b1af805cf62
-      url: "https://pub.dev"
-    source: hosted
-    version: "4.1.0"
   fixnum:
     dependency: transitive
     description:
@@ -642,14 +618,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  flutter_plugin_android_lifecycle:
-    dependency: transitive
-    description:
-      name: flutter_plugin_android_lifecycle
-      sha256: "3854fe5e3bff0b113c658f260b90c95dea17c92db0f2addeac2e343dd9969785"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.35"
   flutter_riverpod:
     dependency: "direct main"
     description:
@@ -726,14 +694,6 @@ packages:
       relative: true
     source: path
     version: "0.0.1"
-  flutter_volume_controller:
-    dependency: "direct main"
-    description:
-      name: flutter_volume_controller
-      sha256: f9ba12aa17880c1ee3e1668f14eefbc6704e2fed90ed0b2ca97b7dee71133240
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.0.2"
   flutter_web_plugins:
     dependency: transitive
     description: flutter
@@ -988,7 +948,7 @@ packages:
     source: hosted
     version: "0.13.0"
   material_new_shapes:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: material_new_shapes
       sha256: e4bc375205e187e8fb232573387112dd8c0dd45b03af8aa2b3c79eb4b9e3e0dc
@@ -1765,14 +1725,6 @@ packages:
     description:
       name: talker_logger
       sha256: b24550d115f209a1b84a697d65f5ec0fa9eb483735c802f18077692fa83cb5f8
-      url: "https://pub.dev"
-    source: hosted
-    version: "5.1.20"
-  talker_riverpod_logger:
-    dependency: "direct main"
-    description:
-      name: talker_riverpod_logger
-      sha256: e4c9fa89947f2e29ddf9965e542f32de611631b6faedfa5461875e73ab40085b
       url: "https://pub.dev"
     source: hosted
     version: "5.1.20"

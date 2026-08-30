@@ -84,7 +84,7 @@ class LocalProxyService {
   }
 
   /// Allow-list for incoming request schemes / hosts. We only serve to
-  /// in-process media_kit (which connects to 127.0.0.1) — any request from
+  /// the in-process player (which connects to 127.0.0.1) — any request from
   /// another origin would mean a local web page is trying to scrape our
   /// stream URLs (audit B4). Returning false → 403 in the handler.
   bool _isAllowedOrigin(HttpRequest request) {
@@ -416,9 +416,9 @@ class LocalProxyService {
         "vnd.apple.mpegurl",
         charset: "utf-8",
       );
-      // Scope CORS to the local proxy origin. media_kit / video_view make
-      // requests in-process; no legitimate cross-origin browser should be
-      // hitting these URLs. Audit B4.
+      // Scope CORS to the local proxy origin. The player requests these
+        // in-process; no legitimate cross-origin browser should be hitting
+        // these URLs. Audit B4.
       request.response.headers.add(
         "Access-Control-Allow-Origin",
         "http://127.0.0.1:$_serverPort",

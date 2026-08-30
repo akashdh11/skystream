@@ -16,11 +16,16 @@
 -dontwarn io.flutter.embedding.**
 
 # ─────────────────────────────────────────────────────────────────────────
-# media_kit — uses JNI via libmpv; preserve the JNI bridge classes.
-# ─────────────────────────────────────────────────────────────────────────
--keep class com.alexmercerind.media_kit_video.** { *; }
--keep class com.alexmercerind.** { *; }
--dontwarn com.alexmercerind.**
+# libVLC — libvlcjni.so resolves these classes by name through JNI, and the
+# libvlc-all AAR ships no consumer ProGuard rules of its own. With minify and
+# shrink both enabled, R8 is free to rename or remove them and playback dies at
+# runtime in release builds only.
+#
+# Verified: `strings libvlcjni.so | grep org/videolan` lists 31 symbols
+# including MediaPlayer, Media, IMedia$Track and MediaPlayer$Equalizer.
+-keep class org.videolan.** { *; }
+-keepclassmembers class org.videolan.** { *; }
+-dontwarn org.videolan.**
 
 # ─────────────────────────────────────────────────────────────────────────
 # flutter_inappwebview — reflection for JS<->Dart bridges + WebView

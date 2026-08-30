@@ -97,26 +97,8 @@ class PlayerSettings {
   final String?
   preferredPlayer; // null = internal, 'vlc' / 'mpv' etc. = external
   final int readaheadSeconds;
-  final double subtitlePosition;
 
   // New subtitle appearance properties
-  final double? subFixedTextSize;
-  final int? subTypeface;
-  final String? subTypefaceFilePath;
-  final int subEdgeType;
-  final double? subEdgeSize;
-  final double? subBackgroundRadius;
-  final int subElevation;
-  final bool subRemoveBloat;
-  final bool subRemoveCaptions;
-  final bool subUpperCase;
-  final bool subBold;
-  final bool subItalic;
-  final int subForegroundColor;
-  final int subBackgroundColor;
-  final int subEdgeColor;
-  final double subBackgroundOpacity;
-  final int? subAlignment;
 
   /// Quality to prefer when on Wi-Fi. Default: 4K (best available).
   final QualityPreference wifiQuality;
@@ -160,7 +142,6 @@ class PlayerSettings {
   /// 1.0 = normal. Stored as a double to support fractional values
   /// (1.25, 1.5, 1.75, 2.0). Capped at the engine's supported range
   /// at playback time (`maxPlaybackSpeed`).
-  final double defaultPlaybackSpeed;
 
   /// Toggles for individual player control-bar buttons. All default to
   /// visible. Sources, Audio Tracks and Subtitles are intentionally not
@@ -194,24 +175,6 @@ class PlayerSettings {
     this.hardwareDecoding = true,
     this.preferredPlayer,
     this.readaheadSeconds = 180,
-    this.subtitlePosition = 100.0,
-    this.subFixedTextSize,
-    this.subTypeface,
-    this.subTypefaceFilePath,
-    this.subEdgeType = 1,
-    this.subEdgeSize,
-    this.subBackgroundRadius,
-    this.subElevation = 20,
-    this.subRemoveBloat = true,
-    this.subRemoveCaptions = false,
-    this.subUpperCase = false,
-    this.subBold = false,
-    this.subItalic = false,
-    this.subForegroundColor = 0xFFFFFFFF,
-    this.subBackgroundColor = 0x00000000,
-    this.subEdgeColor = 0xFF000000,
-    this.subBackgroundOpacity = 0.5,
-    this.subAlignment,
     this.wifiQuality = kDefaultWifiQuality,
     this.mobileQuality = QualityPreference.q1080,
     this.qualityFilterMode = QualityFilterMode.any,
@@ -222,7 +185,6 @@ class PlayerSettings {
     this.inverseToneMapping = false,
     this.maxVolumePercent = 200,
     this.showRemainingTime = false,
-    this.defaultPlaybackSpeed = 1.0,
     this.showPip = true,
     this.showResize = true,
     this.showRotate = true,
@@ -252,23 +214,11 @@ class PlayerSettings {
     String? preferredPlayer,
     bool clearPreferredPlayer = false,
     int? readaheadSeconds,
-    double? subtitlePosition,
     double? Function()? subFixedTextSize,
     int? Function()? subTypeface,
     String? Function()? subTypefaceFilePath,
-    int? subEdgeType,
     double? Function()? subEdgeSize,
     double? Function()? subBackgroundRadius,
-    int? subElevation,
-    bool? subRemoveBloat,
-    bool? subRemoveCaptions,
-    bool? subUpperCase,
-    bool? subBold,
-    bool? subItalic,
-    int? subForegroundColor,
-    int? subBackgroundColor,
-    int? subEdgeColor,
-    double? subBackgroundOpacity,
     int? Function()? subAlignment,
     QualityPreference? wifiQuality,
     QualityPreference? mobileQuality,
@@ -280,7 +230,6 @@ class PlayerSettings {
     bool? inverseToneMapping,
     int? maxVolumePercent,
     bool? showRemainingTime,
-    double? defaultPlaybackSpeed,
     bool? showPip,
     bool? showResize,
     bool? showRotate,
@@ -312,30 +261,6 @@ class PlayerSettings {
           ? null
           : (preferredPlayer ?? this.preferredPlayer),
       readaheadSeconds: readaheadSeconds ?? this.readaheadSeconds,
-      subtitlePosition: subtitlePosition ?? this.subtitlePosition,
-      subFixedTextSize: subFixedTextSize != null
-          ? subFixedTextSize()
-          : this.subFixedTextSize,
-      subTypeface: subTypeface != null ? subTypeface() : this.subTypeface,
-      subTypefaceFilePath: subTypefaceFilePath != null
-          ? subTypefaceFilePath()
-          : this.subTypefaceFilePath,
-      subEdgeType: subEdgeType ?? this.subEdgeType,
-      subEdgeSize: subEdgeSize != null ? subEdgeSize() : this.subEdgeSize,
-      subBackgroundRadius: subBackgroundRadius != null
-          ? subBackgroundRadius()
-          : this.subBackgroundRadius,
-      subElevation: subElevation ?? this.subElevation,
-      subRemoveBloat: subRemoveBloat ?? this.subRemoveBloat,
-      subRemoveCaptions: subRemoveCaptions ?? this.subRemoveCaptions,
-      subUpperCase: subUpperCase ?? this.subUpperCase,
-      subBold: subBold ?? this.subBold,
-      subItalic: subItalic ?? this.subItalic,
-      subForegroundColor: subForegroundColor ?? this.subForegroundColor,
-      subBackgroundColor: subBackgroundColor ?? this.subBackgroundColor,
-      subEdgeColor: subEdgeColor ?? this.subEdgeColor,
-      subBackgroundOpacity: subBackgroundOpacity ?? this.subBackgroundOpacity,
-      subAlignment: subAlignment != null ? subAlignment() : this.subAlignment,
       wifiQuality: wifiQuality ?? this.wifiQuality,
       mobileQuality: mobileQuality ?? this.mobileQuality,
       qualityFilterMode: qualityFilterMode ?? this.qualityFilterMode,
@@ -346,7 +271,6 @@ class PlayerSettings {
       inverseToneMapping: inverseToneMapping ?? this.inverseToneMapping,
       maxVolumePercent: maxVolumePercent ?? this.maxVolumePercent,
       showRemainingTime: showRemainingTime ?? this.showRemainingTime,
-      defaultPlaybackSpeed: defaultPlaybackSpeed ?? this.defaultPlaybackSpeed,
       showPip: showPip ?? this.showPip,
       showResize: showResize ?? this.showResize,
       showRotate: showRotate ?? this.showRotate,
@@ -461,86 +385,10 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
     final filterMode = _parseFilterMode(
       storage.getPlayerSetting<String>('player_quality_filter_mode'),
     );
-
-    final subFixedTextSize =
-        (storage.getPlayerSetting('player_sub_fixed_text_size') as num?)
-            ?.toDouble();
     final subTypeface = storage.getPlayerSetting<int>('player_sub_typeface');
     final subTypefaceFilePath = storage.getPlayerSetting<String>(
       'player_sub_typeface_file_path',
     );
-    final subEdgeType =
-        storage.getPlayerSetting<int>(
-          'player_sub_edge_type',
-          defaultValue: 1,
-        ) ??
-        1;
-    final subEdgeSize =
-        (storage.getPlayerSetting('player_sub_edge_size') as num?)?.toDouble();
-    final subBackgroundRadius =
-        (storage.getPlayerSetting('player_sub_bg_radius') as num?)?.toDouble();
-    final subElevation =
-        storage.getPlayerSetting<int>(
-          'player_sub_elevation',
-          defaultValue: 20,
-        ) ??
-        20;
-    final subRemoveBloat =
-        storage.getPlayerSetting<bool>(
-          'player_sub_remove_bloat',
-          defaultValue: true,
-        ) ??
-        true;
-    final subRemoveCaptions =
-        storage.getPlayerSetting<bool>(
-          'player_sub_remove_captions',
-          defaultValue: false,
-        ) ??
-        false;
-    final subUpperCase =
-        storage.getPlayerSetting<bool>(
-          'player_sub_uppercase',
-          defaultValue: false,
-        ) ??
-        false;
-    final subBold =
-        storage.getPlayerSetting<bool>(
-          'player_sub_bold',
-          defaultValue: false,
-        ) ??
-        false;
-    final subItalic =
-        storage.getPlayerSetting<bool>(
-          'player_sub_italic',
-          defaultValue: false,
-        ) ??
-        false;
-    final subForegroundColor =
-        storage.getPlayerSetting<int>(
-          'player_sub_foreground_color',
-          defaultValue: 0xFFFFFFFF,
-        ) ??
-        0xFFFFFFFF;
-    final subBackgroundColor =
-        storage.getPlayerSetting<int>(
-          'player_sub_background_color',
-          defaultValue: 0x00000000,
-        ) ??
-        0x00000000;
-    final subEdgeColor =
-        storage.getPlayerSetting<int>(
-          'player_sub_edge_color',
-          defaultValue: 0xFF000000,
-        ) ??
-        0xFF000000;
-    final subBackgroundOpacity =
-        (storage.getPlayerSetting(
-                  'player_sub_background_opacity',
-                  defaultValue: 0.5,
-                )
-                as num?)
-            ?.toDouble() ??
-        0.5;
     final subAlignment = storage.getPlayerSetting<int>('player_sub_alignment');
 
     final showPip =
@@ -615,24 +463,6 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
       hardwareDecoding: hwDec,
       preferredPlayer: prefPlayer,
       readaheadSeconds: rSecons,
-      subtitlePosition: subPos,
-      subFixedTextSize: subFixedTextSize,
-      subTypeface: subTypeface,
-      subTypefaceFilePath: subTypefaceFilePath,
-      subEdgeType: subEdgeType,
-      subEdgeSize: subEdgeSize,
-      subBackgroundRadius: subBackgroundRadius,
-      subElevation: subElevation,
-      subRemoveBloat: subRemoveBloat,
-      subRemoveCaptions: subRemoveCaptions,
-      subUpperCase: subUpperCase,
-      subBold: subBold,
-      subItalic: subItalic,
-      subForegroundColor: subForegroundColor,
-      subBackgroundColor: subBackgroundColor,
-      subEdgeColor: subEdgeColor,
-      subBackgroundOpacity: subBackgroundOpacity,
-      subAlignment: subAlignment,
       wifiQuality: wifiQ,
       mobileQuality: mobileQ,
       qualityFilterMode: filterMode,
@@ -643,7 +473,6 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
       inverseToneMapping: inverseToneMapping,
       maxVolumePercent: maxVolumePercent,
       showRemainingTime: showRemaining,
-      defaultPlaybackSpeed: defaultSpeed,
       showPip: showPip,
       showResize: showResize,
       showRotate: showRotate,
@@ -659,158 +488,7 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
     );
   }
 
-  Future<void> setSubtitleAppearanceSettings(PlayerSettings newSettings) async {
-    final storage = _repository;
 
-    // Sync the legacy settings to match the new appearance settings
-    final syncedSettings = newSettings.copyWith(
-      subtitleSize: newSettings.subFixedTextSize ?? 22.0,
-      subtitleColor: newSettings.subForegroundColor,
-      subtitleBackgroundColor: newSettings.subBackgroundColor,
-      subtitleBackgroundOpacity: newSettings.subBackgroundOpacity,
-    );
-
-    await storage.setPlayerSetting(
-      'player_sub_fixed_text_size',
-      syncedSettings.subFixedTextSize,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_typeface',
-      syncedSettings.subTypeface,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_typeface_file_path',
-      syncedSettings.subTypefaceFilePath,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_edge_type',
-      syncedSettings.subEdgeType,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_edge_size',
-      syncedSettings.subEdgeSize,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_bg_radius',
-      syncedSettings.subBackgroundRadius,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_elevation',
-      syncedSettings.subElevation,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_remove_bloat',
-      syncedSettings.subRemoveBloat,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_remove_captions',
-      syncedSettings.subRemoveCaptions,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_uppercase',
-      syncedSettings.subUpperCase,
-    );
-    await storage.setPlayerSetting('player_sub_bold', syncedSettings.subBold);
-    await storage.setPlayerSetting(
-      'player_sub_italic',
-      syncedSettings.subItalic,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_foreground_color',
-      syncedSettings.subForegroundColor,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_background_color',
-      syncedSettings.subBackgroundColor,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_edge_color',
-      syncedSettings.subEdgeColor,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_background_opacity',
-      syncedSettings.subBackgroundOpacity,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_alignment',
-      syncedSettings.subAlignment,
-    );
-
-    // Persist legacy settings to database too
-    await storage.setPlayerSetting(
-      'player_sub_size',
-      syncedSettings.subtitleSize,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_color',
-      syncedSettings.subtitleColor,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_bg',
-      syncedSettings.subtitleBackgroundColor,
-    );
-    await storage.setPlayerSetting(
-      'player_sub_bg_opacity',
-      syncedSettings.subtitleBackgroundOpacity,
-    );
-
-    state = AsyncData(syncedSettings);
-  }
-
-  Future<void> resetSubtitleAppearanceSettings() async {
-    final current = state.requireValue;
-    final newState = current.copyWith(
-      subFixedTextSize: () => null,
-      subTypeface: () => null,
-      subTypefaceFilePath: () => null,
-      subEdgeType: 1,
-      subEdgeSize: () => null,
-      subBackgroundRadius: () => null,
-      subElevation: 20,
-      subRemoveBloat: true,
-      subRemoveCaptions: false,
-      subUpperCase: false,
-      subBold: false,
-      subItalic: false,
-      subForegroundColor: 0xFFFFFFFF,
-      subBackgroundColor: 0x00000000,
-      subEdgeColor: 0xFF000000,
-      subBackgroundOpacity: 0.5,
-      subAlignment: () => null,
-      // Reset legacy settings as well
-      subtitleSize: 22.0,
-      subtitleColor: 0xFFFFFFFF,
-      subtitleBackgroundColor: 0x00000000,
-      subtitleBackgroundOpacity: 0.5,
-    );
-
-    final storage = _repository;
-    await storage.setPlayerSetting('player_sub_fixed_text_size', null);
-    await storage.setPlayerSetting('player_sub_typeface', null);
-    await storage.setPlayerSetting('player_sub_typeface_file_path', null);
-    await storage.setPlayerSetting('player_sub_edge_type', 1);
-    await storage.setPlayerSetting('player_sub_edge_size', null);
-    await storage.setPlayerSetting('player_sub_bg_radius', null);
-    await storage.setPlayerSetting('player_sub_elevation', 20);
-    await storage.setPlayerSetting('player_sub_remove_bloat', true);
-    await storage.setPlayerSetting('player_sub_remove_captions', false);
-    await storage.setPlayerSetting('player_sub_uppercase', false);
-    await storage.setPlayerSetting('player_sub_bold', false);
-    await storage.setPlayerSetting('player_sub_italic', false);
-    await storage.setPlayerSetting('player_sub_foreground_color', 0xFFFFFFFF);
-    await storage.setPlayerSetting('player_sub_background_color', 0x00000000);
-    await storage.setPlayerSetting('player_sub_edge_color', 0xFF000000);
-    await storage.setPlayerSetting('player_sub_background_opacity', 0.5);
-    await storage.setPlayerSetting('player_sub_alignment', null);
-
-    // Reset legacy keys in storage too
-    await storage.setPlayerSetting('player_sub_size', 22.0);
-    await storage.setPlayerSetting('player_sub_color', 0xFFFFFFFF);
-    await storage.setPlayerSetting('player_sub_bg', 0x00000000);
-    await storage.setPlayerSetting('player_sub_bg_opacity', 0.5);
-
-    state = AsyncData(newState);
-  }
 
   Future<void> setLeftGesture(PlayerGesture g) async {
     await _repository.setPlayerSetting('player_gesture_left', g.name);
@@ -945,10 +623,6 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
     state = AsyncData(state.requireValue.copyWith(readaheadSeconds: seconds));
   }
 
-  Future<void> setSubtitlePosition(double pos) async {
-    await _repository.setPlayerSetting('player_sub_pos', pos);
-    state = AsyncData(state.requireValue.copyWith(subtitlePosition: pos));
-  }
 
   Future<void> setSubtitleBackgroundOpacity(double val) async {
     await _repository.setPlayerSetting('player_sub_bg_opacity', val);
@@ -964,7 +638,6 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
       subtitleColor: 0xFFFFFFFF,
       subtitleBackgroundColor: 0x00000000,
       subtitleBackgroundOpacity: 0.5,
-      subtitlePosition: 100.0,
     );
 
     await _repository.setPlayerSetting('player_sub_size', 22.0);
@@ -996,10 +669,6 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
     state = AsyncData(state.requireValue.copyWith(showRemainingTime: val));
   }
 
-  Future<void> setDefaultPlaybackSpeed(double speed) async {
-    await _repository.setPlayerSetting('player_default_speed', speed);
-    state = AsyncData(state.requireValue.copyWith(defaultPlaybackSpeed: speed));
-  }
 
   Future<void> setOpenSubtitlesCredentials(
     String user,

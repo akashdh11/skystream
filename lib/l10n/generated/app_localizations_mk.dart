@@ -418,7 +418,7 @@ class AppLocalizationsMk extends AppLocalizations {
   String get min => 'мин';
 
   @override
-  String get internalPlayer => 'Внатрешен (media_kit)';
+  String get internalPlayer => 'Внатрешен (VLC)';
 
   @override
   String get builtInPlayer => 'Вграден плеер';
@@ -579,10 +579,6 @@ class AppLocalizationsMk extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Стилови на титлови';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Стилизирањето на титловите е моментално достапно само за media_kit.';
 
   @override
   String get resetToDefault => 'Врати на стандардно';

@@ -421,7 +421,7 @@ class AppLocalizationsTr extends AppLocalizations {
   String get min => 'dk';
 
   @override
-  String get internalPlayer => 'Dahili (media_kit)';
+  String get internalPlayer => 'Dahili (VLC)';
 
   @override
   String get builtInPlayer => 'Yerleşik oynatıcı';
@@ -582,10 +582,6 @@ class AppLocalizationsTr extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Altyazı Stilleri';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'Altyazı stillendirme şu an sadece media_kit oynatıcısında mevcut.';
 
   @override
   String get resetToDefault => 'Varsayılana Sıfırla';

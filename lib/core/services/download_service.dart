@@ -587,7 +587,8 @@ class DownloadService {
     if (Platform.isAndroid) {
       final androidInfo = await DeviceInfoPlugin().androidInfo;
       if (androidInfo.version.sdkInt >= 30) {
-        // For Android 11+, request MANAGE_EXTERNAL_STORAGE to allow native C++ players (media_kit)
+        // For Android 11+, request MANAGE_EXTERNAL_STORAGE so the native player can
+        // read downloaded files directly
         // to bypass FUSE directory depth limits for deeply nested series folders
         final status = await Permission.manageExternalStorage.status;
         if (!status.isGranted) {

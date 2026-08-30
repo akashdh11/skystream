@@ -187,7 +187,7 @@ SkyStream is not on the App Store. You must **sideload** it using a computer.
    - *Linux Note: You may need to install the following packages:*
      ```bash
      sudo apt-get update
-     sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libmpv-dev libasound2-dev
+     sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libvlc-dev libasound2-dev
      ```
 
 ## 🛠️ Build from Source

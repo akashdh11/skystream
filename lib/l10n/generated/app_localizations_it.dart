@@ -419,7 +419,7 @@ class AppLocalizationsIt extends AppLocalizations {
   String get min => 'min';
 
   @override
-  String get internalPlayer => 'Interno (media_kit)';
+  String get internalPlayer => 'Interno (VLC)';
 
   @override
   String get builtInPlayer => 'Lettore integrato';
@@ -580,10 +580,6 @@ class AppLocalizationsIt extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'Stili sottotitoli';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'La personalizzazione dei sottotitoli è disponibile solo sul lettore media_kit al momento.';
 
   @override
   String get resetToDefault => 'Ripristina predefiniti';

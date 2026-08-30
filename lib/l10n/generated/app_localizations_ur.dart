@@ -419,7 +419,7 @@ class AppLocalizationsUr extends AppLocalizations {
   String get min => 'منٹ';
 
   @override
-  String get internalPlayer => 'اندرونی (media_kit)';
+  String get internalPlayer => 'اندرونی (VLC)';
 
   @override
   String get builtInPlayer => 'بلٹ ان پلیئر';
@@ -580,10 +580,6 @@ class AppLocalizationsUr extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'سب ٹائٹل اسٹائلز';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'سب ٹائٹل اسٹائلنگ اس وقت صرف media_kit پلیئر پر دستیاب ہے۔';
 
   @override
   String get resetToDefault => 'ڈیفالٹ پر ری سیٹ کریں';

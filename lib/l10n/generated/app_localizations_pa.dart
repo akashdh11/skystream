@@ -417,7 +417,7 @@ class AppLocalizationsPa extends AppLocalizations {
   String get min => 'ਮਿੰਟ';
 
   @override
-  String get internalPlayer => 'ਅੰਦਰੂਨੀ ਪਲੇਅਰ (media_kit)';
+  String get internalPlayer => 'ਅੰਦਰੂਨੀ ਪਲੇਅਰ (VLC)';
 
   @override
   String get builtInPlayer => 'ਬਿਲਟ-ਇਨ ਪਲੇਅਰ';
@@ -578,10 +578,6 @@ class AppLocalizationsPa extends AppLocalizations {
 
   @override
   String get subtitleStyles => 'ਸਬਟਾਈਟਲ ਸਟਾਈਲ';
-
-  @override
-  String get mediaKitStylingWarning =>
-      'ਸਬਟਾਈਟਲ ਸਟਾਈਲਿੰਗ ਹੁਣੇ ਸਿਰਫ media_kit ਪਲੇਅਰ \'ਤੇ ਉਪਲਬਧ ਹੈ।';
 
   @override
   String get resetToDefault => 'ਡਿਫੌਲਟ \'ਤੇ ਰੀਸੈੱਟ ਕਰੋ';

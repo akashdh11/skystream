@@ -333,4 +333,59 @@ void main() {
       expect(value.errorDescription, isNull);
     });
   });
+
+  group('spurious buffering correction', () {
+    // libVLC reports `buffering` throughout healthy playback on some builds -
+    // VLCKit with isPlaying false, and Android emitting a Buffering event on
+    // nearly every tick. Left uncorrected, a consumer shows a spinner over a
+    // playing video and never learns that playback started.
+    const playing = VlcPlayerValue(
+      state: VlcPlaybackState.playing,
+      position: Duration(seconds: 10),
+    );
+
+    test('buffering during playback with an advancing position is playing', () {
+      final value = VlcPlayerValue.fromEvent(
+        <String, Object?>{'state': 'buffering', 'position': 11000},
+        playing,
+      );
+      expect(value.state, VlcPlaybackState.playing);
+    });
+
+    // A real rebuffer stalls, so the position does not move.
+    test('buffering with a stalled position stays buffering', () {
+      final value = VlcPlayerValue.fromEvent(
+        <String, Object?>{'state': 'buffering', 'position': 10000},
+        playing,
+      );
+      expect(value.state, VlcPlaybackState.buffering);
+    });
+
+    // Startup buffering arrives from opening, never from playing.
+    test('buffering at startup is left alone', () {
+      final value = VlcPlayerValue.fromEvent(
+        <String, Object?>{'state': 'buffering', 'position': 1200},
+        const VlcPlayerValue(state: VlcPlaybackState.opening),
+      );
+      expect(value.state, VlcPlaybackState.buffering);
+    });
+
+    test('a backwards position after a seek is not treated as playing', () {
+      final value = VlcPlayerValue.fromEvent(
+        <String, Object?>{'state': 'buffering', 'position': 5000},
+        playing,
+      );
+      expect(value.state, VlcPlaybackState.buffering);
+    });
+
+    test('paused, stopped and ended are never corrected', () {
+      for (final name in const ['paused', 'stopped', 'ended']) {
+        final value = VlcPlayerValue.fromEvent(
+          <String, Object?>{'state': name, 'position': 11000},
+          playing,
+        );
+        expect(value.state.name, name);
+      }
+    });
+  });
 }
