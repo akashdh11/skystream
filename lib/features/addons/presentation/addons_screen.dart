@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/addons/data/addon_client.dart';
@@ -12,7 +11,6 @@ import 'addon_providers.dart';
 import 'widgets/addon_manage_view.dart';
 
 import '../../../core/domain/entity/multimedia_item.dart';
-import '../../../core/providers/device_info_provider.dart';
 import '../../../core/utils/layout_constants.dart';
 import '../../../core/utils/responsive_breakpoints.dart';
 import '../../../shared/widgets/shimmer_placeholder.dart';
@@ -20,234 +18,137 @@ import '../../explore/presentation/view_all_screen.dart';
 import '../../explore/presentation/widgets/explore_carousel.dart';
 import '../../explore/presentation/widgets/media_horizontal_list.dart';
 
+import 'package:skystream/l10n/generated/app_localizations.dart';
+import '../../../shared/widgets/loading_indicator.dart';
+
 /// Stremio Add-ons settings destination — management and discovery.
-class AddonsScreen extends ConsumerStatefulWidget {
+class AddonsScreen extends ConsumerWidget {
   final int initialTab;
   final bool isEmbedded;
 
   const AddonsScreen({super.key, this.initialTab = 0, this.isEmbedded = false});
 
   @override
-  ConsumerState<AddonsScreen> createState() => _AddonsScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final state = ref.watch(addonRepositoryProvider);
 
-class _AddonsScreenState extends ConsumerState<AddonsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    final initial = widget.initialTab.clamp(0, 1);
-    _tabController = TabController(
-      length: 2,
-      vsync: this,
-      initialIndex: initial,
-    );
-    _tabController.addListener(() {
-      if (mounted) setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final profile = ref.watch(deviceProfileProvider).asData?.value;
-    final isTv = profile?.isTv == true || context.isTv;
-    final isWidescreen = isTv || context.isTabletOrLarger;
-
-    final content = Column(
-      children: [
-        // Inline header matching library and widescreen dashboard screens
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: Container(
-            height: LayoutConstants.dashboardHeaderHeight,
-            padding: const EdgeInsets.symmetric(
-              horizontal: LayoutConstants.dashboardContentPadding,
-            ),
-            child: Row(
-              children: [
-                Text(
-                  'Stremio Add-ons',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                // Tab chips
-                _buildTabChips(context),
+    if (isEmbedded) {
+      if (state.isLoading && state.addons.isEmpty) {
+        return const Center(child: AppLoadingIndicator());
+      }
+      return DefaultTabController(
+        length: 2,
+        initialIndex: initialTab.clamp(0, 1),
+        child: Column(
+          children: [
+            TabBar(
+              indicatorSize: TabBarIndicatorSize.label,
+              tabs: [
+                Tab(text: l10n.installed),
+                const Tab(text: 'Discover'),
               ],
             ),
-          ),
-        ),
-        Expanded(
-          child: IndexedStack(
-            index: _tabController.index,
-            children: const [AddonManageView(), _DiscoverTab()],
-          ),
-        ),
-      ],
-    );
-
-    if (widget.isEmbedded) {
-      return content;
-    }
-
-    if (isWidescreen) {
-      return Scaffold(backgroundColor: Colors.transparent, body: content);
-    }
-
-    // Mobile layout: Standard AppBar with TabBar
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Stremio Add-ons'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorSize: TabBarIndicatorSize.label,
-          tabs: const [
-            Tab(text: 'My add-ons', icon: Icon(Icons.extension_rounded)),
-            Tab(text: 'Discover', icon: Icon(Icons.travel_explore_rounded)),
-          ],
-        ),
-      ),
-      body: IndexedStack(
-        index: _tabController.index,
-        children: const [AddonManageView(), _DiscoverTab()],
-      ),
-    );
-  }
-
-  Widget _buildTabChips(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return AnimatedBuilder(
-      animation: _tabController,
-      builder: (context, _) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _TabChip(
-              label: 'My add-ons',
-              icon: Icons.extension_rounded,
-              selected: _tabController.index == 0,
-              onTap: () => _tabController.animateTo(0),
-              theme: theme,
-            ),
-            const SizedBox(width: 8),
-            _TabChip(
-              label: 'Discover',
-              icon: Icons.travel_explore_rounded,
-              selected: _tabController.index == 1,
-              onTap: () => _tabController.animateTo(1),
-              theme: theme,
+            const Expanded(
+              child: TabBarView(
+                children: [
+                  AddonManageView(),
+                  _DiscoverTab(),
+                ],
+              ),
             ),
           ],
-        );
-      },
-    );
-  }
-}
+        ),
+      );
+    }
 
-class _TabChip extends StatefulWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-  final ThemeData theme;
+    if (state.isLoading && state.addons.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                const SettingsRoute().go(context);
+              }
+            },
+          ),
+          title: const Text('Stremio Add-ons'),
+        ),
+        body: const Center(child: AppLoadingIndicator()),
+      );
+    }
 
-  const _TabChip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-    required this.theme,
-  });
-
-  @override
-  State<_TabChip> createState() => _TabChipState();
-}
-
-class _TabChipState extends State<_TabChip> {
-  bool _isFocused = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = widget.theme;
-    final isTraditional =
-        FocusManager.instance.highlightMode == FocusHighlightMode.traditional;
-    final showHighlight = _isFocused && isTraditional;
-    final scale = showHighlight ? 1.04 : 1.0;
-
-    return Focus(
-      onFocusChange: (f) {
-        if (mounted) setState(() => _isFocused = f);
-      },
-      onKeyEvent: (node, event) {
-        if (event is KeyDownEvent &&
-            (event.logicalKey == LogicalKeyboardKey.select ||
-                event.logicalKey == LogicalKeyboardKey.enter ||
-                event.logicalKey == LogicalKeyboardKey.space)) {
-          widget.onTap();
-          return KeyEventResult.handled;
-        }
-        return KeyEventResult.ignored;
-      },
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: scale,
-          duration: const Duration(milliseconds: 150),
-          curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: widget.selected
-                  ? theme.colorScheme.primary.withValues(alpha: 0.15)
-                  : theme.colorScheme.surfaceContainerHighest.withValues(
-                      alpha: 0.3,
+    return DefaultTabController(
+      key: const ValueKey('stremio_addons_tab_controller'),
+      length: 2,
+      initialIndex: initialTab.clamp(0, 1),
+      child: Builder(
+        builder: (tabContext) => Scaffold(
+          appBar: AppBar(
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              tooltip: MaterialLocalizations.of(tabContext).backButtonTooltip,
+              onPressed: () {
+                if (Navigator.of(tabContext).canPop()) {
+                  Navigator.of(tabContext).pop();
+                } else {
+                  const SettingsRoute().go(tabContext);
+                }
+              },
+            ),
+            title: const Text('Stremio Add-ons'),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(48),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: TabBar(
+                    indicatorSize: TabBarIndicatorSize.label,
+                    indicatorWeight: 3,
+                    labelStyle: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
                     ),
-              borderRadius: BorderRadius.circular(LayoutConstants.radiusPill),
-              border: showHighlight
-                  ? Border.all(color: theme.colorScheme.primary, width: 2)
-                  : (widget.selected
-                        ? Border.all(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.3,
-                            ),
-                          )
-                        : Border.all(color: Colors.transparent, width: 1)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  widget.icon,
-                  size: 16,
-                  color: widget.selected
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: widget.selected
-                        ? FontWeight.w600
-                        : FontWeight.normal,
-                    color: widget.selected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
+                    unselectedLabelStyle: const TextStyle(
+                      fontWeight: FontWeight.w500,
+                      fontSize: 15,
+                    ),
+                    labelColor: Theme.of(tabContext).colorScheme.primary,
+                    unselectedLabelColor: Theme.of(
+                      tabContext,
+                    ).colorScheme.onSurfaceVariant,
+                    indicatorColor: Theme.of(tabContext).colorScheme.primary,
+                    dividerColor: Theme.of(
+                      tabContext,
+                    ).dividerColor.withValues(alpha: 0.2),
+                    tabs: [
+                      Tab(text: l10n.installed),
+                      const Tab(text: 'Discover'),
+                    ],
                   ),
                 ),
-              ],
+              ),
+            ),
+          ),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: TabBarView(
+                children: [
+                  FocusTraversalGroup(
+                    policy: ReadingOrderTraversalPolicy(),
+                    child: const AddonManageView(),
+                  ),
+                  FocusTraversalGroup(
+                    policy: ReadingOrderTraversalPolicy(),
+                    child: const _DiscoverTab(),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

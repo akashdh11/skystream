@@ -6,6 +6,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:io';
 import '../domain/entity/multimedia_item.dart';
 
@@ -612,16 +613,75 @@ class StorageService {
   Future<void> clearPreferences({bool keepRepos = true}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Preserve extension repo URLs so installed extensions remain visible after Reset Data
-      final savedRepoUrls = prefs.getStringList(_kExtensionRepoUrls);
+
+      // If keepRepos is true, preserve SkyStream extensions, Nuvio plugins, and Stremio addons
+      List<String>? savedExtensionRepos;
+      List<String>? savedDisabledExtensions;
+      List<String>? savedPinnedExtensions;
+      List<String>? savedNuvioRepos;
+      bool? savedNuvioEnabled;
+      bool? savedNuvioAutoUpdate;
+      final savedNuvioSettings = <String, Object>{};
+      List<String>? savedStremioAddons;
+
+      if (keepRepos) {
+        savedExtensionRepos = prefs.getStringList(_kExtensionRepoUrls);
+        savedDisabledExtensions = prefs.getStringList('disabled_extensions');
+        savedPinnedExtensions = prefs.getStringList('pinned_extensions');
+        savedNuvioRepos = prefs.getStringList('nuvio_repos_v1');
+        savedNuvioEnabled = prefs.getBool('nuvio_enabled_v1');
+        savedNuvioAutoUpdate = prefs.getBool('nuvio_auto_update_v1');
+        savedStremioAddons = prefs.getStringList('stremio_addons_v2');
+
+        for (final key in prefs.getKeys()) {
+          if (key.startsWith('nuvio_scraper_settings_')) {
+            final val = prefs.get(key);
+            if (val != null) savedNuvioSettings[key] = val;
+          }
+        }
+      }
 
       await prefs.clear();
 
-      if (keepRepos && savedRepoUrls != null && savedRepoUrls.isNotEmpty) {
-        await prefs.setStringList(_kExtensionRepoUrls, savedRepoUrls);
+      if (keepRepos) {
+        if (savedExtensionRepos != null) {
+          await prefs.setStringList(_kExtensionRepoUrls, savedExtensionRepos);
+        }
+        if (savedDisabledExtensions != null) {
+          await prefs.setStringList('disabled_extensions', savedDisabledExtensions);
+        }
+        if (savedPinnedExtensions != null) {
+          await prefs.setStringList('pinned_extensions', savedPinnedExtensions);
+        }
+        if (savedNuvioRepos != null) {
+          await prefs.setStringList('nuvio_repos_v1', savedNuvioRepos);
+        }
+        if (savedNuvioEnabled != null) {
+          await prefs.setBool('nuvio_enabled_v1', savedNuvioEnabled);
+        }
+        if (savedNuvioAutoUpdate != null) {
+          await prefs.setBool('nuvio_auto_update_v1', savedNuvioAutoUpdate);
+        }
+        if (savedStremioAddons != null) {
+          await prefs.setStringList('stremio_addons_v2', savedStremioAddons);
+        }
+        for (final entry in savedNuvioSettings.entries) {
+          final v = entry.value;
+          if (v is String) {
+            await prefs.setString(entry.key, v);
+          } else if (v is bool) {
+            await prefs.setBool(entry.key, v);
+          } else if (v is int) {
+            await prefs.setInt(entry.key, v);
+          } else if (v is double) {
+            await prefs.setDouble(entry.key, v);
+          } else if (v is List<String>) {
+            await prefs.setStringList(entry.key, v);
+          }
+        }
       }
 
-      // Delete Hive Boxes (Library, History, Settings, Extensions)
+      // Delete Hive Boxes (Library, History, Settings)
       try {
         if (_libraryBox.isOpen) await _libraryBox.close();
         await Hive.deleteBoxFromDisk(kLibraryBox);
@@ -640,11 +700,31 @@ class StorageService {
       } catch (e) {
         if (kDebugMode) debugPrint('Error deleting history box: $e');
       }
+
+      // Only delete extension data box if NOT keeping extensions
+      if (!keepRepos) {
+        try {
+          if (_extensionsBox.isOpen) await _extensionsBox.close();
+          await Hive.deleteBoxFromDisk(kExtensionsBox);
+        } catch (e) {
+          if (kDebugMode) debugPrint('Error deleting extensions box: $e');
+        }
+      }
+      // Clear Cache Manager (Images)
       try {
-        if (_extensionsBox.isOpen) await _extensionsBox.close();
-        await Hive.deleteBoxFromDisk(kExtensionsBox);
+        await DefaultCacheManager().emptyCache();
       } catch (e) {
-        if (kDebugMode) debugPrint('Error deleting extensions box: $e');
+        if (kDebugMode) debugPrint("Error clearing cache manager: $e");
+      }
+
+      // Clear Temporary Directory (torrent cache, stream temp files)
+      try {
+        final tempDir = await getTemporaryDirectory();
+        if (await tempDir.exists()) {
+          await tempDir.delete(recursive: true);
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint("Error clearing temp dir: $e");
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Error clearing preferences: $e');
@@ -678,36 +758,34 @@ class StorageService {
 
   Future<void> deleteAllData() async {
     try {
-      // Delete Extensions Folder (Application Support)
       final supportDir = await getApplicationSupportDirectory();
+
+      // 1. Delete SkyStream Extensions Folder
       final extDir = Directory('${supportDir.path}/extensions');
       if (await extDir.exists()) {
         await extDir.delete(recursive: true);
       }
 
-      // Clear Preferences (Hive + Prefs) - For Factory Reset, we do NOT keep repos.
+      // 2. Delete Nuvio Plugins Folder
+      final nuvioDir = Directory('${supportDir.path}/nuvio_plugins');
+      if (await nuvioDir.exists()) {
+        await nuvioDir.delete(recursive: true);
+      }
+
+      // 3. Clear Preferences & Hive Boxes (including extensions)
       await clearPreferences(keepRepos: false);
 
+      // 4. Clear Download Metadata
       try {
         await Hive.deleteBoxFromDisk(kDownloadMetadataBox);
       } catch (_) {}
 
-      // Clear Cache Manager (Images)
-      // ... (rest of the code)
+      // 5. Clear Secure Storage (OAuth tokens, Debrid API keys)
       try {
-        await DefaultCacheManager().emptyCache();
+        const secure = FlutterSecureStorage(aOptions: AndroidOptions());
+        await secure.deleteAll();
       } catch (e) {
-        if (kDebugMode) debugPrint("Error clearing cache manager: $e");
-      }
-
-      // Clear Temporary Directory
-      try {
-        final tempDir = await getTemporaryDirectory();
-        if (await tempDir.exists()) {
-          await tempDir.delete(recursive: true);
-        }
-      } catch (e) {
-        if (kDebugMode) debugPrint("Error clearing temp dir: $e");
+        if (kDebugMode) debugPrint('Error deleting secure storage: $e');
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Error deleting data: $e');

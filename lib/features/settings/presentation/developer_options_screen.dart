@@ -44,9 +44,11 @@ class _DeveloperOptionsScreenState
     final content = Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 800),
-        child: ListView(
-          padding: const EdgeInsets.all(8),
-          children: [
+        child: FocusTraversalGroup(
+          policy: ReadingOrderTraversalPolicy(),
+          child: ListView(
+            padding: const EdgeInsets.all(8),
+            children: [
             SettingsGroup(
               title: l10n.debugTools,
               children: [
@@ -112,14 +114,28 @@ class _DeveloperOptionsScreenState
           ],
         ),
       ),
-    );
+    ),
+  );
 
     if (widget.isEmbedded) {
       return content;
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.developerOptions)),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              const SettingsRoute().go(context);
+            }
+          },
+        ),
+        title: Text(l10n.developerOptions),
+      ),
       body: content,
     );
   }

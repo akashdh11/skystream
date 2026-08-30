@@ -133,13 +133,15 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    return ListView(
-      padding: const EdgeInsets.only(
-        top: LayoutConstants.spacingMd,
-        bottom: 100,
-      ),
-      addAutomaticKeepAlives: false,
-      children: [
+    return FocusTraversalGroup(
+      policy: ReadingOrderTraversalPolicy(),
+      child: ListView(
+        padding: const EdgeInsets.only(
+          top: LayoutConstants.spacingMd,
+          bottom: 100,
+        ),
+        addAutomaticKeepAlives: false,
+        children: [
         // Master Control Card
         _FocusableCard(
           margin: const EdgeInsets.symmetric(
@@ -381,7 +383,8 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
             child: _RepoCard(repo: repo),
           ),
       ],
-    );
+    ),
+  );
   }
 }
 

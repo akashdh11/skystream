@@ -6,9 +6,9 @@ import '../../../core/extensions/models/extension_repository.dart';
 import '../../../core/extensions/extension_manager.dart';
 import '../../../shared/widgets/custom_widgets.dart';
 import '../providers/extensions_controller.dart';
-import '../../nuvio/presentation/nuvio_plugins_view.dart';
 import 'plugin_settings_screen.dart';
 import '../../../shared/widgets/loading_indicator.dart';
+import '../../../core/router/app_router.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
 
 class ExtensionsScreen extends ConsumerStatefulWidget {
@@ -61,7 +61,7 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
         ),
         _ => DefaultTabController(
           key: const ValueKey('installed_extensions_tab_controller'),
-          length: 3,
+          length: 2,
           child: Builder(
             builder: (tabContext) => Column(
               children: [
@@ -94,9 +94,6 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
                       tabs: [
                         Tab(text: l10n.installed),
                         Tab(text: l10n.repositories),
-                        // Nuvio-format scraper plugins live beside SkyStream's own
-                        // plugins: both feed the Explore sources sheet.
-                        const Tab(text: 'Nuvio'),
                       ],
                     ),
                   ),
@@ -109,7 +106,6 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
                         children: [
                           _buildInstalledTab(tabContext, ref, state),
                           _buildRepositoriesTab(tabContext, ref, state),
-                          const NuvioPluginsView(),
                         ],
                       ),
                     ),
@@ -124,42 +120,71 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
 
     return switch (state) {
       ExtensionsLoading(repositories: []) => Scaffold(
-        appBar: AppBar(title: Text(l10n.extensions)),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+            onPressed: () {
+              if (Navigator.of(context).canPop()) {
+                Navigator.of(context).pop();
+              } else {
+                const SettingsRoute().go(context);
+              }
+            },
+          ),
+          title: const Text('SkyStream Providers'),
+        ),
         body: const Center(child: AppLoadingIndicator()),
       ),
       _ => DefaultTabController(
         key: const ValueKey('installed_extensions_tab_controller'),
-        length: 3,
+        length: 2,
         child: Builder(
           builder: (tabContext) => Scaffold(
             appBar: AppBar(
-              title: Text(l10n.extensions),
-              bottom: TabBar(
-                indicatorSize: TabBarIndicatorSize.label,
-                indicatorWeight: 3,
-                labelStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                tooltip: MaterialLocalizations.of(tabContext).backButtonTooltip,
+                onPressed: () {
+                  if (Navigator.of(tabContext).canPop()) {
+                    Navigator.of(tabContext).pop();
+                  } else {
+                    const SettingsRoute().go(tabContext);
+                  }
+                },
+              ),
+              title: const Text('SkyStream Providers'),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(48),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 800),
+                    child: TabBar(
+                      indicatorSize: TabBarIndicatorSize.label,
+                      indicatorWeight: 3,
+                      labelStyle: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
+                      ),
+                      unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 15,
+                      ),
+                      labelColor: Theme.of(tabContext).colorScheme.primary,
+                      unselectedLabelColor: Theme.of(
+                        tabContext,
+                      ).colorScheme.onSurfaceVariant,
+                      indicatorColor: Theme.of(tabContext).colorScheme.primary,
+                      dividerColor: Theme.of(
+                        tabContext,
+                      ).dividerColor.withValues(alpha: 0.2),
+                      tabs: [
+                        Tab(text: l10n.installed),
+                        Tab(text: l10n.repositories),
+                      ],
+                    ),
+                  ),
                 ),
-                unselectedLabelStyle: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 15,
-                ),
-                labelColor: Theme.of(tabContext).colorScheme.primary,
-                unselectedLabelColor: Theme.of(
-                  tabContext,
-                ).colorScheme.onSurfaceVariant,
-                indicatorColor: Theme.of(tabContext).colorScheme.primary,
-                dividerColor: Theme.of(
-                  tabContext,
-                ).dividerColor.withValues(alpha: 0.2),
-                tabs: [
-                  Tab(text: l10n.installed),
-                  Tab(text: l10n.repositories),
-                  // Nuvio-format scraper plugins live beside SkyStream's own
-                  // plugins: both feed the Explore sources sheet.
-                  const Tab(text: 'Nuvio'),
-                ],
               ),
             ),
             body: Center(
@@ -167,9 +192,14 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
                 constraints: const BoxConstraints(maxWidth: 800),
                 child: TabBarView(
                   children: [
-                    _buildInstalledTab(tabContext, ref, state),
-                    _buildRepositoriesTab(tabContext, ref, state),
-                    const NuvioPluginsView(),
+                    FocusTraversalGroup(
+                      policy: ReadingOrderTraversalPolicy(),
+                      child: _buildInstalledTab(tabContext, ref, state),
+                    ),
+                    FocusTraversalGroup(
+                      policy: ReadingOrderTraversalPolicy(),
+                      child: _buildRepositoriesTab(tabContext, ref, state),
+                    ),
                   ],
                 ),
               ),

@@ -227,22 +227,22 @@ Future<void> showDownloadSettingsDialog(
                       ),
                     const SizedBox(height: 12),
                     Text('Queue limit: $concurrency at once'),
-                    Slider(
+                    CustomSlider(
                       value: concurrency.toDouble(),
                       min: 1,
                       max: 10,
                       divisions: 9,
-                      label: concurrency.toString(),
+                      step: 1.0,
                       onChanged: (v) =>
                           setDialogState(() => concurrency = v.round()),
                     ),
                     Text('Segments per file: $chunks'),
-                    Slider(
+                    CustomSlider(
                       value: chunks.toDouble(),
                       min: 1,
                       max: 8,
                       divisions: 7,
-                      label: chunks == 1 ? 'Off' : chunks.toString(),
+                      step: 1.0,
                       onChanged: (v) =>
                           setDialogState(() => chunks = v.round()),
                     ),
@@ -274,6 +274,220 @@ Future<void> showDownloadSettingsDialog(
             ],
           );
         },
+      );
+    },
+  );
+}
+
+Future<void> showDownloadLocationDialog(
+  BuildContext context,
+  WidgetRef ref,
+  GeneralSettings settings,
+) async {
+  String? directory = settings.downloadDirectory;
+
+  await showDialog<void>(
+    context: context,
+    builder: (dialogContext) {
+      return StatefulBuilder(
+        builder: (ctx, setState) {
+          return AlertDialog(
+            surfaceTintColor: Colors.transparent,
+            title: const Text('Download Location'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.folder_open_rounded),
+                    title: const Text('Target Directory'),
+                    subtitle: Text(
+                      directory ?? 'System Downloads/Skystream',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: const Icon(Icons.edit_rounded),
+                    onTap: () async {
+                      final picked = await ref
+                          .read(downloadServiceProvider)
+                          .pickDownloadDirectory();
+                      if (picked != null) {
+                        setState(() => directory = picked);
+                      }
+                    },
+                  ),
+                  if (directory != null)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          setState(() => directory = null);
+                        },
+                        icon: const Icon(Icons.restart_alt_rounded),
+                        label: const Text('Reset to default'),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () async {
+                  await ref
+                      .read(generalSettingsProvider.notifier)
+                      .setDownloadDirectory(directory);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+void showDownloadConcurrencyDialog(
+  BuildContext context,
+  WidgetRef ref,
+  GeneralSettings settings,
+) {
+  showDialog<void>(
+    context: context,
+    builder: (ctx) {
+      var concurrency = settings.downloadConcurrency.clamp(1, 10);
+      return StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          surfaceTintColor: Colors.transparent,
+          title: const Text('Parallel Downloads'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$concurrency simultaneous download${concurrency > 1 ? 's' : ''}',
+                style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              CustomSlider(
+                value: concurrency.toDouble(),
+                min: 1,
+                max: 10,
+                divisions: 9,
+                step: 1.0,
+                onChanged: (v) => setState(() => concurrency = v.round()),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Controls how many active downloads run concurrently before queueing.',
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await ref
+                    .read(generalSettingsProvider.notifier)
+                    .setDownloadConcurrency(concurrency);
+                await ref
+                    .read(downloadServiceProvider)
+                    .applyQueueSettings(
+                      maxConcurrent: concurrency,
+                      chunks: settings.downloadChunks,
+                    );
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+void showDownloadChunksDialog(
+  BuildContext context,
+  WidgetRef ref,
+  GeneralSettings settings,
+) {
+  showDialog<void>(
+    context: context,
+    builder: (ctx) {
+      var chunks = settings.downloadChunks.clamp(1, 8);
+      return StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          surfaceTintColor: Colors.transparent,
+          title: const Text('Download Connections (Segments)'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                chunks == 1
+                    ? 'Single connection (Off)'
+                    : '$chunks parallel segments',
+                style: Theme.of(ctx).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              CustomSlider(
+                value: chunks.toDouble(),
+                min: 1,
+                max: 8,
+                divisions: 7,
+                step: 1.0,
+                onChanged: (v) => setState(() => chunks = v.round()),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Splits large files into parallel chunks to accelerate download speed on high-bandwidth connections.',
+                style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(ctx).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await ref
+                    .read(generalSettingsProvider.notifier)
+                    .setDownloadChunks(chunks);
+                await ref
+                    .read(downloadServiceProvider)
+                    .applyQueueSettings(
+                      maxConcurrent: settings.downloadConcurrency,
+                      chunks: chunks,
+                    );
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       );
     },
   );
@@ -2302,12 +2516,12 @@ void showMaxVolumeDialog(
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Slider(
+              CustomSlider(
                 value: value,
                 min: 100,
                 max: 200,
                 divisions: 10,
-                label: '${value.round()}%',
+                step: 10.0,
                 onChanged: (v) => setState(() => value = v),
               ),
               const SizedBox(height: 4),

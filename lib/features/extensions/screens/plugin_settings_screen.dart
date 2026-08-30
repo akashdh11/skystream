@@ -649,9 +649,11 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
         constraints: const BoxConstraints(
           maxWidth: LayoutConstants.contentMaxWidth,
         ),
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: LayoutConstants.spacingLg),
-          children: [
+        child: FocusTraversalGroup(
+          policy: ReadingOrderTraversalPolicy(),
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: LayoutConstants.spacingLg),
+            children: [
             const SizedBox(height: LayoutConstants.spacingXs),
             if (_definitions.isNotEmpty)
               SettingsGroup(
@@ -741,7 +743,8 @@ class _PluginSettingsScreenState extends ConsumerState<PluginSettingsScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   @override

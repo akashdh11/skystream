@@ -11,6 +11,9 @@ import 'package:skystream/features/addons/presentation/addon_catalog_screen.dart
 import 'package:skystream/features/settings/presentation/settings_screen.dart';
 import 'package:skystream/features/player/presentation/vlc/vlc_player_screen.dart';
 import '../../features/extensions/screens/extensions_screen.dart';
+import '../../features/nuvio/presentation/nuvio_plugins_screen.dart';
+import '../../features/settings/presentation/player_settings_screen.dart';
+import '../../features/settings/presentation/account_settings_screen.dart';
 import '../../features/settings/presentation/developer_options_screen.dart';
 import '../../features/details/presentation/details_screen.dart';
 import '../../features/details/presentation/tmdb_movie_details_screen.dart';
@@ -45,7 +48,11 @@ part 'app_router.g.dart';
         TypedGoRoute<SettingsRoute>(
           path: '/settings',
           routes: [
+            TypedGoRoute<PlayerSettingsRoute>(path: 'player'),
+            TypedGoRoute<AccountSettingsRoute>(path: 'accounts'),
             TypedGoRoute<ExtensionsRoute>(path: 'extensions'),
+            TypedGoRoute<NuvioPluginsRoute>(path: 'nuvio'),
+            TypedGoRoute<AddonsRoute>(path: 'stremio'),
             TypedGoRoute<DeveloperOptionsRoute>(path: 'developer'),
           ],
         ),
@@ -111,16 +118,6 @@ class LibraryRoute extends GoRouteData with $LibraryRoute {
       LibraryScreen(initialTab: tab ?? 0);
 }
 
-@TypedGoRoute<AddonsRoute>(path: '/addons')
-class AddonsRoute extends GoRouteData with $AddonsRoute {
-  final int? initialTab;
-  const AddonsRoute({this.initialTab});
-
-  @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      AddonsScreen(initialTab: initialTab ?? 0);
-}
-
 class SettingsBranchData extends StatefulShellBranchData {
   const SettingsBranchData();
 }
@@ -136,11 +133,41 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
 
 // --- Sub-routes of Settings ---
 
+class PlayerSettingsRoute extends GoRouteData with $PlayerSettingsRoute {
+  const PlayerSettingsRoute();
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      const PlayerSettingsScreen();
+}
+
+class AccountSettingsRoute extends GoRouteData with $AccountSettingsRoute {
+  const AccountSettingsRoute();
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      const AccountSettingsScreen();
+}
+
 class ExtensionsRoute extends GoRouteData with $ExtensionsRoute {
   const ExtensionsRoute();
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       const ExtensionsScreen();
+}
+
+class NuvioPluginsRoute extends GoRouteData with $NuvioPluginsRoute {
+  const NuvioPluginsRoute();
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      const NuvioPluginsScreen();
+}
+
+class AddonsRoute extends GoRouteData with $AddonsRoute {
+  final int? initialTab;
+  const AddonsRoute({this.initialTab});
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      AddonsScreen(initialTab: initialTab ?? 0);
 }
 
 class DeveloperOptionsRoute extends GoRouteData with $DeveloperOptionsRoute {

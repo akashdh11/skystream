@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/utils/layout_constants.dart';
+import '../../../core/router/app_router.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
 
 import 'widgets/settings_widgets.dart';
@@ -10,7 +11,10 @@ import 'widgets/settings_dialogs.dart';
 import 'widgets/tracking_auth_dialog.dart';
 import 'widgets/webview_auth_dialog.dart';
 import 'player_settings_provider.dart';
+import 'general_settings_provider.dart';
+import '../../../core/network/doh_service.dart';
 
+import '../../../core/config/tmdb_config.dart';
 import '../../../core/config/sync_config.dart';
 import '../../tracking/presentation/tracking_auth_provider.dart';
 import '../../tracking/data/simkl_service.dart';
@@ -80,15 +84,18 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
     final playerSettings =
         ref.watch(playerSettingsProvider).asData?.value ??
         const PlayerSettings();
+    final generalSettings = ref.watch(generalSettingsProvider);
     final settingsRepo = ref.watch(settingsRepositoryProvider);
 
     final content = Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 800),
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: LayoutConstants.spacingLg),
-          children: [
-            const SizedBox(height: LayoutConstants.spacingXs),
+        child: FocusTraversalGroup(
+          policy: ReadingOrderTraversalPolicy(),
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: LayoutConstants.spacingLg),
+            children: [
+              const SizedBox(height: LayoutConstants.spacingXs),
             SettingsGroup(
               title: l10n.accounts,
               children: [
@@ -445,8 +452,18 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
             ),
             const SizedBox(height: LayoutConstants.spacingLg),
             SettingsGroup(
-              title: 'Integrations',
+              title: 'Integrations & Metadata',
               children: [
+                SettingsTile(
+                  icon: Icons.vpn_key_rounded,
+                  title: 'TMDB API key',
+                  subtitle: generalSettings.tmdbApiKey.isNotEmpty
+                      ? 'Custom key saved'
+                      : (TmdbConfig.buildTimeApiKey.isNotEmpty
+                            ? 'Using built-in key'
+                            : 'Not set — Stream and Explore need this'),
+                  onTap: () => showTmdbApiKeyDialog(context, ref),
+                ),
                 SettingsTile(
                   icon: Icons.fast_forward_rounded,
                   title: 'AnimeSkip',
@@ -489,17 +506,137 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: LayoutConstants.spacingLg),
+            SettingsGroup(
+              title: l10n.network,
+              children: [
+                Consumer(
+                  builder: (context, ref, _) {
+                    final dohState =
+                        ref.watch(dohSettingsProvider).asData?.value ??
+                        const DohSettings();
+                    final generalSettings = ref.watch(generalSettingsProvider);
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SettingsTile(
+                          icon: Icons.dns_rounded,
+                          title: l10n.dnsOverHttps,
+                          subtitle: dohState.enabled
+                              ? '${l10n.on} (${getDohProviderLabel(dohState.provider, dohState.customUrl, l10n)})'
+                              : l10n.off,
+                          trailing: Switch(
+                            value: dohState.enabled,
+                            onChanged: (val) {
+                              ref
+                                  .read(dohSettingsProvider.notifier)
+                                  .setEnabled(val);
+                            },
+                          ),
+                          onTap: () {
+                            ref
+                                .read(dohSettingsProvider.notifier)
+                                .setEnabled(!dohState.enabled);
+                          },
+                        ),
+                        if (dohState.enabled)
+                          SettingsTile(
+                            icon: Icons.cloud_rounded,
+                            title: l10n.dohProvider,
+                            subtitle: getDohProviderLabel(
+                              dohState.provider,
+                              dohState.customUrl,
+                              l10n,
+                            ),
+                            onTap: () => showDohProviderDialog(context, ref),
+                          ),
+                        SettingsTile(
+                          icon: Icons.alt_route_rounded,
+                          title: l10n.githubProxy,
+                          subtitle: l10n.githubProxySubtitle,
+                          isLast: true,
+                          trailing: Switch(
+                            value: generalSettings.githubProxyEnabled,
+                            onChanged: (val) {
+                              ref
+                                  .read(generalSettingsProvider.notifier)
+                                  .setGithubProxyEnabled(val);
+                            },
+                          ),
+                          onTap: () {
+                            ref
+                                .read(generalSettingsProvider.notifier)
+                                .setGithubProxyEnabled(
+                                  !generalSettings.githubProxyEnabled,
+                                );
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: LayoutConstants.spacingLg),
+            SettingsGroup(
+              title: l10n.downloads,
+              children: [
+                SettingsTile(
+                  icon: Icons.folder_copy_rounded,
+                  title: 'Download location',
+                  subtitle:
+                      generalSettings.downloadDirectory ?? 'System Downloads/Skystream',
+                  onTap: () =>
+                      showDownloadLocationDialog(context, ref, generalSettings),
+                ),
+                SettingsTile(
+                  icon: Icons.sync_alt_rounded,
+                  title: 'Parallel downloads',
+                  subtitle:
+                      '${generalSettings.downloadConcurrency} simultaneous active download${generalSettings.downloadConcurrency > 1 ? 's' : ''}',
+                  onTap: () => showDownloadConcurrencyDialog(
+                    context,
+                    ref,
+                    generalSettings,
+                  ),
+                ),
+                SettingsTile(
+                  icon: Icons.splitscreen_rounded,
+                  title: 'Download segments per file',
+                  subtitle: generalSettings.downloadChunks == 1
+                      ? 'Single connection (Off)'
+                      : '${generalSettings.downloadChunks} parallel segments per file',
+                  isLast: true,
+                  onTap: () =>
+                      showDownloadChunksDialog(context, ref, generalSettings),
+                ),
+              ],
+            ),
           ],
         ),
       ),
-    );
+    ),
+  );
 
     if (widget.isEmbedded) {
       return content;
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.accounts)),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              const SettingsRoute().go(context);
+            }
+          },
+        ),
+        title: Text('${l10n.accounts}, ${l10n.network} & ${l10n.downloads}'),
+      ),
       body: content,
     );
   }
