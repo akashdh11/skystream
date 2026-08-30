@@ -353,9 +353,6 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
     final rSecons =
         storage.getPlayerSetting<int>('player_readahead', defaultValue: 180) ??
         180;
-    final subPos =
-        (storage.getPlayerSetting('player_sub_pos') as num?)?.toDouble() ??
-        100.0;
     final wifiQ = _parseQuality(
       storage.getPlayerSetting<String>('player_wifi_quality'),
       kDefaultWifiQuality,
@@ -370,10 +367,6 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
           defaultValue: false,
         ) ??
         false;
-    final defaultSpeed =
-        (storage.getPlayerSetting('player_default_speed') as num?)
-            ?.toDouble() ??
-        1.0;
     final osUser = storage.getPlayerSetting<String>('player_os_user') ?? '';
     final osPass = storage.getPlayerSetting<String>('player_os_pass') ?? '';
     final osKey = storage.getPlayerSetting<String>('player_os_key') ?? '';
@@ -385,11 +378,6 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
     final filterMode = _parseFilterMode(
       storage.getPlayerSetting<String>('player_quality_filter_mode'),
     );
-    final subTypeface = storage.getPlayerSetting<int>('player_sub_typeface');
-    final subTypefaceFilePath = storage.getPlayerSetting<String>(
-      'player_sub_typeface_file_path',
-    );
-    final subAlignment = storage.getPlayerSetting<int>('player_sub_alignment');
 
     final showPip =
         storage.getPlayerSetting<bool>('player_show_pip', defaultValue: true) ??

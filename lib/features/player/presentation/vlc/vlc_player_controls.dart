@@ -735,6 +735,9 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
             ),
             // Toast reads through hidden chrome: resize and seek are reachable
             // by remote while the bars are down, and a silent change confuses.
+            // Brightness / volume rail. Always in the tree, empty when idle,
+            // so the Stack's child list never changes shape.
+            IgnorePointer(child: _rail ?? const SizedBox.shrink()),
             IgnorePointer(child: _toastOverlay()),
             _chrome(context, l10n, isTv: isTv, isTouch: isTouch),
             // Outside the chrome on purpose: an intro can start while the bars

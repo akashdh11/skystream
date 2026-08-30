@@ -61,6 +61,24 @@ class PlayerPlatformService {
     }
   }
 
+  /// Leaves full screen, whatever put the window there.
+  ///
+  /// Deliberately not a toggle. The player only ever wants to *exit* on the way
+  /// out, and a toggle would depend on mirrored state that is wrong the moment
+  /// the user uses the OS window control instead of ours - which then leaves
+  /// them stranded in a chrome-less full-screen window after the video closes.
+  /// Setting false unconditionally is a no-op when already windowed.
+  Future<void> exitFullscreen() async {
+    if (Platform.isAndroid || Platform.isIOS) return;
+    try {
+      if (await windowManager.isFullScreen()) {
+        await windowManager.setFullScreen(false);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('PlayerPlatformService.exitFullscreen: $e');
+    }
+  }
+
   Future<bool> toggleFullscreen() async {
     if (Platform.isAndroid || Platform.isIOS) return false;
     try {

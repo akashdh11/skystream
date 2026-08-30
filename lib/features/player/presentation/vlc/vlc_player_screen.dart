@@ -825,8 +825,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     _disposed = true;
     _torrentPoll?.cancel();
     // A window left full screen after the video closes traps the user in a
-    // chrome-less shell, so undo it on the way out.
-    if (_isFullscreen) unawaited(_platform.toggleFullscreen());
+    // chrome-less shell. Not gated on _isFullscreen: that only tracks the
+    // toggles we issued, and is wrong whenever the OS window control was used
+    // instead - which is exactly when this matters.
+    unawaited(_platform.exitFullscreen());
     WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_onPlaybackValue);
     _controller.dispose();
