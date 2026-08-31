@@ -6,6 +6,8 @@ import '../../../../shared/widgets/thumbnail_error_placeholder.dart';
 import '../../../../core/models/tmdb_details.dart';
 import '../../../../core/storage/history_repository.dart';
 import 'provider_search_section.dart';
+import 'episode_picker_sheet.dart';
+import '../../../sources/presentation/plugin_sources_sheet.dart';
 
 /// Desktop hero: backdrop, gradients, and first column (logo, metadata, overview, sources).
 /// [child] is the rest of the scroll content (seasons, cast, trailers, stats, etc.).
@@ -278,50 +280,9 @@ class TmdbDetailsDesktopHero extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 32),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.extension,
-                            color: theme.colorScheme.primary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            "Available Sources",
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withValues(
-                                alpha: 0.2,
-                              ),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              "BETA",
-                              style: TextStyle(
-                                color: theme.colorScheme.primary,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
                       Container(
                         constraints: const BoxConstraints(
                           maxWidth: 600,
-                          maxHeight: 220,
                         ),
                         child: ProviderSearchSection(
                           query: title,
@@ -329,6 +290,19 @@ class TmdbDetailsDesktopHero extends ConsumerWidget {
                           parentMediaType: isMovie ? 'movie' : 'tv',
                           tmdbId: data.tmdbId,
                           imdbId: data.imdbId,
+                          onViewAll: () {
+                            if (isMovie) {
+                              PluginSourcesSheet.open(context, data);
+                            } else {
+                              EpisodePickerSheet.open(
+                                context,
+                                movieId: data.id,
+                                seasons: data.seasons,
+                                target: data,
+                                source: source,
+                              );
+                            }
+                          },
                         ),
                       ),
                     ],

@@ -646,6 +646,7 @@ class _TmdbMovieDetailsScreenState
                   parentMediaType: isMovie ? 'movie' : 'tv',
                   tmdbId: data.tmdbId,
                   imdbId: data.imdbId,
+                  onViewAll: () => _openPluginSources(data, isMovie),
                 ),
                 const SizedBox(height: 16),
                 Consumer(

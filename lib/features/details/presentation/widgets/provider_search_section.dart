@@ -40,17 +40,21 @@ Stream<SearchAggregateState> providerSearch(Ref ref, String query) {
 class ProviderSearchSection extends ConsumerStatefulWidget {
   final String query;
   final bool compact;
+  final bool showHeader;
   final String? parentMediaType; // 'movie' or 'tv'
   final int? tmdbId;
   final String? imdbId;
+  final VoidCallback? onViewAll;
 
   const ProviderSearchSection({
     super.key,
     required this.query,
     this.compact = false,
+    this.showHeader = true,
     this.parentMediaType,
     this.tmdbId,
     this.imdbId,
+    this.onViewAll,
   });
 
   @override
@@ -71,6 +75,19 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _scrollBy(double offset) {
+    if (!_scrollController.hasClients) return;
+    final target = (_scrollController.offset + offset).clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -299,12 +316,24 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
       );
     }
 
-    if (widget.compact) return content;
+    if (widget.compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.showHeader) ...[
+            _buildHeader(context),
+            const SizedBox(height: 12),
+          ],
+          content,
+        ],
+      );
+    }
 
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 180),
-      clipBehavior: Clip.hardEdge, // Fix 1: Clip content to container borders
+      clipBehavior: Clip.hardEdge,
       decoration: BoxDecoration(
         color: Theme.of(
           context,
@@ -318,54 +347,151 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: LayoutConstants.spacingMd,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.extension,
-                  size: 18,
-                  color: Theme.of(context).colorScheme.primary,
+          if (widget.showHeader) ...[
+            _buildHeader(context),
+            const SizedBox(height: LayoutConstants.spacingSm),
+          ],
+          content,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+    final padding = widget.compact
+        ? EdgeInsets.zero
+        : const EdgeInsets.symmetric(horizontal: LayoutConstants.spacingMd);
+
+    return Padding(
+      padding: padding,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.extension,
+                size: widget.compact ? 20 : 18,
+                color: theme.colorScheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                l10n.availableSources,
+                style: TextStyle(
+                  fontSize: widget.compact ? 18 : 14,
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
                 ),
-                const SizedBox(width: LayoutConstants.spacingXs),
-                Text(
-                  AppLocalizations.of(context)!.availableSources,
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 2,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  "BETA",
                   style: TextStyle(
-                    fontSize: 14,
+                    color: theme.colorScheme.primary,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
+              ),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _HeaderArrowButton(
+                icon: Icons.arrow_back_ios_new,
+                onTap: () => _scrollBy(-300),
+              ),
+              const SizedBox(width: 4),
+              _HeaderArrowButton(
+                icon: Icons.arrow_forward_ios,
+                onTap: () => _scrollBy(300),
+              ),
+              if (widget.onViewAll != null) ...[
                 const SizedBox(width: LayoutConstants.spacingXs),
-                // Fix 3: Styled Beta Tag
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    "BETA",
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                CardsWrapper(
+                  scaleFactor: 1.05,
+                  onTap: widget.onViewAll!,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: LayoutConstants.spacingSm,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          l10n.viewAll,
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.7,
+                            ),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 10,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ],
-            ),
+            ],
           ),
-          const SizedBox(height: LayoutConstants.spacingSm),
-          content,
         ],
+      ),
+    );
+  }
+}
+
+class _HeaderArrowButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _HeaderArrowButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return CardsWrapper(
+      scaleFactor: 1.05,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        width: 28,
+        height: 28,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest.withValues(
+            alpha: 0.4,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(icon, size: 12, color: theme.colorScheme.onSurface),
       ),
     );
   }
