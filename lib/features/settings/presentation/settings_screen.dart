@@ -150,7 +150,7 @@ class SettingsScreen extends ConsumerWidget {
         SettingsTile(
           icon: Icons.play_circle_outline_rounded,
           title: l10n.player,
-          subtitle: 'Default player, gestures, readahead & HDR',
+          subtitle: 'Default player, gestures, decoding & quality',
           onTap: () => const PlayerSettingsRoute().go(context),
         ),
         SettingsTile(
