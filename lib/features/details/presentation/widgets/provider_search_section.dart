@@ -151,16 +151,30 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
                 ),
               ),
             );
-          }          return RepaintBoundary(
+          }
+
+          return RepaintBoundary(
             child: SizedBox(
               height: 140,
-              child: _HorizontalScrollFade(
-                controller: _scrollController,
+              child: ShaderMask(
+                shaderCallback: (Rect bounds) {
+                  return const LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      Colors.black,
+                      Colors.black,
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, 0.88, 1.0],
+                  ).createShader(bounds);
+                },
+                blendMode: BlendMode.dstIn,
                 child: Scrollbar(
                   controller: _scrollController,
                   child: ListView.separated(
                     controller: _scrollController,
-                    clipBehavior: Clip.none,
+                    clipBehavior: Clip.hardEdge,
                     scrollDirection: Axis.horizontal,
                     padding: widget.compact
                         ? EdgeInsets.zero
@@ -321,7 +335,7 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
             _buildHeader(context),
             const SizedBox(height: 12),
           ],
-          content,
+          ClipRect(child: content),
         ],
       );
     }
@@ -347,7 +361,7 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
             _buildHeader(context),
             const SizedBox(height: LayoutConstants.spacingSm),
           ],
-          content,
+          ClipRect(child: content),
         ],
       ),
     );
@@ -447,123 +461,6 @@ class _HeaderArrowButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 12, color: theme.colorScheme.onSurface),
-      ),
-    );
-  }
-}
-
-class _HorizontalScrollFade extends StatefulWidget {
-  final ScrollController controller;
-  final Widget child;
-
-  const _HorizontalScrollFade({
-    required this.controller,
-    required this.child,
-  });
-
-  @override
-  State<_HorizontalScrollFade> createState() => _HorizontalScrollFadeState();
-}
-
-class _HorizontalScrollFadeState extends State<_HorizontalScrollFade> {
-  bool _canScrollLeft = false;
-  bool _canScrollRight = false;
-
-  @override
-  void initState() {
-    super.initState();
-    widget.controller.addListener(_updateFade);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateFade());
-  }
-
-  @override
-  void didUpdateWidget(_HorizontalScrollFade oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.controller != oldWidget.controller) {
-      oldWidget.controller.removeListener(_updateFade);
-      widget.controller.addListener(_updateFade);
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateFade());
-  }
-
-  @override
-  void dispose() {
-    widget.controller.removeListener(_updateFade);
-    super.dispose();
-  }
-
-  void _updateFade() {
-    if (!widget.controller.hasClients) return;
-    final pos = widget.controller.position;
-    final canLeft = pos.pixels > 2.0;
-    final canRight = pos.maxScrollExtent > 2.0 &&
-        pos.pixels < (pos.maxScrollExtent - 2.0);
-
-    if (canLeft != _canScrollLeft || canRight != _canScrollRight) {
-      if (mounted) {
-        setState(() {
-          _canScrollLeft = canLeft;
-          _canScrollRight = canRight;
-        });
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updateFade());
-
-    return NotificationListener<ScrollMetricsNotification>(
-      onNotification: (_) {
-        _updateFade();
-        return false;
-      },
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (_) {
-          _updateFade();
-          return false;
-        },
-        child: ShaderMask(
-          shaderCallback: (Rect bounds) {
-            if (!_canScrollLeft && !_canScrollRight) {
-              return const LinearGradient(
-                colors: [Colors.black, Colors.black],
-              ).createShader(bounds);
-            }
-
-            final List<Color> colors = [];
-            final List<double> stops = [];
-
-            if (_canScrollLeft) {
-              colors.add(Colors.transparent);
-              stops.add(0.0);
-              colors.add(Colors.black);
-              stops.add(0.05);
-            } else {
-              colors.add(Colors.black);
-              stops.add(0.0);
-            }
-
-            if (_canScrollRight) {
-              colors.add(Colors.black);
-              stops.add(0.92);
-              colors.add(Colors.transparent);
-              stops.add(1.0);
-            } else {
-              colors.add(Colors.black);
-              stops.add(1.0);
-            }
-
-            return LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: colors,
-              stops: stops,
-            ).createShader(bounds);
-          },
-          blendMode: BlendMode.dstIn,
-          child: widget.child,
-        ),
       ),
     );
   }
