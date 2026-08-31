@@ -837,6 +837,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     // The torrent server seeds in the background; nothing else stops it.
     if (_startedTorrent) unawaited(ref.read(torrentServiceProvider).stop());
     WakelockPlus.disable();
+    SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.manual,
       overlays: SystemUiOverlay.values,

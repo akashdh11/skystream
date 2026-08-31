@@ -77,8 +77,15 @@ class TorrentService {
   }
 
   Future<void> stop() async {
-    await _server.stop();
-    _isStarted = false;
+    try {
+      await _server.stop();
+    } catch (e) {
+      if (kDebugMode) debugPrint("Error stopping torrent server: $e");
+    } finally {
+      _isStarted = false;
+      _serverUrl = null;
+      _activeTorrentHash = null;
+    }
   }
 
   Future<String?> getStreamUrl(String magnetLink) async {
