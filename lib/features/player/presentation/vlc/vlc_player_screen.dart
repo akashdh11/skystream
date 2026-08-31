@@ -175,7 +175,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// requests against the torrent server rather than skipping a beat.
   bool _pollingTorrent = false;
 
-  late ProviderContainer _container;
+  ProviderContainer? _container;
 
   @override
   void didChangeDependencies() {
@@ -183,7 +183,13 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     _container = ProviderScope.containerOf(context, listen: false);
   }
 
-  T _read<T>(ProviderListenable<T> provider) => _container.read(provider);
+  T _read<T>(ProviderListenable<T> provider) {
+    final container = _container;
+    if (container != null) {
+      return container.read(provider);
+    }
+    return ref.read(provider);
+  }
 
   @override
   void initState() {
