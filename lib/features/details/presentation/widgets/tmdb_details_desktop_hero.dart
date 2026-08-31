@@ -6,8 +6,6 @@ import '../../../../shared/widgets/thumbnail_error_placeholder.dart';
 import '../../../../core/models/tmdb_details.dart';
 import '../../../../core/storage/history_repository.dart';
 import 'provider_search_section.dart';
-import 'episode_picker_sheet.dart';
-import '../../../sources/presentation/plugin_sources_sheet.dart';
 
 /// Desktop hero: backdrop, gradients, and first column (logo, metadata, overview, sources).
 /// [child] is the rest of the scroll content (seasons, cast, trailers, stats, etc.).
@@ -280,30 +278,12 @@ class TmdbDetailsDesktopHero extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 32),
-                      Container(
-                        constraints: const BoxConstraints(
-                          maxWidth: 600,
-                        ),
-                        child: ProviderSearchSection(
-                          query: title,
-                          compact: true,
-                          parentMediaType: isMovie ? 'movie' : 'tv',
-                          tmdbId: data.tmdbId,
-                          imdbId: data.imdbId,
-                          onViewAll: () {
-                            if (isMovie) {
-                              PluginSourcesSheet.open(context, data);
-                            } else {
-                              EpisodePickerSheet.open(
-                                context,
-                                movieId: data.id,
-                                seasons: data.seasons,
-                                target: data,
-                                source: source,
-                              );
-                            }
-                          },
-                        ),
+                      ProviderSearchSection(
+                        query: title,
+                        compact: true,
+                        parentMediaType: isMovie ? 'movie' : 'tv',
+                        tmdbId: data.tmdbId,
+                        imdbId: data.imdbId,
                       ),
                     ],
                   ),
