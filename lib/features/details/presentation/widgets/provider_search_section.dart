@@ -177,9 +177,10 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
                     clipBehavior: Clip.hardEdge,
                     scrollDirection: Axis.horizontal,
                     padding: widget.compact
-                        ? EdgeInsets.zero
-                        : const EdgeInsets.symmetric(
-                            horizontal: LayoutConstants.spacingMd,
+                        ? const EdgeInsets.only(right: 60)
+                        : const EdgeInsets.only(
+                            left: LayoutConstants.spacingMd,
+                            right: LayoutConstants.spacingMd + 60,
                           ),
                     itemCount: allItems.length,
                     separatorBuilder: (_, _) =>
