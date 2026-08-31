@@ -20,8 +20,22 @@ class ExtensionsScreen extends ConsumerStatefulWidget {
   ConsumerState<ExtensionsScreen> createState() => _ExtensionsScreenState();
 }
 
-class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
+class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
   bool _didEnsureInit = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,160 +68,102 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
 
     final state = ref.watch(extensionsControllerProvider);
 
-    if (widget.isEmbedded) {
-      return switch (state) {
-        ExtensionsLoading(repositories: []) => const Center(
-          child: AppLoadingIndicator(),
-        ),
-        _ => DefaultTabController(
-          key: const ValueKey('installed_extensions_tab_controller'),
-          length: 2,
-          child: Builder(
-            builder: (tabContext) => Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: LayoutConstants.dashboardContentPadding,
-                  ),
-                  alignment: Alignment.centerLeft,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 800),
-                    child: TabBar(
-                      indicatorSize: TabBarIndicatorSize.label,
-                      indicatorWeight: 3,
-                      labelStyle: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 15,
-                      ),
-                      labelColor: Theme.of(tabContext).colorScheme.primary,
-                      unselectedLabelColor: Theme.of(
-                        tabContext,
-                      ).colorScheme.onSurfaceVariant,
-                      indicatorColor: Theme.of(tabContext).colorScheme.primary,
-                      dividerColor: Theme.of(
-                        tabContext,
-                      ).dividerColor.withValues(alpha: 0.2),
-                      tabs: [
-                        Tab(text: l10n.installed),
-                        Tab(text: l10n.repositories),
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 800),
-                      child: TabBarView(
-                        children: [
-                          _buildInstalledTab(tabContext, ref, state),
-                          _buildRepositoriesTab(tabContext, ref, state),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      };
-    }
-
-    return switch (state) {
-      ExtensionsLoading(repositories: []) => Scaffold(
-        appBar: AppBar(
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-            onPressed: () {
-              if (Navigator.of(context).canPop()) {
-                Navigator.of(context).pop();
-              } else {
-                const SettingsRoute().go(context);
-              }
-            },
-          ),
-          title: const Text('SkyStream Providers'),
-        ),
-        body: const Center(child: AppLoadingIndicator()),
+    final tabBar = TabBar(
+      controller: _tabController,
+      indicatorSize: TabBarIndicatorSize.label,
+      indicatorWeight: 3,
+      labelStyle: const TextStyle(
+        fontWeight: FontWeight.bold,
+        fontSize: 15,
       ),
-      _ => DefaultTabController(
-        key: const ValueKey('installed_extensions_tab_controller'),
-        length: 2,
-        child: Builder(
-          builder: (tabContext) => Scaffold(
-            appBar: AppBar(
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
-                tooltip: MaterialLocalizations.of(tabContext).backButtonTooltip,
-                onPressed: () {
-                  if (Navigator.of(tabContext).canPop()) {
-                    Navigator.of(tabContext).pop();
-                  } else {
-                    const SettingsRoute().go(tabContext);
-                  }
-                },
-              ),
-              title: const Text('SkyStream Providers'),
-              bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(48),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 800),
-                    child: TabBar(
-                      indicatorSize: TabBarIndicatorSize.label,
-                      indicatorWeight: 3,
-                      labelStyle: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                      unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.w500,
-                        fontSize: 15,
-                      ),
-                      labelColor: Theme.of(tabContext).colorScheme.primary,
-                      unselectedLabelColor: Theme.of(
-                        tabContext,
-                      ).colorScheme.onSurfaceVariant,
-                      indicatorColor: Theme.of(tabContext).colorScheme.primary,
-                      dividerColor: Theme.of(
-                        tabContext,
-                      ).dividerColor.withValues(alpha: 0.2),
-                      tabs: [
-                        Tab(text: l10n.installed),
-                        Tab(text: l10n.repositories),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+      unselectedLabelStyle: const TextStyle(
+        fontWeight: FontWeight.w500,
+        fontSize: 15,
+      ),
+      labelColor: Theme.of(context).colorScheme.primary,
+      unselectedLabelColor: Theme.of(
+        context,
+      ).colorScheme.onSurfaceVariant,
+      indicatorColor: Theme.of(context).colorScheme.primary,
+      dividerColor: Theme.of(
+        context,
+      ).dividerColor.withValues(alpha: 0.2),
+      tabs: [
+        Tab(text: l10n.installed),
+        Tab(text: l10n.repositories),
+      ],
+    );
+
+    final tabView = TabBarView(
+      controller: _tabController,
+      children: [
+        FocusTraversalGroup(
+          policy: ReadingOrderTraversalPolicy(),
+          child: _buildInstalledTab(context, ref, state),
+        ),
+        FocusTraversalGroup(
+          policy: ReadingOrderTraversalPolicy(),
+          child: _buildRepositoriesTab(context, ref, state),
+        ),
+      ],
+    );
+
+    if (widget.isEmbedded) {
+      return Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: LayoutConstants.dashboardContentPadding,
             ),
-            body: Center(
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: tabBar,
+            ),
+          ),
+          Expanded(
+            child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 800),
-                child: TabBarView(
-                  children: [
-                    FocusTraversalGroup(
-                      policy: ReadingOrderTraversalPolicy(),
-                      child: _buildInstalledTab(tabContext, ref, state),
-                    ),
-                    FocusTraversalGroup(
-                      policy: ReadingOrderTraversalPolicy(),
-                      child: _buildRepositoriesTab(tabContext, ref, state),
-                    ),
-                  ],
-                ),
+                child: tabView,
               ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded),
+          tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              const SettingsRoute().go(context);
+            }
+          },
+        ),
+        title: const Text('SkyStream Providers'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(48),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: tabBar,
             ),
           ),
         ),
       ),
-    };
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: tabView,
+        ),
+      ),
+    );
   }
 
   Widget _buildInstalledTab(
@@ -216,6 +172,10 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     ExtensionsState state,
   ) {
     final l10n = AppLocalizations.of(context)!;
+    if (state is ExtensionsLoading && state.installedPlugins.isEmpty) {
+      return const Center(child: AppLoadingIndicator());
+    }
+
     final debugPlugins = state.installedPlugins
         .where((p) => p.isDebug)
         .toList();
@@ -279,15 +239,11 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: LayoutConstants.spacingLg),
-                  Builder(
-                    builder: (btnContext) {
-                      return FilledButton.icon(
-                        icon: const Icon(Icons.explore_outlined),
-                        label: Text(l10n.browseRepositories),
-                        onPressed: () {
-                          DefaultTabController.of(btnContext).animateTo(1);
-                        },
-                      );
+                  FilledButton.icon(
+                    icon: const Icon(Icons.explore_outlined),
+                    label: Text(l10n.browseRepositories),
+                    onPressed: () {
+                      _tabController.animateTo(1);
                     },
                   ),
                 ],
@@ -324,6 +280,9 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen> {
     ExtensionsState state,
   ) {
     final l10n = AppLocalizations.of(context)!;
+    if (state is ExtensionsLoading && state.repositories.isEmpty) {
+      return const Center(child: AppLoadingIndicator());
+    }
     final isEmpty = state.repositories.isEmpty;
 
     if (isEmpty) {
