@@ -171,6 +171,13 @@ public class VlcPlayerPlugin: NSObject, FlutterPlugin {
         return
       }
       player.addSubtitle(uri, result: result)
+    case "setFit":
+      guard let fit = arguments["fit"] as? String else {
+        result(FlutterError(code: "invalid_args", message: "A fit value is required.", details: nil))
+        return
+      }
+      player.setFit(fit)
+      result(nil)
     case "getMediaInfo":
       result(player.getMediaInfo())
     case "getMediaStats":
@@ -576,6 +583,10 @@ final class VlcPlayerPlatformView: NSObject, FlutterPlatformView, VLCMediaPlayer
       "sentBytes": 0,
       "sendBitrate": 0.0,
     ]
+  }
+
+  func setFit(_ fit: String) {
+    Self.applyFit(fit, to: uiView)
   }
 
   private static func applyFit(_ fit: String, to view: UIView) {

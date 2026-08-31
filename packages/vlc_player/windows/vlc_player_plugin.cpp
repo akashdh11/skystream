@@ -834,6 +834,9 @@ void VlcPlayerPlugin::HandleMethodCall(
       result->Error("invalid_args", error);
       return;
     }
+  } else if (method_call.method_name() == "setFit") {
+    result->Success();
+    return;
   } else if (method_call.method_name() == "getMediaInfo") {
     result->Success(EncodableValue(player->GetMediaInfo()));
     return;

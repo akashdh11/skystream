@@ -174,9 +174,9 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     }
   }
 
-  void _applyFit(VlcVideoFit fit) {
+  Future<void> _applyFit(VlcVideoFit fit) async {
     try {
-      widget.controller.setFit(fit);
+      await widget.controller.setFit(fit);
     } catch (e) {
       if (kDebugMode) debugPrint('Failed to setFit: $e');
     }
