@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -145,16 +146,40 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   /// Speed to restore when a long-press boost ends. Null when not boosting.
   double? _speedBeforeBoost;
 
+  bool _appliedInitialFit = false;
+
   @override
   void initState() {
     super.initState();
     final settings =
         ref.read(playerSettingsProvider).asData?.value ?? const PlayerSettings();
     _fit = _fitFromSettings(settings.defaultResizeMode);
-    widget.controller.setFit(_fit);
+    
+    // Defer setFit until the controller is attached to the native player view
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _applyFit(_fit);
+    });
+
+    widget.controller.addListener(_onControllerValue);
     // Armed, but the timer refuses to hide until playback actually starts, so
     // the bars stay up through resolution and buffering.
     _restartHideTimer();
+  }
+
+  void _onControllerValue() {
+    if (!_appliedInitialFit && widget.controller.value.isPlaying) {
+      _appliedInitialFit = true;
+      _applyFit(_fit);
+    }
+  }
+
+  void _applyFit(VlcVideoFit fit) {
+    try {
+      widget.controller.setFit(fit);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Failed to setFit: $e');
+    }
   }
 
   static VlcVideoFit _fitFromSettings(String mode) => switch (mode.toLowerCase()) {
@@ -165,6 +190,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
 
   @override
   void dispose() {
+    widget.controller.removeListener(_onControllerValue);
     _hideTimer?.cancel();
     _toastTimer?.cancel();
     _railTimer?.cancel();
@@ -743,7 +769,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     ];
     final next = order[(order.indexOf(_fit) + 1) % order.length];
     setState(() => _fit = next);
-    widget.controller.setFit(next);
+    _applyFit(next);
     _showToast(_fitLabel(next));
   }
 
