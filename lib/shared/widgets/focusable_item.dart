@@ -66,7 +66,7 @@ class _FocusableItemState extends State<FocusableItem>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final ro = context.findRenderObject();
-      if (ro is! RenderBox || !ro.hasSize) return;
+      if (ro is! RenderBox || !ro.hasSize || !ro.attached) return;
       const duration = Duration(milliseconds: 380);
       const curve = Curves.fastOutSlowIn;
 
@@ -74,26 +74,30 @@ class _FocusableItemState extends State<FocusableItem>
           .ensureVisible(ro, alignment: 0.5, duration: duration, curve: curve);
 
       final vScroll = Scrollable.maybeOf(context, axis: Axis.vertical);
-      if (vScroll != null) {
+      if (vScroll != null && vScroll.context.mounted) {
         final scrollBox = vScroll.context.findRenderObject();
-        if (scrollBox is RenderBox && scrollBox.hasSize) {
+        if (scrollBox is RenderBox && scrollBox.hasSize && scrollBox.attached) {
           final hScroll = Scrollable.maybeOf(context, axis: Axis.horizontal);
-          final targetContext = hScroll?.context ?? context;
+          final targetContext = (hScroll != null && hScroll.context.mounted)
+              ? hScroll.context
+              : context;
           final targetRo = targetContext.findRenderObject();
-          if (targetRo is RenderBox && targetRo.hasSize) {
-            final top = targetRo
-                .localToGlobal(Offset.zero, ancestor: scrollBox)
-                .dy;
-            final bottom = top + targetRo.size.height;
-            final viewportH = scrollBox.size.height;
-            if (top < 0 || bottom > viewportH) {
-              vScroll.position.ensureVisible(
-                targetRo,
-                alignment: 0.5,
-                duration: duration,
-                curve: curve,
-              );
-            }
+          if (targetRo is RenderBox && targetRo.hasSize && targetRo.attached) {
+            try {
+              final top = targetRo
+                  .localToGlobal(Offset.zero, ancestor: scrollBox)
+                  .dy;
+              final bottom = top + targetRo.size.height;
+              final viewportH = scrollBox.size.height;
+              if (top < 0 || bottom > viewportH) {
+                vScroll.position.ensureVisible(
+                  targetRo,
+                  alignment: 0.5,
+                  duration: duration,
+                  curve: curve,
+                );
+              }
+            } catch (_) {}
           }
         }
       }
