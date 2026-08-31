@@ -11,7 +11,7 @@ import 'player_settings_provider.dart';
 import 'widgets/settings_dialogs.dart';
 import 'widgets/settings_widgets.dart';
 
-/// Sub-screen for configuring all video playback, gestures, display, HDR, and quality preferences.
+/// Sub-screen for configuring all video playback, gestures, display, and quality preferences.
 class PlayerSettingsScreen extends ConsumerWidget {
   final bool isEmbedded;
 
@@ -178,73 +178,6 @@ class PlayerSettingsScreen extends ConsumerWidget {
                         .read(playerSettingsProvider.notifier)
                         .setHardwareDecoding(!playerSettings.hardwareDecoding),
                   ),
-                  SettingsTile(
-                    icon: Icons.hdr_on_rounded,
-                    title: 'HDR mode',
-                    subtitle: switch (playerSettings.hdrMode) {
-                      HdrMode.auto => 'Auto (let the player decide)',
-                      HdrMode.passthrough =>
-                        'HDR passthrough — for HDR displays',
-                      HdrMode.toneMapSdr =>
-                        'Tone-map to SDR — for SDR displays',
-                    },
-                    onTap: () =>
-                        showHdrModeDialog(context, ref, playerSettings),
-                  ),
-                  if (playerSettings.hdrMode != HdrMode.auto) ...[
-                    if (playerSettings.hdrMode == HdrMode.toneMapSdr)
-                      SettingsTile(
-                        icon: Icons.tonality_rounded,
-                        title: 'Tone-mapping curve',
-                        subtitle: playerSettings.toneMapCurve.label,
-                        onTap: () =>
-                            showToneMapDialog(context, ref, playerSettings),
-                      ),
-                    SettingsTile(
-                      icon: Icons.brightness_high_rounded,
-                      title: 'Display peak brightness',
-                      subtitle: playerSettings.hdrTargetPeak <= 0
-                          ? 'Auto-detect'
-                          : '${playerSettings.hdrTargetPeak} nits',
-                      onTap: () =>
-                          showTargetPeakDialog(context, ref, playerSettings),
-                    ),
-                    SettingsTile(
-                      icon: Icons.auto_graph_rounded,
-                      title: 'Dynamic peak detection',
-                      subtitle: playerSettings.hdrComputePeak
-                          ? 'On — better highlights, more GPU'
-                          : 'Off — lighter on the GPU',
-                      trailing: Switch(
-                        value: playerSettings.hdrComputePeak,
-                        onChanged: (val) => ref
-                            .read(playerSettingsProvider.notifier)
-                            .setHdrComputePeak(val),
-                      ),
-                      onTap: () => ref
-                          .read(playerSettingsProvider.notifier)
-                          .setHdrComputePeak(!playerSettings.hdrComputePeak),
-                    ),
-                    if (playerSettings.hdrMode == HdrMode.toneMapSdr)
-                      SettingsTile(
-                        icon: Icons.wb_sunny_rounded,
-                        title: 'Boost SDR to HDR',
-                        subtitle: playerSettings.inverseToneMapping
-                            ? 'On — expands SDR into HDR range'
-                            : 'Off (recommended)',
-                        trailing: Switch(
-                          value: playerSettings.inverseToneMapping,
-                          onChanged: (val) => ref
-                              .read(playerSettingsProvider.notifier)
-                              .setInverseToneMapping(val),
-                        ),
-                        onTap: () => ref
-                            .read(playerSettingsProvider.notifier)
-                            .setInverseToneMapping(
-                              !playerSettings.inverseToneMapping,
-                            ),
-                      ),
-                  ],
                   SettingsTile(
                     icon: Icons.volume_up_rounded,
                     title: 'Maximum volume',

@@ -20,6 +20,7 @@ import 'player_value_selector.dart';
 import 'vlc_progress_bar.dart';
 import '../components/torrent_info_widget.dart';
 import 'vlc_track_sheet.dart';
+import '../../../settings/presentation/player_settings_provider.dart';
 
 /// Chrome for the VLC engine — Phase 5b of the migration notes.
 ///
@@ -102,18 +103,16 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   static const Duration _hideAfter = Duration(seconds: 3);
   static const Duration _fade = Duration(milliseconds: 200);
 
-  /// Matches the old player's double-tap step.
-  static const Duration _seekStep = Duration(seconds: 10);
+  /// Matches the user's seek duration setting.
+  Duration get _seekStep {
+    final s = ref.read(playerSettingsProvider).asData?.value.seekDuration ?? 10;
+    return Duration(seconds: s > 0 ? s : 10);
+  }
 
   bool _visible = true;
   Timer? _hideTimer;
 
   /// A brief centred message - the resize mode, and later seek and speed.
-  ///
-  /// Lives here rather than in a provider because it is transient screen state
-  /// with exactly one owner. The old player put its equivalent in a Riverpod
-  /// notifier with its own timers, which is how it ended up with several
-  /// things able to hide the chrome.
   String? _toast;
   Timer? _toastTimer;
 
@@ -121,8 +120,11 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   /// clutter the rest of the time.
   bool _showTorrentInfo = false;
 
-  /// libVLC amplifies natively up to 200%, so boost costs nothing extra.
-  static const int _maxVolume = 200;
+  /// Maximum volume boost from player settings (100–200%).
+  int get _maxVolume {
+    final v = ref.read(playerSettingsProvider).asData?.value.maxVolumePercent ?? 200;
+    return v.clamp(100, 200);
+  }
 
   /// Which rail a vertical drag is driving, and the value it started from.
   /// Null when no drag is in progress.
@@ -135,19 +137,31 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   Timer? _railTimer;
   Widget? _rail;
 
+  /// Horizontal drag seek state.
+  double? _horizontalDragStartX;
+  Duration? _horizontalDragStartPosition;
+  Duration? _horizontalDragTarget;
+
   /// Speed to restore when a long-press boost ends. Null when not boosting.
-  ///
-  /// Read back from the engine rather than assumed to be 1.0, so a viewer who
-  /// had already chosen 1.5x is returned to 1.5x and not silently reset.
   double? _speedBeforeBoost;
 
   @override
   void initState() {
     super.initState();
+    final settings =
+        ref.read(playerSettingsProvider).asData?.value ?? const PlayerSettings();
+    _fit = _fitFromSettings(settings.defaultResizeMode);
+    widget.controller.setFit(_fit);
     // Armed, but the timer refuses to hide until playback actually starts, so
     // the bars stay up through resolution and buffering.
     _restartHideTimer();
   }
+
+  static VlcVideoFit _fitFromSettings(String mode) => switch (mode.toLowerCase()) {
+    'zoom' => VlcVideoFit.cover,
+    'stretch' => VlcVideoFit.fill,
+    _ => VlcVideoFit.contain,
+  };
 
   @override
   void dispose() {
@@ -349,15 +363,20 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     );
   }
 
-  /// Starts a brightness (left half) or volume (right half) drag.
-  ///
-  /// The side is decided once, at the start, so a wandering finger cannot swap
-  /// rails mid-gesture.
+  /// Starts a brightness or volume drag based on user gesture configuration.
   Future<void> _railDragStart(DragStartDetails d) async {
     if (widget.onToggleFullscreen != null) return; // desktop: no touch rails
     final width = context.size?.width ?? 0;
     if (width <= 0) return;
-    final isVolume = d.localPosition.dx >= width / 2;
+    final isRight = d.localPosition.dx >= width / 2;
+    final settings =
+        ref.read(playerSettingsProvider).asData?.value ?? const PlayerSettings();
+    final gesture = isRight ? settings.rightGesture : settings.leftGesture;
+    if (gesture == PlayerGesture.none) {
+      _dragIsVolume = null;
+      return;
+    }
+    final isVolume = gesture == PlayerGesture.volume;
     _dragIsVolume = isVolume;
     if (isVolume) {
       _dragStart = widget.controller.value.volume.toDouble();
@@ -369,6 +388,52 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       }
       _dragStart = _brightness;
     }
+  }
+
+  void _onHorizontalDragStart(DragStartDetails d, PlayerSettings settings) {
+    if (widget.isLive || widget.onToggleFullscreen != null || !settings.swipeSeekEnabled) return;
+    _horizontalDragStartX = d.globalPosition.dx;
+    _horizontalDragStartPosition = widget.controller.value.position;
+    _horizontalDragTarget = _horizontalDragStartPosition;
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails d, PlayerSettings settings) {
+    final startX = _horizontalDragStartX;
+    final startPos = _horizontalDragStartPosition;
+    if (startX == null || startPos == null || !settings.swipeSeekEnabled) return;
+    final width = MediaQuery.sizeOf(context).width;
+    if (width <= 0) return;
+    final deltaFraction = (d.globalPosition.dx - startX) / width;
+    final duration = widget.controller.value.duration;
+    final seekDelta = Duration(milliseconds: (deltaFraction * 90000).round());
+    var target = startPos + seekDelta;
+    if (target < Duration.zero) target = Duration.zero;
+    if (duration > Duration.zero && target > duration) target = duration;
+    _horizontalDragTarget = target;
+    final diffSeconds = (target - startPos).inSeconds;
+    _showToast(
+      diffSeconds < 0
+          ? '${diffSeconds}s (${_formatDuration(target)})'
+          : '+${diffSeconds}s (${_formatDuration(target)})',
+    );
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails d) {
+    final target = _horizontalDragTarget;
+    _horizontalDragStartX = null;
+    _horizontalDragStartPosition = null;
+    _horizontalDragTarget = null;
+    if (target != null) {
+      widget.controller.seekTo(target);
+      _poke();
+    }
+  }
+
+  static String _formatDuration(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '$h:$m:$s' : '$m:$s';
   }
 
   /// A full screen height of travel covers the whole range, which is the
@@ -550,7 +615,11 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     child: child,
   );
 
-  List<Widget> _leading(AppLocalizations l10n, {required bool isTv}) {
+  List<Widget> _leading(
+    AppLocalizations l10n,
+    PlayerSettings settings, {
+    required bool isTv,
+  }) {
     return <Widget>[
       PlayerValueSelector<bool>(
         controller: widget.controller,
@@ -568,7 +637,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
           );
         },
       ),
-      if (widget.onNextEpisode != null)
+      if (widget.onNextEpisode != null && settings.showEpisodes)
         PlayerIconButton(
           icon: Icons.skip_next_rounded,
           tooltip: l10n.next,
@@ -581,7 +650,11 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     ];
   }
 
-  List<Widget> _actions(AppLocalizations l10n, {required bool isTv}) {
+  List<Widget> _actions(
+    AppLocalizations l10n,
+    PlayerSettings settings, {
+    required bool isTv,
+  }) {
     return <Widget>[
       if (widget.onOpenSources != null)
         PlayerIconButton(
@@ -605,7 +678,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       ),
       // Speed is meaningless on a live edge, so the button is absent there
       // rather than present and inert.
-      if (!widget.isLive)
+      if (!widget.isLive && settings.showPlaybackSpeed)
         PlayerValueSelector<double>(
           controller: widget.controller,
           selector: (v) => v.playbackSpeed,
@@ -628,7 +701,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
             setState(() => _showTorrentInfo = !_showTorrentInfo);
           },
         ),
-      if (widget.onEnterPip != null)
+      if (widget.onEnterPip != null && settings.showPip)
         PlayerIconButton(
           icon: Icons.picture_in_picture_alt_rounded,
           tooltip: l10n.pip,
@@ -647,15 +720,16 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
             widget.onToggleFullscreen!.call();
           },
         ),
-      PlayerIconButton(
-        icon: Icons.aspect_ratio_rounded,
-        tooltip: l10n.resize,
-        isTv: isTv,
-        onPressed: () {
-          _onInteraction();
-          _cycleFit();
-        },
-      ),
+      if (settings.showResize)
+        PlayerIconButton(
+          icon: Icons.aspect_ratio_rounded,
+          tooltip: l10n.resize,
+          isTv: isTv,
+          onPressed: () {
+            _onInteraction();
+            _cycleFit();
+          },
+        ),
     ];
   }
 
@@ -685,6 +759,8 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     final l10n = AppLocalizations.of(context)!;
     final isTv = ref.watch(deviceProfileProvider).asData?.value.isTv ?? false;
     final isTouch = !isTv && (Platform.isAndroid || Platform.isIOS);
+    final settings =
+        ref.watch(playerSettingsProvider).asData?.value ?? const PlayerSettings();
 
     return Listener(
       behavior: HitTestBehavior.translucent,
@@ -703,13 +779,21 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
               // Desktop convention; on touch the same gesture seeks instead,
               // which is why the two are mutually exclusive.
               onDoubleTap: widget.onToggleFullscreen,
-              onDoubleTapDown: widget.onToggleFullscreen == null
+              onDoubleTapDown: (widget.onToggleFullscreen == null && settings.doubleTapEnabled)
                   ? (d) => _doubleTapSeek(d.localPosition.dx)
                   : null,
               onVerticalDragStart: (d) => unawaited(_railDragStart(d)),
               onVerticalDragUpdate: _railDragUpdate,
               onVerticalDragEnd: (_) => _railDragEnd(),
               onVerticalDragCancel: _railDragEnd,
+              onHorizontalDragStart: (d) => _onHorizontalDragStart(d, settings),
+              onHorizontalDragUpdate: (d) => _onHorizontalDragUpdate(d, settings),
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+              onHorizontalDragCancel: () {
+                _horizontalDragStartX = null;
+                _horizontalDragStartPosition = null;
+                _horizontalDragTarget = null;
+              },
               onLongPressStart: (_) => _startSpeedBoost(),
               onLongPressEnd: (_) => _endSpeedBoost(),
               onLongPressCancel: _endSpeedBoost,
@@ -739,7 +823,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
             // so the Stack's child list never changes shape.
             IgnorePointer(child: _rail ?? const SizedBox.shrink()),
             IgnorePointer(child: _toastOverlay()),
-            _chrome(context, l10n, isTv: isTv, isTouch: isTouch),
+            _chrome(context, l10n, settings, isTv: isTv, isTouch: isTouch),
             // Outside the chrome on purpose: an intro can start while the bars
             // are hidden, and putting the one time-limited control behind a tap
             // would defeat it.
@@ -757,7 +841,8 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
 
   Widget _chrome(
     BuildContext context,
-    AppLocalizations l10n, {
+    AppLocalizations l10n,
+    PlayerSettings settings, {
     required bool isTv,
     required bool isTouch,
   }) {
@@ -798,8 +883,8 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
                           onSeekStart: () => _hideTimer?.cancel(),
                         ),
                       ),
-                      leading: _leading(l10n, isTv: isTv),
-                      actions: _actions(l10n, isTv: isTv),
+                      leading: _leading(l10n, settings, isTv: isTv),
+                      actions: _actions(l10n, settings, isTv: isTv),
                     ),
                   ),
                 ],

@@ -196,9 +196,11 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       // listener. Four updates a second is plenty for a seek bar.
       eventThrottleInterval: const Duration(milliseconds: 250),
       config: VlcPlayerConfig(
-        network: const VlcNetworkConfig(
-          // VOD default; a live source overrides it per-media in _openAttempt.
-          networkCaching: 3000,
+        network: VlcNetworkConfig(
+          // VOD default from user settings (buffer depth); a live source overrides it per-media in _openAttempt.
+          networkCaching: settings.readaheadSeconds > 0
+              ? (settings.readaheadSeconds * 1000).clamp(1000, 60000)
+              : 3000,
           userAgent: kDefaultBrowserUserAgent,
           // The mpv path pins hls-bitrate=max because FFmpeg treats HLS variant
           // bitrate as metadata and never switches on it. libVLC does adapt, but
