@@ -61,11 +61,19 @@ class ProviderSearchSection extends ConsumerStatefulWidget {
 
 class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
   late final ScrollController _scrollController;
+  bool _canScrollRight = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _scrollController.addListener(() {
+      final canRight = _scrollController.hasClients &&
+          _scrollController.position.extentAfter > 10;
+      if (canRight != _canScrollRight) {
+        setState(() => _canScrollRight = canRight);
+      }
+    });
   }
 
   @override
@@ -156,8 +164,23 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
           return RepaintBoundary(
             child: SizedBox(
               height: 140,
-              child: ShaderMask(
+              child: NotificationListener<ScrollMetricsNotification>(
+                onNotification: (notification) {
+                  if (notification.metrics.axis == Axis.horizontal) {
+                    final canRight = notification.metrics.extentAfter > 10;
+                    if (canRight != _canScrollRight) {
+                      setState(() => _canScrollRight = canRight);
+                    }
+                  }
+                  return false;
+                },
+                child: ShaderMask(
                 shaderCallback: (Rect bounds) {
+                  if (!_canScrollRight) {
+                    return const LinearGradient(
+                      colors: [Colors.black, Colors.black],
+                    ).createShader(bounds);
+                  }
                   return const LinearGradient(
                     begin: Alignment.centerLeft,
                     end: Alignment.centerRight,
@@ -177,10 +200,9 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
                     clipBehavior: Clip.hardEdge,
                     scrollDirection: Axis.horizontal,
                     padding: widget.compact
-                        ? const EdgeInsets.only(right: 60)
-                        : const EdgeInsets.only(
-                            left: LayoutConstants.spacingMd,
-                            right: LayoutConstants.spacingMd + 60,
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.symmetric(
+                            horizontal: LayoutConstants.spacingMd,
                           ),
                     itemCount: allItems.length,
                     separatorBuilder: (_, _) =>
@@ -298,7 +320,7 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
                           ),
                         ),
                       );
-                    },
+                    }),
                   ),
                 ),
               ),
