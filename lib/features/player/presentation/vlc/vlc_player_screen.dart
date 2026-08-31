@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart'
+    show ProviderListenable;
 import 'package:vlc_player/vlc_player.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -173,6 +175,16 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// requests against the torrent server rather than skipping a beat.
   bool _pollingTorrent = false;
 
+  late ProviderContainer _container;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _container = ProviderScope.containerOf(context, listen: false);
+  }
+
+  T _read<T>(ProviderListenable<T> provider) => _container.read(provider);
+
   @override
   void initState() {
     super.initState();
@@ -236,7 +248,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   Future<void> _start() async {
     try {
       final resolved = await resolvePlayback(
-        read: ref.read,
+        read: _read,
         item: widget.item,
         videoUrl: _videoUrl,
         preloadedStreams: _preloaded,
@@ -248,7 +260,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       _token++;
       final currentEpisode = _currentEpisode;
       _recorder = PlaybackProgressRecorder(
-        read: ref.read,
+        read: _read,
         item: widget.item,
         episode: currentEpisode,
         videoUrl: _videoUrl,
@@ -257,7 +269,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       // One tracker for the whole screen, deliberately: failing over to another
       // source is still the same episode, so the watched latch must survive it.
       _tracker = PlaybackTracker(
-        read: ref.read,
+        read: _read,
         item: widget.item,
         episode: currentEpisode,
         token: _token,
@@ -268,7 +280,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       // question of when the engine is ready enough to seek — the old path
       // carried a pending-seek percentage and a readiness race to answer it.
       _initialResume = resumePointFor(
-        read: ref.read,
+        read: _read,
         item: widget.item,
         episode: currentEpisode,
         videoUrl: _videoUrl,
@@ -332,7 +344,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       _startedTorrent = true;
       _startTorrentPolling();
     }
-    final playable = await playableUrlFor(read: ref.read, stream: stream);
+    final playable = await playableUrlFor(read: _read, stream: stream);
     if (_disposed || generation != _generation) return;
     if (playable == null) {
       return _failAttempt('torrent could not be prepared');
@@ -478,7 +490,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     if (episode == null) return;
     final token = _token;
     final segments = await fetchSkipSegments(
-      read: ref.read,
+      read: _read,
       item: widget.item,
       episode: episode,
     );
@@ -507,7 +519,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       if (_disposed || _pollingTorrent) return;
       _pollingTorrent = true;
       try {
-        final status = await ref.read(torrentServiceProvider).getCurrentStatus();
+        final status = await _read(torrentServiceProvider).getCurrentStatus();
         if (!_disposed && mounted) setState(() => _torrentStatus = status);
       } catch (e) {
         if (kDebugMode) debugPrint('Torrent status poll failed: $e');
@@ -521,7 +533,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// the other platforms this ships to, and it is meaningless on a television.
   bool get _pipAvailable =>
       Platform.isAndroid &&
-      !(ref.read(deviceProfileProvider).asData?.value.isTv ?? false);
+      !(_read(deviceProfileProvider).asData?.value.isTv ?? false);
 
   /// Only a desktop window can change size; mobile and TV are already full
   /// screen, so the affordance is absent rather than inert.
@@ -615,12 +627,12 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
         // could not find in the list means "don't know", and deleting the
         // series on that would cascade across every per-episode row.
         if (lookup.isFinalEpisode) {
-          clearFinishedFromHistory(read: ref.read, item: widget.item);
+          clearFinishedFromHistory(read: _read, item: widget.item);
         }
         return;
       }
 
-      rollForwardHistory(read: ref.read, item: widget.item, next: next);
+      rollForwardHistory(read: _read, item: widget.item, next: next);
 
       // Per-episode reset. _token, _recorder, _tracker and _initialResume are
       // rebuilt by _start(); _generation and the attempt/edge flags by
@@ -728,6 +740,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (_disposed || !mounted) return;
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
       // The process may not come back. This is the last guaranteed chance.
@@ -819,6 +832,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Order matters: dispose() stops the player, and a stopped libVLC reports
     // position zero. Write first, tear down second. finish() runs after the
     // local write and emits exactly one terminal tracking event.
@@ -831,11 +845,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     // toggles we issued, and is wrong whenever the OS window control was used
     // instead - which is exactly when this matters.
     unawaited(_platform.exitFullscreen());
-    WidgetsBinding.instance.removeObserver(this);
     _controller.removeListener(_onPlaybackValue);
     _controller.dispose();
     // The torrent server seeds in the background; nothing else stops it.
-    if (_startedTorrent) unawaited(ref.read(torrentServiceProvider).stop());
+    if (_startedTorrent) unawaited(_read(torrentServiceProvider).stop());
     WakelockPlus.disable();
     SystemChrome.setPreferredOrientations(DeviceOrientation.values);
     SystemChrome.setEnabledSystemUIMode(
