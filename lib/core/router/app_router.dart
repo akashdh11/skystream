@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:go_router/go_router.dart';
@@ -230,6 +232,117 @@ class ViewAllRouteExtra {
   final void Function(MultimediaItem item)? onTap;
 }
 
+// --- Route Extra Codec ---
+
+/// Serializes/deserializes route extras so Android can restore routes after
+/// process death without losing the pushed data.
+class RouteExtraCodec extends Codec<Object?, Object?> {
+  const RouteExtraCodec();
+
+  @override
+  Converter<Object?, Object?> get encoder => const _RouteExtraEncoder();
+
+  @override
+  Converter<Object?, Object?> get decoder => const _RouteExtraDecoder();
+}
+
+class _RouteExtraEncoder extends Converter<Object?, Object?> {
+  const _RouteExtraEncoder();
+
+  @override
+  Object? convert(Object? input) {
+    if (input == null) return null;
+    if (input is DetailsRouteExtra) {
+      return <String, dynamic>{
+        '_type': 'DetailsRouteExtra',
+        'item': input.item.toJson(),
+        'autoPlay': input.autoPlay,
+      };
+    }
+    if (input is PlayerRouteExtra) {
+      return <String, dynamic>{
+        '_type': 'PlayerRouteExtra',
+        'item': input.item.toJson(),
+        'videoUrl': input.videoUrl,
+        if (input.episode != null) 'episode': input.episode!.toJson(),
+        if (input.preloadedStreams != null)
+          'preloadedStreams':
+              input.preloadedStreams!.map((s) => s.toJson()).toList(),
+      };
+    }
+    if (input is ViewAllRouteExtra) {
+      return <String, dynamic>{
+        '_type': 'ViewAllRouteExtra',
+        'title': input.title,
+        'initialMediaList':
+            input.initialMediaList.map((e) => e.toJson()).toList(),
+        'category': input.category.name,
+        // onTap is a callback — cannot be serialized; will be null on restore.
+      };
+    }
+    return input;
+  }
+}
+
+class _RouteExtraDecoder extends Converter<Object?, Object?> {
+  const _RouteExtraDecoder();
+
+  @override
+  Object? convert(Object? input) {
+    if (input == null) return null;
+    if (input is! Map) return input;
+    final map = Map<String, dynamic>.from(input);
+    switch (map['_type']) {
+      case 'DetailsRouteExtra':
+        return DetailsRouteExtra(
+          item: MultimediaItem.fromJson(
+            Map<String, dynamic>.from(map['item'] as Map),
+          ),
+          autoPlay: map['autoPlay'] as bool? ?? false,
+        );
+      case 'PlayerRouteExtra':
+        return PlayerRouteExtra(
+          item: MultimediaItem.fromJson(
+            Map<String, dynamic>.from(map['item'] as Map),
+          ),
+          videoUrl: map['videoUrl'] as String,
+          episode: map['episode'] != null
+              ? Episode.fromJson(
+                  Map<String, dynamic>.from(map['episode'] as Map),
+                )
+              : null,
+          preloadedStreams: map['preloadedStreams'] != null
+              ? (map['preloadedStreams'] as List)
+                    .map(
+                      (s) => StreamResult.fromJson(
+                        Map<String, dynamic>.from(s as Map),
+                      ),
+                    )
+                    .toList()
+              : null,
+        );
+      case 'ViewAllRouteExtra':
+        return ViewAllRouteExtra(
+          title: map['title'] as String,
+          initialMediaList: (map['initialMediaList'] as List)
+              .map(
+                (e) => MultimediaItem.fromJson(
+                  Map<String, dynamic>.from(e as Map),
+                ),
+              )
+              .toList(),
+          category: ViewAllCategory.values.firstWhere(
+            (c) => c.name == map['category'],
+            orElse: () => ViewAllCategory.trending,
+          ),
+          // onTap cannot be restored — callers must handle null.
+        );
+      default:
+        return input;
+    }
+  }
+}
+
 // --- Full Screen Routes ---
 
 @TypedGoRoute<DetailsRoute>(path: '/details')
@@ -364,6 +477,7 @@ GoRouter appRouter(Ref ref) {
     navigatorKey: rootNavigatorKey,
     debugLogDiagnostics: kDebugMode,
     routes: $appRoutes,
+    extraCodec: const RouteExtraCodec(),
   );
 }
 

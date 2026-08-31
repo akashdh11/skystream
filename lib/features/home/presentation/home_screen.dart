@@ -962,6 +962,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       },
     ).then((_) {
       scrollController.dispose();
+      chipsScrollController.dispose();
     });
   }
 

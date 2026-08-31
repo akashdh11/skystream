@@ -168,6 +168,8 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
       ),
     );
 
+    controller.dispose();
+
     if (url != null && url.isNotEmpty) await _install(url);
   }
 

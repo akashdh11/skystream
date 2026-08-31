@@ -83,6 +83,8 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
         ],
       ),
     );
+    
+    controller.dispose();
 
     if (url == null || url.isEmpty) return;
 

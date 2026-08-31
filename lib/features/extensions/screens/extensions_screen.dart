@@ -804,6 +804,7 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen>
         ],
       ),
     ).then((_) {
+      controller.dispose();
       if (context.mounted) {
         // Automatically handled by framework
       }

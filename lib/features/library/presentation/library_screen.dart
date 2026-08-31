@@ -35,17 +35,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
     );
     _pageController = PageController(initialPage: initial);
 
-    // Sync PageView -> TabBar
-    _pageController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        // Only update TabBar if swipe is happening (not a direct tab tap)
-        final page = _pageController.page?.round() ?? 0;
-        if (_tabController.index != page) {
-          _tabController.animateTo(page);
-        }
-      }
-    });
-
     // Sync TabBar -> PageView
     _tabController.addListener(() {
       if (_tabController.indexIsChanging) {

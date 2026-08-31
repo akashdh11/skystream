@@ -256,7 +256,9 @@ class _DeveloperOptionsScreenState
           ),
         ],
       ),
-    );
+    ).then((_) {
+      controller.dispose();
+    });
   }
 
   Future<void> _pickTorrentFile(BuildContext context) async {
