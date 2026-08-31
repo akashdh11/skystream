@@ -5,8 +5,6 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:background_downloader/background_downloader.dart';
 import 'package:collection/collection.dart';
 import '../downloaded_file_provider.dart';
-import '../../../settings/presentation/player_settings_provider.dart';
-import '../../../../core/utils/stream_quality_sorter.dart';
 
 import 'package:skystream/core/domain/entity/multimedia_item.dart';
 import 'package:skystream/core/storage/history_repository.dart';
@@ -105,10 +103,6 @@ class DetailsActionButtons extends HookConsumerWidget {
     final isTv = ref.watch(deviceProfileProvider).asData?.value.isTv ?? false;
     final isMobile = context.isMobile;
 
-    final isWifiFuture = useMemoized(() => isOnWifi());
-    final isWifiSnapshot = useFuture(isWifiFuture);
-    final onWifi = isWifiSnapshot.data ?? true;
-
     final btnPadding = EdgeInsets.symmetric(
       vertical: isMobile
           ? LayoutConstants.spacingSm
@@ -190,70 +184,6 @@ class DetailsActionButtons extends HookConsumerWidget {
                   const SizedBox(width: LayoutConstants.spacingXs),
                   Text(playLabel),
                 ],
-        ),
-      ),
-    );
-
-    // Dynamic quality preference selector button
-    final settingsAsync = ref.watch(playerSettingsProvider);
-    final settings = settingsAsync.asData?.value ?? const PlayerSettings();
-    final currentPreference = onWifi
-        ? settings.wifiQuality
-        : settings.mobileQuality;
-    final currentPrefLabel = qualityPreferenceLabel(currentPreference, l10n);
-
-    final qualityBtn = PopupMenuButton<QualityPreference>(
-      initialValue: currentPreference,
-      tooltip: 'Preferred Quality',
-      surfaceTintColor: Colors.transparent,
-      position: PopupMenuPosition.under, // Drops DOWN below the button!
-      onSelected: (q) {
-        final notifier = ref.read(playerSettingsProvider.notifier);
-        if (onWifi) {
-          notifier.setWifiQuality(q);
-        } else {
-          notifier.setMobileQuality(q);
-        }
-      },
-      itemBuilder: (context) => QualityPreference.values.map((q) {
-        return PopupMenuItem<QualityPreference>(
-          value: q,
-          child: Row(
-            children: [
-              if (q == currentPreference)
-                const Icon(Icons.check_rounded, color: Colors.blue, size: 18)
-              else
-                const SizedBox(width: 18),
-              const SizedBox(width: 8),
-              Text(qualityPreferenceLabel(q, l10n)),
-            ],
-          ),
-        );
-      }).toList(),
-      child: IgnorePointer(
-        child: CustomButton(
-          isPrimary: false,
-          isOutlined: true,
-          onPressed: () {},
-          child: Padding(
-            padding: btnPadding,
-            child: Row(
-              children: [
-                const Icon(Icons.hd_rounded, size: 20),
-                const SizedBox(width: LayoutConstants.spacingXs),
-                Expanded(
-                  child: Center(
-                    child: Text(
-                      'Preferred Quality: $currentPrefLabel',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: LayoutConstants.spacingXs),
-                const Icon(Icons.keyboard_arrow_down_rounded, size: 20),
-              ],
-            ),
-          ),
         ),
       ),
     );
@@ -442,8 +372,6 @@ class DetailsActionButtons extends HookConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         progressWidget,
-        qualityBtn,
-        const SizedBox(height: LayoutConstants.spacingSm),
         actionRow,
       ],
     );
