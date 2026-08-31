@@ -35,7 +35,7 @@ class DesktopScrollWrapper extends ConsumerStatefulWidget {
 
 class _DesktopScrollWrapperState extends ConsumerState<DesktopScrollWrapper> {
   bool _showLeft = false;
-  bool _showRight = true;
+  bool _showRight = false;
 
   @override
   void initState() {
@@ -51,9 +51,8 @@ class _DesktopScrollWrapperState extends ConsumerState<DesktopScrollWrapper> {
     if (widget.controller != oldWidget.controller) {
       oldWidget.controller.removeListener(_updateArrows);
       widget.controller.addListener(_updateArrows);
-      // Update state for the new controller
-      WidgetsBinding.instance.addPostFrameCallback((_) => _updateArrows());
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateArrows());
   }
 
   @override
@@ -66,8 +65,9 @@ class _DesktopScrollWrapperState extends ConsumerState<DesktopScrollWrapper> {
     if (!widget.controller.hasClients) return;
 
     final position = widget.controller.position;
-    final showLeft = position.pixels > 0;
-    final showRight = position.pixels < position.maxScrollExtent;
+    final showLeft = position.pixels > 1.0;
+    final showRight = position.maxScrollExtent > 1.0 &&
+        position.pixels < (position.maxScrollExtent - 1.0);
 
     if (showLeft != _showLeft || showRight != _showRight) {
       if (mounted) {
@@ -120,14 +120,30 @@ class _DesktopScrollWrapperState extends ConsumerState<DesktopScrollWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateArrows());
+
+    final childWithListener = NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        _updateArrows();
+        return false;
+      },
+      child: NotificationListener<ScrollMetricsNotification>(
+        onNotification: (notification) {
+          _updateArrows();
+          return false;
+        },
+        child: widget.child,
+      ),
+    );
+
     // Only show buttons if enabled
     if (!_shouldShowButtons) {
-      return widget.child;
+      return childWithListener;
     }
 
     return Stack(
       children: [
-        widget.child,
+        childWithListener,
 
         // Left Button
         if (_showLeft)

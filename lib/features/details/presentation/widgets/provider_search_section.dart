@@ -144,24 +144,26 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
               height: 140,
               child: DesktopScrollWrapper(
                 controller: _scrollController,
-                child: ListView.separated(
+                child: Scrollbar(
                   controller: _scrollController,
-                  clipBehavior: Clip.none,
-                  scrollDirection: Axis.horizontal,
-                  padding: widget.compact
-                      ? EdgeInsets.zero
-                      : const EdgeInsets.symmetric(
-                          horizontal: LayoutConstants.spacingMd,
-                        ),
-                  itemCount: allItems.length,
-                  separatorBuilder: (_, _) =>
-                      const SizedBox(width: LayoutConstants.spacingSm),
-                  itemBuilder: (context, index) {
-                    final data = allItems[index];
-                    final item = data['item'] as MultimediaItem;
-                    final providerName = data['providerName'] as String;
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    clipBehavior: Clip.none,
+                    scrollDirection: Axis.horizontal,
+                    padding: widget.compact
+                        ? EdgeInsets.zero
+                        : const EdgeInsets.symmetric(
+                            horizontal: LayoutConstants.spacingMd,
+                          ),
+                    itemCount: allItems.length,
+                    separatorBuilder: (_, _) =>
+                        const SizedBox(width: LayoutConstants.spacingSm),
+                    itemBuilder: (context, index) {
+                      final data = allItems[index];
+                      final item = data['item'] as MultimediaItem;
+                      final providerName = data['providerName'] as String;
 
-                    return CardsWrapper(
+                      return CardsWrapper(
                       onTap: () {
                         // Enrich item with provider, content type, and metadata IDs before navigation
                         final enrichedItem = item.copyWith(
@@ -272,8 +274,9 @@ class _ProviderSearchSectionState extends ConsumerState<ProviderSearchSection> {
                 ),
               ),
             ),
-          );
-        },
+          ),
+        );
+      },
         loading: () => const SizedBox(
           height: 140, // Fix 2: Force height for centering
           child: Center(
