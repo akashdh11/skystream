@@ -198,6 +198,12 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
   }
 
   KeyEventResult _handleEarlyKeyEvent(KeyEvent event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.f11) {
+      _toggleFullscreen();
+      return KeyEventResult.handled;
+    }
+
     final primaryFocus = FocusManager.instance.primaryFocus;
     if (primaryFocus == null) {
       return KeyEventResult.ignored;
@@ -408,17 +414,6 @@ class _MyAppState extends ConsumerState<MyApp> with WindowListener {
                   ],
                 );
               }
-              result = Focus(
-                onKeyEvent: (node, event) {
-                  if (event is KeyDownEvent &&
-                      event.logicalKey == LogicalKeyboardKey.f11) {
-                    _toggleFullscreen();
-                    return KeyEventResult.handled;
-                  }
-                  return KeyEventResult.ignored;
-                },
-                child: result,
-              );
             }
 
             return M3ToastOverlay(child: result);
