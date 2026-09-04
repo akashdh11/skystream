@@ -564,10 +564,10 @@ class WindowsVlcPlayer {
 
   std::unique_ptr<VlcPlayerCore> core_;
   std::string init_error_;
-  std::atomic<bool> disposed_ = false;
-  std::atomic<bool> flutter_detached_ = false;
+  std::atomic<bool> disposed_{false};
+  std::atomic<bool> flutter_detached_{false};
   std::mutex lifecycle_mutex_;
-  std::atomic<bool> polling_ = false;
+  std::atomic<bool> polling_{false};
   std::thread polling_thread_;
 
   std::unique_ptr<flutter::TextureVariant> texture_;
