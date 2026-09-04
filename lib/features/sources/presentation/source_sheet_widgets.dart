@@ -100,26 +100,40 @@ class ProbeBadge extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified_rounded, size: 12, color: Colors.green),
+          const Icon(Icons.verified_rounded, size: 12, color: Color(0xFF10B981)),
           const SizedBox(width: 2),
           Text(
             'Working',
-            style: theme.textTheme.labelSmall?.copyWith(color: Colors.green),
+            style: theme.textTheme.labelSmall?.copyWith(color: const Color(0xFF10B981)),
           ),
         ],
       );
     }
+
+    final reason = _shortReason(result.failureReason);
+    final isNotFound = reason.toLowerCase().contains('not found');
+    final isUnreachable = reason.toLowerCase().contains('unreachable');
+    final Color badgeColor = isNotFound
+        ? const Color(0xFFEF4444) // var(--text-danger)
+        : (isUnreachable ? const Color(0xFFF59E0B) : cs.error); // var(--text-warning)
+    final IconData badgeIcon = isNotFound
+        ? Icons.cancel_rounded // circle-x
+        : (isUnreachable ? Icons.warning_amber_rounded : Icons.error_outline_rounded); // alert-triangle
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.error_outline_rounded, size: 12, color: cs.error),
+        Icon(badgeIcon, size: 12, color: badgeColor),
         const SizedBox(width: 2),
         Flexible(
           child: Text(
-            _shortReason(result.failureReason),
+            reason,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(color: cs.error),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: badgeColor,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:dpad/dpad.dart';
 import 'package:flutter/material.dart';
@@ -36,11 +37,10 @@ class PluginSourcesSheet extends ConsumerStatefulWidget {
     Episode? episode,
     SourcesMode mode = SourcesMode.play,
   }) {
-    return showModalBottomSheet<void>(
+    return showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.65),
       builder: (_) =>
           PluginSourcesSheet(target: target, episode: episode, mode: mode),
     );
@@ -114,8 +114,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
   final Map<String, LinkProbeResult> _probes = {};
   final Set<String> _probing = {};
 
-  late SourcesMode _mode;
-
   /// Title / TMDB id the user typed in "Search manually".
   String? _titleOverride;
   String? _tmdbOverride;
@@ -127,7 +125,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
   @override
   void initState() {
     super.initState();
-    _mode = widget.mode;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startNuvio();
     });
@@ -239,7 +236,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
       return false;
     }
     if (_hdOnly && row.qualityScore < 1080) return false;
-    if (_mode == SourcesMode.download && !row.canDownload) return false;
     if (_verifiedOnly) {
       final probe = _probes[row.url];
       if (probe == null || !probe.reachable) return false;
@@ -328,7 +324,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     }
   }
 
-  /// Per-scraper outcome diagnostics.
   Widget _diagnosticsPanel(ThemeData theme, ColorScheme cs) {
     final statuses = _nuvioResult.statuses.toList()
       ..sort((a, b) => a.scraperName.compareTo(b.scraperName));
@@ -337,8 +332,9 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
       margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,6 +346,7 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                   'Nuvio scrapers · ${statuses.length}',
                   style: theme.textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -408,246 +405,504 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     return buffer.toString();
   }
 
+  bool _showUnavailable = false;
+
+  bool _isRowUnavailable(_Row row) {
+    final probe = _probes[row.url];
+    if (probe == null) return false;
+    if (probe.reachable) return false;
+    // Any probe that completed and is not reachable is unavailable (HTTP error, timeout, 404, etc.)
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final episode = widget.episode;
-    final subtitle = episode == null
-        ? widget.target.title
-        : '${widget.target.title} • S${episode.season} E${episode.episode}';
 
     final visible = _visible;
     final providers = _allRows.map((e) => e.providerName).toSet().toList()
       ..sort();
     final nuvioCount = _nuvioResult.streams.length;
 
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.85,
-      minChildSize: 0.55,
-      maxChildSize: 0.96,
-      builder: (context, scrollController) {
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: cs.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.4)),
+    // Counts for subtitle
+    final workingCount =
+        _allRows.where((r) => _probes[r.url]?.reachable == true).length;
+    final unavailableCount = _allRows.where(_isRowUnavailable).length;
+
+    String subtitleText;
+    if (workingCount > 0 || unavailableCount > 0) {
+      subtitleText =
+          '$workingCount working${unavailableCount > 0 ? ', $unavailableCount unavailable' : ''}';
+    } else if (episode != null ||
+        _titleOverride != null ||
+        _tmdbOverride != null) {
+      subtitleText = _titleOverride != null || _tmdbOverride != null
+          ? 'Searching: "${_titleOverride ?? 'tmdb:$_tmdbOverride'}"'
+          : 'S${episode!.season} · E${episode.episode} ${episode.name}';
+    } else {
+      subtitleText = _isLoading
+          ? 'Searching scrapers… ${_nuvioResult.completedCount}/${_nuvioResult.totalCount}'
+          : '$nuvioCount links found';
+    }
+
+    // Split visible rows into ready and unavailable
+    final readyRows = <_Row>[];
+    final unavailableRows = <_Row>[];
+    for (final row in visible) {
+      if (_isRowUnavailable(row)) {
+        unavailableRows.add(row);
+      } else {
+        readyRows.add(row);
+      }
+    }
+
+    final topPick = readyRows.isNotEmpty ? readyRows.first : null;
+    final remainingReady = readyRows.length > 1 ? readyRows.sublist(1) : <_Row>[];
+
+    // Dynamic Capsule: Centered floating glass island.
+    // Clean Hyprland-inspired blur: sigmaX: 18, alpha: 0.80, 1px white/12 border, zero colored glow.
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      elevation: 0,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: 580,
+            maxHeight: 680,
           ),
-          child: Column(
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 10),
-                width: 42,
-                height: 4,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+              child: Container(
                 decoration: BoxDecoration(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              SourceSheetHeader(
-                title: 'Nuvio Sources',
-                subtitle: _titleOverride == null && _tmdbOverride == null
-                    ? subtitle
-                    : 'Searching for "${_titleOverride ?? 'tmdb:$_tmdbOverride'}"',
-                trailing: const SourceTag(text: 'NUVIO', color: Colors.teal),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 2),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: DpadFocusable(
-                    onSelect: () => unawaited(_searchManually()),
-                    child: const SizedBox.shrink(),
-                    builder: (context, state, _) {
-                      final isFocused = state.focused;
-                      return AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isFocused
-                                ? Colors.white
-                                : Colors.transparent,
-                            width: 1.5,
-                          ),
-                          color: isFocused
-                              ? cs.primary.withValues(alpha: 0.15)
-                              : Colors.transparent,
-                        ),
-                        child: TextButton.icon(
-                          onPressed: () => unawaited(_searchManually()),
-                          icon: const Icon(Icons.search_rounded, size: 16),
-                          label: Text(
-                            _titleOverride == null && _tmdbOverride == null
-                                ? 'Search with a different title'
-                                : 'Change search title',
-                          ),
-                        ),
-                      );
-                    },
+                  color: const Color(0xFF101015).withValues(alpha: 0.80),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    width: 1.0,
                   ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: SegmentedButton<SourcesMode>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(
-                      value: SourcesMode.play,
-                      icon: Icon(Icons.play_arrow_rounded, size: 18),
-                      label: Text('Play'),
-                    ),
-                    ButtonSegment(
-                      value: SourcesMode.download,
-                      icon: Icon(Icons.download_rounded, size: 18),
-                      label: Text('Download'),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      blurRadius: 28,
+                      offset: const Offset(0, 10),
                     ),
                   ],
-                  selected: {_mode},
-                  onSelectionChanged: (value) =>
-                      setState(() => _mode = value.first),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 6),
-                child: Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Header Bar
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 14, 12, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Nuvio Sources',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  subtitleText,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Accessibility Search Button: Icon in accent on accent-filled circle
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: cs.primary.withValues(alpha: 0.15),
+                            ),
+                            child: IconButton(
+                              tooltip: 'Search manually',
+                              visualDensity: VisualDensity.compact,
+                              icon: Icon(
+                                Icons.search_rounded,
+                                size: 19,
+                                color: cs.primary,
+                              ),
+                              onPressed: () => unawaited(_searchManually()),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          // Accessibility Close Button: Icon in danger, transparent bg, danger hover/tap
+                          IconButton(
+                            tooltip: 'Close',
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              size: 20,
+                              color: Color(0xFFEF4444),
+                            ),
+                            hoverColor: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                            highlightColor: const Color(0xFFEF4444).withValues(alpha: 0.2),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Telemetry Status Strip
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(18, 4, 18, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _isLoading
+                                  ? 'Searching scrapers… '
+                                        '${_nuvioResult.completedCount}/${_nuvioResult.totalCount}'
+                                  : '$nuvioCount links found',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: _isLoading ? cs.primary : cs.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (_isLoading)
+                            SizedBox(
+                              width: 80,
+                              child: LinearProgressIndicator(
+                                value: _nuvioResult.totalCount == 0
+                                    ? null
+                                    : _nuvioResult.completedCount /
+                                          _nuvioResult.totalCount,
+                                minHeight: 2.5,
+                                backgroundColor: Colors.white10,
+                                valueColor: AlwaysStoppedAnimation(cs.primary),
+                              ),
+                            )
+                          else if (_nuvioResult.hasWork)
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                padding: EdgeInsets.zero,
+                                minimumSize: const Size(50, 26),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              onPressed: () => setState(
+                                () => _showDiagnostics = !_showDiagnostics,
+                              ),
+                              child: Text(
+                                _showDiagnostics ? 'Hide' : 'Details',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    if (_showDiagnostics) _diagnosticsPanel(theme, cs),
+
+                    // Filter Chips Rail
+                    SizedBox(
+                      height: 34,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: FilterChip(
+                              visualDensity: VisualDensity.compact,
+                              label: const Text('1080p+', style: TextStyle(fontSize: 11)),
+                              selected: _hdOnly,
+                              selectedColor: cs.primary,
+                              labelStyle: TextStyle(
+                                fontSize: 11,
+                                color: _hdOnly ? cs.onPrimary : cs.onSurfaceVariant,
+                                fontWeight: _hdOnly ? FontWeight.w700 : FontWeight.w500,
+                              ),
+                              side: BorderSide(
+                                color: _hdOnly
+                                    ? Colors.transparent
+                                    : Colors.white.withValues(alpha: 0.15),
+                                width: 1,
+                              ),
+                              backgroundColor: Colors.transparent,
+                              onSelected: (value) => setState(() => _hdOnly = value),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: FilterChip(
+                              visualDensity: VisualDensity.compact,
+                              label: const Text('Tested', style: TextStyle(fontSize: 11)),
+                              selected: _verifiedOnly,
+                              selectedColor: cs.primary,
+                              labelStyle: TextStyle(
+                                fontSize: 11,
+                                color: _verifiedOnly ? cs.onPrimary : cs.onSurfaceVariant,
+                                fontWeight: _verifiedOnly ? FontWeight.w700 : FontWeight.w500,
+                              ),
+                              side: BorderSide(
+                                color: _verifiedOnly
+                                    ? Colors.transparent
+                                    : Colors.white.withValues(alpha: 0.15),
+                                width: 1,
+                              ),
+                              backgroundColor: Colors.transparent,
+                              onSelected: (value) =>
+                                  setState(() => _verifiedOnly = value),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
+                          ),
+                          for (final provider in providers)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 6),
+                              child: FilterChip(
+                                visualDensity: VisualDensity.compact,
+                                label: Text(provider, style: const TextStyle(fontSize: 11)),
+                                selected: _providerFilter.contains(provider),
+                                selectedColor: cs.primary,
+                                labelStyle: TextStyle(
+                                  fontSize: 11,
+                                  color: _providerFilter.contains(provider)
+                                      ? cs.onPrimary
+                                      : cs.onSurfaceVariant,
+                                  fontWeight: _providerFilter.contains(provider)
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
+                                side: BorderSide(
+                                  color: _providerFilter.contains(provider)
+                                      ? Colors.transparent
+                                      : Colors.white.withValues(alpha: 0.15),
+                                  width: 1,
+                                ),
+                                backgroundColor: Colors.transparent,
+                                onSelected: (value) => setState(() {
+                                  if (value) {
+                                    _providerFilter.add(provider);
+                                  } else {
+                                    _providerFilter.remove(provider);
+                                  }
+                                }),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    // Stream Source List (Structured with Top Pick, Ready, and Unavailable)
                     Expanded(
-                      child: Text(
-                        _isLoading
-                            ? 'Searching Nuvio scrapers… '
-                                  '${_nuvioResult.completedCount}/${_nuvioResult.totalCount}'
-                            : '$nuvioCount Nuvio links',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: _isLoading ? cs.primary : cs.onSurfaceVariant,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    if (_isLoading)
-                      SizedBox(
-                        width: 90,
-                        child: LinearProgressIndicator(
-                          value: _nuvioResult.totalCount == 0
-                              ? null
-                              : _nuvioResult.completedCount /
-                                    _nuvioResult.totalCount,
-                          minHeight: 4,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      )
-                    else if (_nuvioResult.hasWork)
-                      TextButton.icon(
-                        onPressed: () => setState(
-                          () => _showDiagnostics = !_showDiagnostics,
-                        ),
-                        icon: const Icon(Icons.info_outline_rounded, size: 16),
-                        label: const Text('Details'),
-                      ),
-                  ],
-                ),
-              ),
-              if (_showDiagnostics) _diagnosticsPanel(theme, cs),
-              SizedBox(
-                height: 42,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        label: const Text('1080p+'),
-                        selected: _hdOnly,
-                        onSelected: (value) => setState(() => _hdOnly = value),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: FilterChip(
-                        avatar: const Icon(Icons.verified_rounded, size: 16),
-                        label: const Text('Tested'),
-                        selected: _verifiedOnly,
-                        onSelected: (value) =>
-                            setState(() => _verifiedOnly = value),
-                      ),
-                    ),
-                    for (final provider in providers)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: Text(provider),
-                          selected: _providerFilter.contains(provider),
-                          onSelected: (value) => setState(() {
-                            if (value) {
-                              _providerFilter.add(provider);
-                            } else {
-                              _providerFilter.remove(provider);
-                            }
-                          }),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 4),
-              Expanded(
-                child: visible.isEmpty
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: _isLoading
-                              ? const Text('Searching active Nuvio scrapers…')
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.cloud_off_outlined,
-                                      size: 40,
-                                      color: cs.onSurfaceVariant,
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Text(
-                                      _allRows.isNotEmpty
+                      child: visible.isEmpty
+                          ? Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child: Text(
+                                  _isLoading
+                                      ? 'Searching active scrapers…'
+                                      : (_allRows.isNotEmpty
                                           ? 'No links match the current filters.'
-                                          : 'No links found for this title. '
-                                                'Ensure active Nuvio scraper repositories are installed.',
-                                      textAlign: TextAlign.center,
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            color: cs.onSurfaceVariant,
+                                          : 'No links found. Verify scraper repos are installed.'),
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : ListView(
+                              padding: const EdgeInsets.fromLTRB(14, 4, 14, 16),
+                              children: [
+                                // Top Pick Highlighted Section
+                                if (topPick != null) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 2, bottom: 6),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 7,
+                                            vertical: 2.5,
                                           ),
+                                          decoration: BoxDecoration(
+                                            color: cs.primary.withValues(alpha: 0.16),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            'TOP PICK',
+                                            style: TextStyle(
+                                              color: cs.primary,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 0.6,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  _SourceRow(
+                                    row: topPick,
+                                    probe: _probes[topPick.url],
+                                    probing: _probing.contains(topPick.url),
+                                    isBest: true,
+                                    autofocus: true,
+                                    onPlay: () => _play(topPick),
+                                    onDownload: () => unawaited(_download(topPick)),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                // Remaining Ready to Play Section
+                                if (remainingReady.isNotEmpty) ...[
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 2, bottom: 6),
+                                    child: Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.play_circle_outline_rounded,
+                                          size: 14,
+                                          color: Color(0xFF10B981),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Ready to play (${remainingReady.length})',
+                                          style: const TextStyle(
+                                            color: Color(0xFF10B981),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.2,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  for (int i = 0; i < remainingReady.length; i++) ...[
+                                    if (i > 0) const SizedBox(height: 6),
+                                    _SourceRow(
+                                      row: remainingReady[i],
+                                      probe: _probes[remainingReady[i].url],
+                                      probing: _probing.contains(remainingReady[i].url),
+                                      isBest: false,
+                                      autofocus: topPick == null && i == 0,
+                                      onPlay: () => _play(remainingReady[i]),
+                                      onDownload: () =>
+                                          unawaited(_download(remainingReady[i])),
                                     ),
                                   ],
-                                ),
-                        ),
-                      )
-                    : ListView.separated(
-                        controller: scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
-                        itemCount: visible.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final row = visible[index];
-                          return _SourceRow(
-                            row: row,
-                            probe: _probes[row.url],
-                            probing: _probing.contains(row.url),
-                            isBest: index == 0,
-                            autofocus: index == 0,
-                            downloadMode: _mode == SourcesMode.download,
-                            onPlay: () => _play(row),
-                            onDownload: () => unawaited(_download(row)),
-                          );
-                        },
-                      ),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                // Unavailable Collapsed Section
+                                if (unavailableRows.isNotEmpty) ...[
+                                  DpadFocusable(
+                                    onSelect: () => setState(
+                                      () => _showUnavailable = !_showUnavailable,
+                                    ),
+                                    child: const SizedBox.shrink(),
+                                    builder: (context, state, _) {
+                                      final isFocused = state.focused;
+                                      return Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(
+                                            color: isFocused
+                                                ? Colors.white
+                                                : Colors.transparent,
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: InkWell(
+                                          borderRadius: BorderRadius.circular(8),
+                                          onTap: () => setState(
+                                            () => _showUnavailable = !_showUnavailable,
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 6,
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Text(
+                                                  '${unavailableRows.length} unavailable',
+                                                  style: TextStyle(
+                                                    color: cs.onSurfaceVariant,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 4),
+                                                AnimatedRotation(
+                                                  turns: _showUnavailable ? 0.5 : 0.0,
+                                                  duration: const Duration(
+                                                    milliseconds: 200,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.keyboard_arrow_down_rounded,
+                                                    size: 18,
+                                                    color: cs.onSurfaceVariant,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  if (_showUnavailable) ...[
+                                    const SizedBox(height: 6),
+                                    for (int i = 0; i < unavailableRows.length; i++) ...[
+                                      if (i > 0) const SizedBox(height: 6),
+                                      Opacity(
+                                        opacity: 0.55,
+                                        child: _SourceRow(
+                                          row: unavailableRows[i],
+                                          probe: _probes[unavailableRows[i].url],
+                                          probing: _probing.contains(unavailableRows[i].url),
+                                          isBest: false,
+                                          autofocus: false,
+                                          onPlay: () => _play(unavailableRows[i]),
+                                          onDownload: () =>
+                                              unawaited(_download(unavailableRows[i])),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ],
+                              ],
+                            ),
+                    ),
+                  ],
+                ),
               ),
-            ],
+            ),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -820,8 +1075,10 @@ class _DpadActionButton extends StatelessWidget {
       return ExcludeFocus(
         child: IconButton(
           tooltip: tooltip,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
           onPressed: null,
-          icon: Icon(icon, color: cs.onSurface.withValues(alpha: 0.3)),
+          icon: Icon(icon, size: 18, color: cs.onSurface.withValues(alpha: 0.25)),
         ),
       );
     }
@@ -833,23 +1090,28 @@ class _DpadActionButton extends StatelessWidget {
       builder: (context, state, _) {
         final isFocused = state.focused;
         return AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
+          duration: const Duration(milliseconds: 140),
+          width: 32,
+          height: 32,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isFocused
-                ? (color ?? cs.primary).withValues(alpha: 0.25)
+                ? Colors.white.withValues(alpha: 0.2)
                 : Colors.transparent,
             border: Border.all(
               color: isFocused ? Colors.white : Colors.transparent,
-              width: 2,
+              width: 1.5,
             ),
           ),
           child: IconButton(
             tooltip: tooltip,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             onPressed: onPressed,
             icon: Icon(
               icon,
-              color: isFocused ? Colors.white : (color ?? cs.onSurface),
+              size: 18,
+              color: isFocused ? Colors.white : (color ?? Colors.white70),
             ),
           ),
         );
@@ -869,7 +1131,6 @@ class _SourceRow extends StatefulWidget {
   final bool probing;
   final bool isBest;
   final bool autofocus;
-  final bool downloadMode;
   final VoidCallback onPlay;
   final VoidCallback onDownload;
 
@@ -878,7 +1139,6 @@ class _SourceRow extends StatefulWidget {
     required this.probe,
     required this.probing,
     required this.isBest,
-    required this.downloadMode,
     required this.onPlay,
     required this.onDownload,
     this.autofocus = false,
@@ -909,19 +1169,6 @@ class _SourceRowState extends State<_SourceRow> {
     super.dispose();
   }
 
-  Color _avatarColor() {
-    const palette = [
-      Color(0xFF7C6BF5),
-      Color(0xFF4CAF50),
-      Color(0xFFFF9800),
-      Color(0xFF2196F3),
-      Color(0xFF26C6DA),
-      Color(0xFFEC407A),
-      Color(0xFFFFC107),
-    ];
-    return palette[widget.row.providerName.hashCode.abs() % palette.length];
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -930,13 +1177,9 @@ class _SourceRowState extends State<_SourceRow> {
     final probe = widget.probe;
     final probing = widget.probing;
     final isBest = widget.isBest;
-    final downloadMode = widget.downloadMode;
     final onPlay = widget.onPlay;
     final onDownload = widget.onDownload;
 
-    final letter = row.providerName.isEmpty
-        ? '?'
-        : row.providerName.substring(0, 1).toUpperCase();
     final resolution = probe?.resolutionLabel ?? row.qualityLabel;
     final size = probe?.sizeLabel;
 
@@ -952,119 +1195,124 @@ class _SourceRowState extends State<_SourceRow> {
       child: DpadFocusable(
         focusNode: _cardFocusNode,
         autofocus: widget.autofocus,
-        onSelect: downloadMode && row.canDownload ? onDownload : onPlay,
+        onSelect: onPlay,
         child: const SizedBox.shrink(),
         builder: (context, state, _) {
           final isFocused = state.focused;
           return Material(
             color: isFocused
-                ? cs.surfaceContainerHighest
-                : cs.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(16),
+                ? const Color(0xFF242430)
+                : const Color(0xFF16161D).withValues(alpha: 0.75),
+            borderRadius: BorderRadius.circular(10),
             child: InkWell(
-              onTap: downloadMode && row.canDownload ? onDownload : onPlay,
-              borderRadius: BorderRadius.circular(16),
+              onTap: onPlay,
+              borderRadius: BorderRadius.circular(10),
               child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
+                duration: const Duration(milliseconds: 140),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
-                  vertical: 10,
+                  vertical: 9,
                 ),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: isFocused
                         ? Colors.white
                         : (isBest
-                              ? cs.primary.withValues(alpha: 0.8)
-                              : Colors.transparent),
-                    width: isFocused ? 2 : (isBest ? 1.5 : 0),
+                            ? cs.primary
+                            : Colors.white.withValues(alpha: 0.07)),
+                    width: isFocused ? 2 : (isBest ? 2 : 1),
                   ),
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
-                      radius: 21,
-                      backgroundColor: _avatarColor(),
+                    // Clean, neutral quality badge (No rainbow avatars)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
                       child: Text(
-                        letter,
+                        resolution,
                         style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 17,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
+
+                    // Information details column
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            crossAxisAlignment: WrapCrossAlignment.center,
+                          Row(
                             children: [
                               Text(
-                                resolution,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                                row.providerName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 12.5,
+                                  color: Colors.white,
                                 ),
                               ),
-                              SourceTag(text: 'NUVIO', color: cs.tertiary),
-                              if (row.isHdr)
-                                SourceTag(text: 'HDR', color: cs.tertiary),
-                              if (row.isTorrent)
-                                SourceTag(text: 'TORRENT', color: cs.primary),
-                              if (isBest)
-                                SourceTag(text: 'BEST', color: cs.primary),
+                              if (row.isHdr) ...[
+                                const SizedBox(width: 5),
+                                const SourceTag(
+                                  text: 'HDR',
+                                  color: Colors.deepPurpleAccent,
+                                ),
+                              ],
+                              if (row.isTorrent) ...[
+                                const SizedBox(width: 5),
+                                const SourceTag(text: 'P2P', color: Colors.teal),
+                              ],
+                              const Spacer(),
+                              if (size != null) ...[
+                                Text(
+                                  size,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                              ],
+                              ProbeBadge(
+                                probe: probe,
+                                probing: probing,
+                                isPeerToPeer: row.isTorrent,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 2),
                           Text(
                             row.detail,
-                            maxLines: 2,
+                            maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant,
+                              fontSize: 11,
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  row.providerName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                              if (size != null) ...[
-                                const SizedBox(width: 8),
-                                Text(
-                                  size,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(width: 8),
-                              Flexible(
-                                child: ProbeBadge(
-                                  probe: probe,
-                                  probing: probing,
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
+
+                    // Play & Download action buttons (Accessibility hierarchy)
+                    // Play: Solid filled circle with success background and on-success white icon
                     _DpadActionButton(
                       focusNode: _playFocusNode,
                       icon: Icons.play_arrow_rounded,
