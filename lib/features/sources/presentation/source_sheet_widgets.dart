@@ -97,17 +97,7 @@ class ProbeBadge extends StatelessWidget {
     final result = probe;
     if (result == null) return const SizedBox.shrink();
     if (result.reachable) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.verified_rounded, size: 12, color: Color(0xFF10B981)),
-          const SizedBox(width: 2),
-          Text(
-            'Working',
-            style: theme.textTheme.labelSmall?.copyWith(color: const Color(0xFF10B981)),
-          ),
-        ],
-      );
+      return const SizedBox.shrink();
     }
 
     final reason = _shortReason(result.failureReason);
