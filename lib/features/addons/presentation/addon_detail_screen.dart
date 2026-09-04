@@ -11,6 +11,11 @@ import '../../../shared/widgets/cards_wrapper.dart';
 import '../../../shared/widgets/desktop_scroll_wrapper.dart';
 import '../../../shared/widgets/shimmer_placeholder.dart';
 import '../../../shared/widgets/thumbnail_error_placeholder.dart';
+import '../../../core/models/tmdb_details.dart';
+import '../../details/data/tmdb_details_provider.dart';
+import '../../details/presentation/widgets/movie_cast_list.dart';
+import '../../details/presentation/widgets/movie_production_companies.dart';
+import '../../details/presentation/widgets/movie_trailers_carousel.dart';
 import 'addon_providers.dart';
 import 'addon_sources_sheet.dart';
 
@@ -237,6 +242,31 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
     final textColor = theme.colorScheme.onSurface;
     final textSecondary = theme.colorScheme.onSurface.withValues(alpha: 0.7);
 
+    final tmdbAsync = meta.moviedbId != null
+        ? ref.watch(
+            tmdbDetailsProvider(
+              MovieDetailsParams(
+                meta.moviedbId!,
+                meta.isSeries ? 'tv' : 'movie',
+              ),
+            ),
+          )
+        : null;
+    final tmdb = tmdbAsync?.value;
+
+    final cast = (tmdb?.tmdbCast.isNotEmpty == true)
+        ? tmdb!.tmdbCast
+        : meta.castMembers;
+
+    final productionCompanies =
+        (tmdb?.productionCompanies.isNotEmpty == true)
+            ? tmdb!.productionCompanies
+            : meta.productionCompanies;
+
+    final trailers = (tmdb?.tmdbTrailers.isNotEmpty == true)
+        ? tmdb!.tmdbTrailers
+        : meta.trailers;
+
     final title = meta.name;
     final overview = meta.description ?? '';
     final logoUrl = meta.logo;
@@ -444,11 +474,30 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                     _buildSeasonsAndEpisodesSection(context, meta),
                     const SizedBox(height: 32),
                   ],
-                  if (meta.cast.isNotEmpty) ...[
-                    _buildCastSection(context, meta.cast),
+                  if (cast.isNotEmpty) ...[
+                    MovieCastList(
+                      cast: cast,
+                      textColor: textColor,
+                      textSecondary: textSecondary,
+                    ),
                     const SizedBox(height: 32),
                   ],
-                  _buildDetailsTable(context, meta),
+                  if (trailers.isNotEmpty) ...[
+                    MovieTrailersCarousel(
+                      trailers: trailers,
+                      textColor: textColor,
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                  if (productionCompanies.isNotEmpty) ...[
+                    MovieProductionCompanies(
+                      productionCompanies: productionCompanies,
+                      textColor: textColor,
+                      textSecondary: textSecondary,
+                    ),
+                    const SizedBox(height: 32),
+                  ],
+                  _buildDetailsTable(context, meta, tmdb: tmdb),
                   const SizedBox(height: 100),
                 ],
               ),
@@ -470,6 +519,31 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
     final runtime = meta.runtime ?? '';
     final hasEpisodes = meta.videos.isNotEmpty;
     final seasons = meta.seasons;
+
+    final tmdbAsync = meta.moviedbId != null
+        ? ref.watch(
+            tmdbDetailsProvider(
+              MovieDetailsParams(
+                meta.moviedbId!,
+                meta.isSeries ? 'tv' : 'movie',
+              ),
+            ),
+          )
+        : null;
+    final tmdb = tmdbAsync?.value;
+
+    final cast = (tmdb?.tmdbCast.isNotEmpty == true)
+        ? tmdb!.tmdbCast
+        : meta.castMembers;
+
+    final productionCompanies =
+        (tmdb?.productionCompanies.isNotEmpty == true)
+            ? tmdb!.productionCompanies
+            : meta.productionCompanies;
+
+    final trailers = (tmdb?.tmdbTrailers.isNotEmpty == true)
+        ? tmdb!.tmdbTrailers
+        : meta.trailers;
 
     final mq = MediaQuery.sizeOf(context);
     final isLandscape = mq.width > mq.height;
@@ -766,13 +840,29 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
                 ],
 
                 // Cast Section
-                if (meta.cast.isNotEmpty) ...[
-                  _buildCastSection(context, meta.cast),
+                if (cast.isNotEmpty) ...[
+                  MovieCastList(cast: cast),
+                  const SizedBox(height: 24),
+                ],
+
+                // Production Section
+                if (productionCompanies.isNotEmpty) ...[
+                  MovieProductionCompanies(
+                    productionCompanies: productionCompanies,
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
+                // Trailers Section
+                if (trailers.isNotEmpty) ...[
+                  MovieTrailersCarousel(
+                    trailers: trailers,
+                  ),
                   const SizedBox(height: 24),
                 ],
 
                 // Details Table
-                _buildDetailsTable(context, meta),
+                _buildDetailsTable(context, meta, tmdb: tmdb),
                 const SizedBox(height: 80),
               ],
             ),
@@ -947,75 +1037,6 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
     );
   }
 
-  Widget _buildCastSection(BuildContext context, List<String> cast) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'CAST',
-          style: TextStyle(
-            color: theme.colorScheme.onSurface,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.0,
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 38,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: cast.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 8),
-            itemBuilder: (context, index) {
-              final actor = cast[index];
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.5,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircleAvatar(
-                      radius: 12,
-                      backgroundColor: theme.colorScheme.primary.withValues(
-                        alpha: 0.2,
-                      ),
-                      child: Text(
-                        actor.isNotEmpty ? actor[0].toUpperCase() : '?',
-                        style: TextStyle(
-                          color: theme.colorScheme.primary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      actor,
-                      style: TextStyle(
-                        color: theme.colorScheme.onSurface,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildSeasonsAndEpisodesSection(BuildContext context, AddonMeta meta) {
     final theme = Theme.of(context);
@@ -1381,8 +1402,22 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
     );
   }
 
-  Widget _buildDetailsTable(BuildContext context, AddonMeta meta) {
+  Widget _buildDetailsTable(
+    BuildContext context,
+    AddonMeta meta, {
+    TmdbDetails? tmdb,
+  }) {
     final theme = Theme.of(context);
+    final director = (tmdb?.director.isNotEmpty == true)
+        ? tmdb!.director
+        : (meta.directors.isNotEmpty ? meta.directors.join(', ') : null);
+    final country = (tmdb?.originCountry.isNotEmpty == true)
+        ? tmdb!.originCountry
+        : meta.country;
+    final status = (tmdb?.tmdbStatus.isNotEmpty == true)
+        ? tmdb!.tmdbStatus
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1397,6 +1432,16 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
         ),
         const SizedBox(height: 16),
         _buildDetailRow('Type', meta.isSeries ? 'Series' : 'Movie', theme),
+        if (status != null && status.isNotEmpty)
+          _buildDetailRow('Status', status, theme),
+        if (director != null && director.isNotEmpty)
+          _buildDetailRow('Director', director, theme),
+        if (meta.writers.isNotEmpty)
+          _buildDetailRow('Writer', meta.writers.join(', '), theme),
+        if (country != null && country.isNotEmpty)
+          _buildDetailRow('Country', country, theme),
+        if (meta.awards != null && meta.awards!.isNotEmpty)
+          _buildDetailRow('Awards', meta.awards!, theme),
         if (meta.releaseInfo != null && meta.releaseInfo!.isNotEmpty)
           _buildDetailRow('Release', meta.releaseInfo!, theme),
         if (meta.runtime != null && meta.runtime!.isNotEmpty)
