@@ -1049,79 +1049,196 @@ class _DpadDialogButton extends StatelessWidget {
   }
 }
 
-class _DpadActionButton extends StatelessWidget {
+class _DpadSourceButton extends StatefulWidget {
   final IconData icon;
-  final String tooltip;
+  final String label;
+  final String? tooltip;
   final VoidCallback? onPressed;
-  final Color? color;
+  final bool isPrimary;
   final FocusNode? focusNode;
   final KeyEventResult Function(FocusNode, KeyEvent)? onKeyEvent;
 
-  const _DpadActionButton({
+  const _DpadSourceButton({
     required this.icon,
-    required this.tooltip,
+    required this.label,
+    this.tooltip,
     required this.onPressed,
-    this.color,
+    this.isPrimary = false,
     this.focusNode,
     this.onKeyEvent,
   });
 
   @override
+  State<_DpadSourceButton> createState() => _DpadSourceButtonState();
+}
+
+class _DpadSourceButtonState extends State<_DpadSourceButton> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final enabled = onPressed != null;
+    final enabled = widget.onPressed != null;
 
     if (!enabled) {
       return ExcludeFocus(
-        child: IconButton(
-          tooltip: tooltip,
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          onPressed: null,
-          icon: Icon(icon, size: 18, color: cs.onSurface.withValues(alpha: 0.25)),
+        child: Tooltip(
+          message: widget.tooltip ?? '',
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.06),
+                width: 0.8,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  widget.icon,
+                  size: 14,
+                  color: Colors.white.withValues(alpha: 0.25),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.25),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
 
     final dpadButton = DpadFocusable(
-      focusNode: focusNode,
-      onSelect: onPressed,
+      focusNode: widget.focusNode,
+      onSelect: widget.onPressed,
       child: const SizedBox.shrink(),
       builder: (context, state, _) {
         final isFocused = state.focused;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 140),
-          width: 32,
-          height: 32,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isFocused
-                ? Colors.white.withValues(alpha: 0.2)
-                : Colors.transparent,
-            border: Border.all(
-              color: isFocused ? Colors.white : Colors.transparent,
-              width: 1.5,
-            ),
-          ),
-          child: IconButton(
-            tooltip: tooltip,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-            onPressed: onPressed,
-            icon: Icon(
-              icon,
-              size: 18,
-              color: isFocused ? Colors.white : (color ?? Colors.white70),
+        final highlight = isFocused || _isHovered;
+        final Color bgColor = widget.isPrimary
+            ? cs.primary.withValues(alpha: 0.16)
+            : Colors.white.withValues(alpha: 0.06);
+        final Color borderColor = highlight
+            ? cs.primary
+            : (widget.isPrimary
+                ? cs.primary.withValues(alpha: 0.4)
+                : Colors.white.withValues(alpha: 0.12));
+        final Color contentColor = widget.isPrimary
+            ? cs.primary
+            : (highlight ? cs.primary : Colors.white.withValues(alpha: 0.85));
+
+        return Tooltip(
+          message: widget.tooltip ?? widget.label,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: widget.onPressed,
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
+              hoverColor: Colors.transparent,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              onHover: (hovered) {
+                if (_isHovered != hovered) {
+                  setState(() => _isHovered = hovered);
+                }
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: borderColor,
+                    width: 1.0,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      widget.icon,
+                      size: 14,
+                      color: contentColor,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: contentColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         );
       },
     );
 
-    if (onKeyEvent != null) {
-      return Focus(onKeyEvent: onKeyEvent, child: dpadButton);
+    if (widget.onKeyEvent != null) {
+      return Focus(onKeyEvent: widget.onKeyEvent, child: dpadButton);
     }
     return dpadButton;
+  }
+}
+
+/// Premium quality badge styled consistently with player UI badges.
+class _QualityBadge extends StatelessWidget {
+  final String resolution;
+
+  const _QualityBadge({required this.resolution});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final res = resolution.toUpperCase();
+
+    Color accentColor;
+    if (res.contains('4K') || res.contains('2160') || res.contains('UHD')) {
+      accentColor = const Color(0xFFFFB800);
+    } else if (res.contains('1080')) {
+      accentColor = const Color(0xFF38BDF8);
+    } else if (res.contains('720')) {
+      accentColor = const Color(0xFF34D399);
+    } else {
+      accentColor = cs.primary;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+      decoration: BoxDecoration(
+        color: accentColor.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(5),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.4),
+          width: 0.8,
+        ),
+      ),
+      child: Text(
+        resolution,
+        style: TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
+          color: accentColor,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
   }
 }
 
@@ -1152,6 +1269,7 @@ class _SourceRowState extends State<_SourceRow> {
   late final FocusNode _cardFocusNode;
   late final FocusNode _playFocusNode;
   late final FocusNode _downloadFocusNode;
+  bool _isHovered = false;
 
   @override
   void initState() {
@@ -1181,7 +1299,10 @@ class _SourceRowState extends State<_SourceRow> {
     final onDownload = widget.onDownload;
 
     final resolution = probe?.resolutionLabel ?? row.qualityLabel;
-    final size = probe?.sizeLabel;
+    final size = probe?.sizeLabel ??
+        (row.nuvio.size != null && row.nuvio.size!.trim().isNotEmpty
+            ? row.nuvio.size!.trim()
+            : null);
 
     return Focus(
       onKeyEvent: (node, event) {
@@ -1206,6 +1327,15 @@ class _SourceRowState extends State<_SourceRow> {
             borderRadius: BorderRadius.circular(10),
             child: InkWell(
               onTap: onPlay,
+              overlayColor: WidgetStateProperty.all(Colors.transparent),
+              hoverColor: Colors.transparent,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              onHover: (hovered) {
+                if (_isHovered != hovered) {
+                  setState(() => _isHovered = hovered);
+                }
+              },
               borderRadius: BorderRadius.circular(10),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 140),
@@ -1216,141 +1346,145 @@ class _SourceRowState extends State<_SourceRow> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: isFocused
-                        ? Colors.white
-                        : (isBest
-                            ? cs.primary
-                            : Colors.white.withValues(alpha: 0.07)),
-                    width: isFocused ? 2 : (isBest ? 2 : 1),
+                    color: isFocused || _isHovered || isBest
+                        ? cs.primary
+                        : Colors.white.withValues(alpha: 0.08),
+                    width: 1.2,
                   ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Clean, neutral quality badge (No rainbow avatars)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      child: Text(
-                        resolution,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-
-                    // Information details column
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                row.providerName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12.5,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              if (row.isHdr) ...[
-                                const SizedBox(width: 5),
-                                const SourceTag(
-                                  text: 'HDR',
-                                  color: Colors.deepPurpleAccent,
-                                ),
-                              ],
-                              if (row.isTorrent) ...[
-                                const SizedBox(width: 5),
-                                const SourceTag(text: 'P2P', color: Colors.teal),
-                              ],
-                              const Spacer(),
-                              if (size != null) ...[
-                                Text(
-                                  size,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: cs.onSurfaceVariant,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                              ],
-                              ProbeBadge(
-                                probe: probe,
-                                probing: probing,
-                                isPeerToPeer: row.isTorrent,
-                              ),
-                            ],
+                    // Top row: Premium quality badge (left top) + tags, size, seeders, and probe badge
+                    Row(
+                      children: [
+                        _QualityBadge(resolution: resolution),
+                        const SizedBox(width: 8),
+                        if (row.isHdr) ...[
+                          const SourceTag(
+                            text: 'HDR',
+                            color: Colors.deepPurpleAccent,
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(width: 6),
+                        ],
+                        if (row.isTorrent) ...[
+                          const SourceTag(text: 'P2P', color: Colors.teal),
+                          const SizedBox(width: 6),
+                        ],
+                        if (size != null) ...[
                           Text(
-                            row.detail,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant,
+                            size,
+                            style: TextStyle(
                               fontSize: 11,
+                              color: cs.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                          const SizedBox(width: 6),
                         ],
+                        if (row.nuvio.seeders != null) ...[
+                          Icon(
+                            Icons.people_alt_outlined,
+                            size: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${row.nuvio.seeders}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: cs.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        const Spacer(),
+                        ProbeBadge(
+                          probe: probe,
+                          probing: probing,
+                          isPeerToPeer: row.isTorrent,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Source name (starts from left, uses all horizontal space)
+                    Text(
+                      row.providerName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: Colors.white,
+                        letterSpacing: 0.2,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(height: 2),
 
-                    // Play & Download action buttons (Accessibility hierarchy)
-                    // Play: Solid filled circle with success background and on-success white icon
-                    _DpadActionButton(
-                      focusNode: _playFocusNode,
-                      icon: Icons.play_arrow_rounded,
-                      tooltip: 'Play',
-                      onPressed: onPlay,
-                      color: cs.primary,
-                      onKeyEvent: (node, event) {
-                        if (event is KeyDownEvent) {
-                          if (event.logicalKey ==
-                              LogicalKeyboardKey.arrowLeft) {
-                            _cardFocusNode.requestFocus();
-                            return KeyEventResult.handled;
-                          }
-                          if (event.logicalKey ==
-                                  LogicalKeyboardKey.arrowRight &&
-                              row.canDownload) {
-                            _downloadFocusNode.requestFocus();
-                            return KeyEventResult.handled;
-                          }
-                        }
-                        return KeyEventResult.ignored;
-                      },
+                    // Description (starts from left, uses horizontal space)
+                    Text(
+                      row.detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
                     ),
-                    _DpadActionButton(
-                      focusNode: _downloadFocusNode,
-                      icon: Icons.download_rounded,
-                      tooltip: row.canDownload
-                          ? 'Download'
-                          : 'Stream-only link',
-                      onPressed: row.canDownload ? onDownload : null,
-                      onKeyEvent: (node, event) {
-                        if (event is KeyDownEvent &&
-                            event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-                          _playFocusNode.requestFocus();
-                          return KeyEventResult.handled;
-                        }
-                        return KeyEventResult.ignored;
-                      },
+                    const SizedBox(height: 8),
+
+                    // Bottom row: Empty space on the left, Play and Download buttons on the bottom right corner
+                    Row(
+                      children: [
+                        const Spacer(),
+                        _DpadSourceButton(
+                          focusNode: _playFocusNode,
+                          icon: Icons.play_arrow_rounded,
+                          label: 'Play',
+                          isPrimary: true,
+                          tooltip: 'Play',
+                          onPressed: onPlay,
+                          onKeyEvent: (node, event) {
+                            if (event is KeyDownEvent) {
+                              if (event.logicalKey ==
+                                  LogicalKeyboardKey.arrowLeft) {
+                                _cardFocusNode.requestFocus();
+                                return KeyEventResult.handled;
+                              }
+                              if (event.logicalKey ==
+                                      LogicalKeyboardKey.arrowRight &&
+                                  row.canDownload) {
+                                _downloadFocusNode.requestFocus();
+                                return KeyEventResult.handled;
+                              }
+                            }
+                            return KeyEventResult.ignored;
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        _DpadSourceButton(
+                          focusNode: _downloadFocusNode,
+                          icon: Icons.download_rounded,
+                          label: 'Download now',
+                          isPrimary: false,
+                          tooltip: row.canDownload
+                              ? 'Download now'
+                              : 'Stream-only link',
+                          onPressed: row.canDownload ? onDownload : null,
+                          onKeyEvent: (node, event) {
+                            if (event is KeyDownEvent &&
+                                event.logicalKey ==
+                                    LogicalKeyboardKey.arrowLeft) {
+                              _playFocusNode.requestFocus();
+                              return KeyEventResult.handled;
+                            }
+                            return KeyEventResult.ignored;
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),
