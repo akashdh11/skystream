@@ -118,23 +118,6 @@ class EpisodePickerSheet extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  // 3. REALISTIC LIGHT DIFFUSION (Soft ambient lighting texture)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: const Alignment(-0.6, -0.7),
-                            radius: 1.5,
-                            colors: [
-                              Colors.white.withValues(alpha: 0.02),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                   // 4. FRESNEL EDGE HIGHLIGHTS WITH SOFT GRADIENT BLENDING
                   Positioned.fill(
                     child: IgnorePointer(
@@ -159,36 +142,6 @@ class EpisodePickerSheet extends ConsumerWidget {
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.12),
                               width: 0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // 5. INNER RIM HIGHLIGHT WITH SOFT GRADIENT BLENDING
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: ShaderMask(
-                        shaderCallback: (rect) {
-                          return const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.white,
-                              Colors.white,
-                              Colors.transparent,
-                            ],
-                            stops: [0.0, 0.20, 0.80, 1.0],
-                          ).createShader(rect);
-                        },
-                        blendMode: BlendMode.dstIn,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.04),
-                              width: 1.5,
                             ),
                           ),
                         ),

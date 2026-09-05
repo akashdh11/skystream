@@ -500,23 +500,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                       ),
                     ),
                   ),
-                  // 3. REALISTIC LIGHT DIFFUSION (Soft ambient lighting texture)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: RadialGradient(
-                            center: const Alignment(-0.6, -0.7),
-                            radius: 1.5,
-                            colors: [
-                              Colors.white.withValues(alpha: 0.02),
-                              Colors.transparent,
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                   // 4. FRESNEL EDGE HIGHLIGHTS WITH SOFT GRADIENT BLENDING
                   Positioned.fill(
                     child: IgnorePointer(
@@ -541,36 +524,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                             border: Border.all(
                               color: Colors.white.withValues(alpha: 0.12),
                               width: 0.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // 5. INNER RIM HIGHLIGHT WITH SOFT GRADIENT BLENDING
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: ShaderMask(
-                        shaderCallback: (rect) {
-                          return const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.white,
-                              Colors.white,
-                              Colors.transparent,
-                            ],
-                            stops: [0.0, 0.20, 0.80, 1.0],
-                          ).createShader(rect);
-                        },
-                        blendMode: BlendMode.dstIn,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.04),
-                              width: 1.5,
                             ),
                           ),
                         ),
@@ -1165,7 +1118,6 @@ class _DpadSourceButtonState extends State<_DpadSourceButton> {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final enabled = widget.onPressed != null;
 
     if (!enabled) {
@@ -1213,17 +1165,33 @@ class _DpadSourceButtonState extends State<_DpadSourceButton> {
       builder: (context, state, _) {
         final isFocused = state.focused;
         final highlight = isFocused || _isHovered;
-        final Color bgColor = widget.isPrimary
-            ? cs.primary.withValues(alpha: 0.16)
-            : Colors.white.withValues(alpha: 0.06);
-        final Color borderColor = highlight
-            ? cs.primary
-            : (widget.isPrimary
-                ? cs.primary.withValues(alpha: 0.4)
-                : Colors.white.withValues(alpha: 0.12));
-        final Color contentColor = widget.isPrimary
-            ? cs.primary
-            : (highlight ? cs.primary : Colors.white.withValues(alpha: 0.85));
+        const hotstarAccent = Color(0xFF0A84FF);
+
+        final Color bgColor;
+        final Color borderColor;
+        final Color contentColor;
+
+        if (widget.isPrimary) {
+          if (highlight) {
+            bgColor = Colors.white;
+            borderColor = Colors.white;
+            contentColor = hotstarAccent;
+          } else {
+            bgColor = hotstarAccent;
+            borderColor = hotstarAccent;
+            contentColor = Colors.white;
+          }
+        } else {
+          if (highlight) {
+            bgColor = hotstarAccent.withValues(alpha: 0.20);
+            borderColor = hotstarAccent;
+            contentColor = Colors.white;
+          } else {
+            bgColor = Colors.white.withValues(alpha: 0.06);
+            borderColor = Colors.white.withValues(alpha: 0.12);
+            contentColor = Colors.white.withValues(alpha: 0.85);
+          }
+        }
 
         return Tooltip(
           message: widget.tooltip ?? widget.label,
