@@ -462,7 +462,6 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
     final remainingReady = readyRows.length > 1 ? readyRows.sublist(1) : <_Row>[];
 
     // Dynamic Capsule: Centered floating glass island.
-    // Clean Hyprland-inspired blur: sigmaX: 18, alpha: 0.80, 1px white/12 border, zero colored glow.
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -473,31 +472,118 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
             maxWidth: 580,
             maxHeight: 680,
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFF101015).withValues(alpha: 0.80),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.12),
-                    width: 1.0,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.55),
-                      blurRadius: 28,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.50),
+                  blurRadius: 50,
+                  spreadRadius: 0,
+                  offset: const Offset(0, 10),
                 ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Header Bar
-                    Padding(
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // 1. LAYERED TRANSLUCENT OBSIDIAN/CHARCOAL BLACK BASE WITH BACKDROP BLUR
+                  Positioned.fill(
+                    child: BackdropFilter(
+                      filter: ui.ImageFilter.blur(sigmaX: 22.0, sigmaY: 22.0),
+                      child: const DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Color(0xA6060608), // Frosted glass obsidian tint (65% opacity)
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 3. REALISTIC LIGHT DIFFUSION (Soft ambient lighting texture)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            center: const Alignment(-0.6, -0.7),
+                            radius: 1.5,
+                            colors: [
+                              Colors.white.withValues(alpha: 0.02),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 4. FRESNEL EDGE HIGHLIGHTS WITH SOFT GRADIENT BLENDING
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: ShaderMask(
+                        shaderCallback: (rect) {
+                          return const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.white,
+                              Colors.white,
+                              Colors.transparent,
+                            ],
+                            stops: [0.0, 0.15, 0.85, 1.0],
+                          ).createShader(rect);
+                        },
+                        blendMode: BlendMode.dstIn,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              width: 0.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 5. INNER RIM HIGHLIGHT WITH SOFT GRADIENT BLENDING
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: ShaderMask(
+                        shaderCallback: (rect) {
+                          return const LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              Colors.white,
+                              Colors.white,
+                              Colors.transparent,
+                            ],
+                            stops: [0.0, 0.20, 0.80, 1.0],
+                          ).createShader(rect);
+                        },
+                        blendMode: BlendMode.dstIn,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.04),
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Main content
+                  Positioned.fill(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Header Bar
+                        Padding(
                       padding: const EdgeInsets.fromLTRB(18, 14, 12, 4),
                       child: Row(
                         children: [
@@ -899,11 +985,13 @@ class _PluginSourcesSheetState extends ConsumerState<PluginSourcesSheet> {
                   ],
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 
