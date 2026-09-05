@@ -82,14 +82,23 @@ class EpisodePickerSheet extends ConsumerWidget {
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.zero,
       elevation: 0,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 580,
-            maxHeight: 680,
-          ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => Navigator.of(context).pop(),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Center(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {},
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 580,
+                    maxHeight: 680,
+                  ),
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
@@ -351,6 +360,10 @@ class EpisodePickerSheet extends ConsumerWidget {
       ),
     ),
   ),
+),
+),
+),
+),
 );
   }
 }

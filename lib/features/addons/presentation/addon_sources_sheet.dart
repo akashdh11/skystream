@@ -412,14 +412,23 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
     // Clean Hyprland-inspired blur: sigmaX: 18, alpha: 0.80, 1px white/12 border, zero colored glow.
     return Dialog(
       backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      insetPadding: EdgeInsets.zero,
       elevation: 0,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 580,
-            maxHeight: 680,
-          ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => Navigator.of(context).pop(),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Center(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {},
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: 580,
+                    maxHeight: 680,
+                  ),
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
@@ -885,6 +894,10 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
       ),
     ),
   ),
+),
+),
+),
+),
 );
   }
 }
@@ -1171,7 +1184,7 @@ class _SourceRowState extends State<_SourceRow> {
           return Material(
             color: isFocused
                 ? const Color(0xFF242430)
-                : const Color(0xFF16161D).withValues(alpha: 0.75),
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             child: InkWell(
               onTap: downloadMode && stream.isDirect ? onDownload : onPlay,
