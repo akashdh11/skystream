@@ -1088,6 +1088,7 @@ class _QualityBadge extends StatelessWidget {
     }
 
     return Container(
+      constraints: const BoxConstraints(maxWidth: 80),
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
         color: accentColor.withValues(alpha: 0.16),
@@ -1099,6 +1100,8 @@ class _QualityBadge extends StatelessWidget {
       ),
       child: Text(
         resolution,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 10.5,
           fontWeight: FontWeight.w900,
@@ -1219,67 +1222,68 @@ class _SourceRowState extends State<_SourceRow> {
                   children: [
                     // Top row: Premium quality badge (left top) + tags, size, and seeders
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _QualityBadge(resolution: stream.qualityLabel),
-                        const SizedBox(width: 8),
-                        const SourceTag(
-                          text: 'STREMIO',
-                          color: Color(0xFF7C6BF5),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              _QualityBadge(resolution: stream.qualityLabel),
+                              const SourceTag(
+                                text: 'STREMIO',
+                                color: Color(0xFF7C6BF5),
+                              ),
+                              if (stream.isHdr)
+                                const SourceTag(
+                                  text: 'HDR',
+                                  color: Colors.deepPurpleAccent,
+                                ),
+                              if (stream.isTorrent)
+                                SourceTag(text: 'TORRENT', color: cs.primary),
+                              if (stream.isCachedDebrid)
+                                const SourceTag(
+                                  text: 'CACHED',
+                                  color: Colors.green,
+                                ),
+                              if (stream.isExternal)
+                                SourceTag(
+                                  text: 'OPENS APP',
+                                  color: cs.secondary,
+                                ),
+                              if (size != null)
+                                Text(
+                                  size,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              if (stream.seeders != null)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.people_alt_outlined,
+                                      size: 12,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '${stream.seeders}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: cs.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
                         ),
-                        if (stream.isHdr) ...[
-                          const SizedBox(width: 6),
-                          const SourceTag(
-                            text: 'HDR',
-                            color: Colors.deepPurpleAccent,
-                          ),
-                        ],
-                        if (stream.isTorrent) ...[
-                          const SizedBox(width: 6),
-                          SourceTag(text: 'TORRENT', color: cs.primary),
-                        ],
-                        if (stream.isCachedDebrid) ...[
-                          const SizedBox(width: 6),
-                          const SourceTag(
-                            text: 'CACHED',
-                            color: Colors.green,
-                          ),
-                        ],
-                        if (stream.isExternal) ...[
-                          const SizedBox(width: 6),
-                          SourceTag(
-                            text: 'OPENS APP',
-                            color: cs.secondary,
-                          ),
-                        ],
-                        if (size != null) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            size,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        if (stream.seeders != null) ...[
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.people_alt_outlined,
-                            size: 12,
-                            color: cs.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            '${stream.seeders}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                        const Spacer(),
                       ],
                     ),
                     const SizedBox(height: 6),

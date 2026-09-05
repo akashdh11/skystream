@@ -110,23 +110,26 @@ class ProbeBadge extends StatelessWidget {
         ? Icons.cancel_rounded // circle-x
         : (isUnreachable ? Icons.warning_amber_rounded : Icons.error_outline_rounded); // alert-triangle
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(badgeIcon, size: 12, color: badgeColor),
-        const SizedBox(width: 2),
-        Flexible(
-          child: Text(
-            reason,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: badgeColor,
-              fontWeight: FontWeight.w600,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 130),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(badgeIcon, size: 12, color: badgeColor),
+          const SizedBox(width: 2),
+          Flexible(
+            child: Text(
+              reason,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: badgeColor,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

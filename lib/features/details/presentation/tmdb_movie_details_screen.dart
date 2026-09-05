@@ -151,9 +151,9 @@ class _TmdbMovieDetailsScreenState
             ),
             child: FilledButton.icon(
               onPressed: () => _openPluginSources(data, isMovie),
-              icon: const Icon(Icons.play_arrow_rounded, size: 22),
+              icon: const Icon(Icons.search_rounded, size: 22),
               label: const Text(
-                'Play from Nuvio plugins',
+                'Search in Nuvio plugins',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
               style: FilledButton.styleFrom(

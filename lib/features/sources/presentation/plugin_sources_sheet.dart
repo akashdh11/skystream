@@ -79,20 +79,37 @@ class _Row {
     caseSensitive: false,
   );
   static final RegExp _uhd = RegExp(r'\b(4k|uhd|2160)\b', caseSensitive: false);
+  static final RegExp _qhd = RegExp(r'\b(1440|2k)\b', caseSensitive: false);
+  static final RegExp _fhd = RegExp(r'\b(1080|fhd)\b', caseSensitive: false);
+  static final RegExp _hd = RegExp(r'\b(720|hd)\b', caseSensitive: false);
+  static final RegExp _sd = RegExp(r'\b(480|sd)\b', caseSensitive: false);
+  static final RegExp _low = RegExp(r'\b(360)\b', caseSensitive: false);
 
   int get qualityScore {
     final text = '${nuvio.quality ?? ''} ${nuvio.title} ${nuvio.url}';
     if (_uhd.hasMatch(text)) return 2160;
+    if (_qhd.hasMatch(text)) return 1440;
     final match = _res.firstMatch(text);
-    return match == null ? 0 : (int.tryParse(match.group(1)!) ?? 0);
+    if (match != null) return int.tryParse(match.group(1)!) ?? 0;
+    if (_fhd.hasMatch(text)) return 1080;
+    if (_hd.hasMatch(text)) return 720;
+    if (_sd.hasMatch(text)) return 480;
+    if (_low.hasMatch(text)) return 360;
+    return 0;
   }
 
   String get qualityLabel {
     final score = qualityScore;
     if (score >= 2160) return '4K';
+    if (score >= 1440) return '2K';
     if (score > 0) return '${score}p';
     final quality = nuvio.quality?.trim();
-    return (quality == null || quality.isEmpty) ? 'Auto' : quality;
+    if (quality == null || quality.isEmpty) return 'Auto';
+    final clean = quality.split(RegExp(r'[|/,]')).first.trim();
+    if (clean.length > 8) {
+      return 'Auto';
+    }
+    return clean.isEmpty ? 'Auto' : clean;
   }
 
   bool get isHdr => RegExp(
@@ -1289,6 +1306,7 @@ class _QualityBadge extends StatelessWidget {
     }
 
     return Container(
+      constraints: const BoxConstraints(maxWidth: 80),
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
       decoration: BoxDecoration(
         color: accentColor.withValues(alpha: 0.16),
@@ -1300,6 +1318,8 @@ class _QualityBadge extends StatelessWidget {
       ),
       child: Text(
         resolution,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           fontSize: 10.5,
           fontWeight: FontWeight.w900,
@@ -1427,49 +1447,55 @@ class _SourceRowState extends State<_SourceRow> {
                   children: [
                     // Top row: Premium quality badge (left top) + tags, size, seeders, and probe badge
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        _QualityBadge(resolution: resolution),
+                        Expanded(
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              _QualityBadge(resolution: resolution),
+                              if (row.isHdr)
+                                const SourceTag(
+                                  text: 'HDR',
+                                  color: Colors.deepPurpleAccent,
+                                ),
+                              if (row.isTorrent)
+                                const SourceTag(text: 'P2P', color: Colors.teal),
+                              if (size != null)
+                                Text(
+                                  size,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: cs.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              if (row.nuvio.seeders != null)
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.people_alt_outlined,
+                                      size: 12,
+                                      color: cs.onSurfaceVariant,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      '${row.nuvio.seeders}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: cs.onSurfaceVariant,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
                         const SizedBox(width: 8),
-                        if (row.isHdr) ...[
-                          const SourceTag(
-                            text: 'HDR',
-                            color: Colors.deepPurpleAccent,
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        if (row.isTorrent) ...[
-                          const SourceTag(text: 'P2P', color: Colors.teal),
-                          const SizedBox(width: 6),
-                        ],
-                        if (size != null) ...[
-                          Text(
-                            size,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        if (row.nuvio.seeders != null) ...[
-                          Icon(
-                            Icons.people_alt_outlined,
-                            size: 12,
-                            color: cs.onSurfaceVariant,
-                          ),
-                          const SizedBox(width: 2),
-                          Text(
-                            '${row.nuvio.seeders}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: cs.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                        ],
-                        const Spacer(),
                         ProbeBadge(
                           probe: probe,
                           probing: probing,

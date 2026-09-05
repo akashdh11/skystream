@@ -11,7 +11,7 @@ import '../../../sources/presentation/plugin_sources_sheet.dart';
 import '../../../sources/presentation/source_sheet_widgets.dart';
 import '../tmdb_details_controller.dart';
 
-/// Season / episode picker for "Play from Nuvio plugins" on a series.
+/// Season / episode picker for "Search in Nuvio plugins" on a series.
 ///
 /// Redesigned as a floating Hyprland glass dialog matching [PluginSourcesSheet].
 class EpisodePickerSheet extends ConsumerWidget {
