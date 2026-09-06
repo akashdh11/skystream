@@ -485,9 +485,9 @@ class LinuxVlcPlayer {
   VlcPixelBufferTexture* texture_ = nullptr;
   std::unique_ptr<vlc_player::VlcPlayerCore> core_;
   std::string init_error_;
-  std::atomic<bool> disposed_ = false;
-  std::atomic<bool> polling_ = false;
-  std::atomic<bool> listening_ = false;
+  std::atomic<bool> disposed_{false};
+  std::atomic<bool> polling_{false};
+  std::atomic<bool> listening_{false};
   std::mutex snapshot_mutex_;
   bool has_last_sent_snapshot_ = false;
   vlc_player::VlcSnapshot last_sent_snapshot_;
@@ -719,6 +719,8 @@ static FlMethodResponse* handle_method(VlcPlayerPlugin* self,
   } else if (strcmp(method, "getMediaStats") == 0) {
     g_autoptr(FlValue) result = player->GetMediaStats();
     return FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+  } else if (strcmp(method, "setFit") == 0) {
+    return success_null();
   } else {
     return FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
   }

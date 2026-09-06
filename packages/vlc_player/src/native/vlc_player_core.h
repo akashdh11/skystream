@@ -96,7 +96,7 @@ class VlcPlayerCore {
   std::unique_ptr<VLC::Instance> instance_;
   std::unique_ptr<VLC::MediaPlayer> player_;
   std::string init_error_;
-  std::atomic<bool> disposed_ = false;
+  std::atomic<bool> disposed_{false};
 
   mutable std::mutex video_mutex_;
   std::vector<uint8_t> frame_buffer_;

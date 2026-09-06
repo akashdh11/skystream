@@ -137,7 +137,8 @@ std::string VlcPlayerCore::SetSource(const std::string& uri,
                                          media_options,
                                      int64_t start_position,
                                      bool auto_play) {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   if (uri.empty()) {
@@ -173,7 +174,8 @@ std::string VlcPlayerCore::SetSource(const std::string& uri,
 }
 
 std::string VlcPlayerCore::Play() {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   if (!player_->play()) {
@@ -187,7 +189,8 @@ std::string VlcPlayerCore::Play() {
 }
 
 std::string VlcPlayerCore::Pause() {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   player_->pause();
@@ -199,7 +202,8 @@ std::string VlcPlayerCore::Pause() {
 }
 
 std::string VlcPlayerCore::Stop() {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   player_->stop();
@@ -211,7 +215,8 @@ std::string VlcPlayerCore::Stop() {
 }
 
 std::string VlcPlayerCore::SeekTo(int64_t milliseconds) {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   player_->setTime(std::max<int64_t>(0, milliseconds));
@@ -219,7 +224,8 @@ std::string VlcPlayerCore::SeekTo(int64_t milliseconds) {
 }
 
 std::string VlcPlayerCore::SetVolume(int volume) {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   const int normalized_volume = std::clamp(volume, 0, 200);
@@ -232,7 +238,8 @@ std::string VlcPlayerCore::SetVolume(int volume) {
 }
 
 std::string VlcPlayerCore::SetPlaybackSpeed(double speed) {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   if (!std::isfinite(speed) || speed <= 0) {
@@ -243,7 +250,8 @@ std::string VlcPlayerCore::SetPlaybackSpeed(double speed) {
 }
 
 std::string VlcPlayerCore::SetAudioDelay(int64_t microseconds) {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   if (!player_->setAudioDelay(microseconds)) {
@@ -253,7 +261,8 @@ std::string VlcPlayerCore::SetAudioDelay(int64_t microseconds) {
 }
 
 std::string VlcPlayerCore::SetSubtitleDelay(int64_t microseconds) {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   if (player_->setSpuDelay(microseconds) != 0) {
@@ -268,7 +277,8 @@ std::vector<uint8_t> VlcPlayerCore::TakeSnapshot(uint32_t width,
   if (error != nullptr) {
     error->clear();
   }
-  if (const auto active_error = ActiveError(); !active_error.empty()) {
+  const auto active_error = ActiveError();
+  if (!active_error.empty()) {
     if (error != nullptr) {
       *error = active_error;
     }
@@ -316,7 +326,8 @@ std::vector<VlcTrackDescription> VlcPlayerCore::GetAudioTracks() {
 }
 
 std::string VlcPlayerCore::SetAudioTrack(int id) {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   if (!player_->setAudioTrack(id)) {
@@ -333,7 +344,8 @@ std::vector<VlcTrackDescription> VlcPlayerCore::GetSubtitleTracks() {
 }
 
 std::string VlcPlayerCore::SetSubtitleTrack(int id) {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   if (player_->setSpu(id) != 0) {
@@ -343,7 +355,8 @@ std::string VlcPlayerCore::SetSubtitleTrack(int id) {
 }
 
 std::string VlcPlayerCore::DisableSubtitle() {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   player_->setSpu(-1);
@@ -351,7 +364,8 @@ std::string VlcPlayerCore::DisableSubtitle() {
 }
 
 std::string VlcPlayerCore::AddSubtitle(const std::string& uri) {
-  if (const auto error = ActiveError(); !error.empty()) {
+  const auto error = ActiveError();
+  if (!error.empty()) {
     return error;
   }
   if (uri.empty()) {

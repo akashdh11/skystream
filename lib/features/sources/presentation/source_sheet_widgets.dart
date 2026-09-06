@@ -97,32 +97,39 @@ class ProbeBadge extends StatelessWidget {
     final result = probe;
     if (result == null) return const SizedBox.shrink();
     if (result.reachable) {
-      return Row(
+      return const SizedBox.shrink();
+    }
+
+    final reason = _shortReason(result.failureReason);
+    final isNotFound = reason.toLowerCase().contains('not found');
+    final isUnreachable = reason.toLowerCase().contains('unreachable');
+    final Color badgeColor = isNotFound
+        ? const Color(0xFFEF4444) // var(--text-danger)
+        : (isUnreachable ? const Color(0xFFF59E0B) : cs.error); // var(--text-warning)
+    final IconData badgeIcon = isNotFound
+        ? Icons.cancel_rounded // circle-x
+        : (isUnreachable ? Icons.warning_amber_rounded : Icons.error_outline_rounded); // alert-triangle
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 130),
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.verified_rounded, size: 12, color: Colors.green),
+          Icon(badgeIcon, size: 12, color: badgeColor),
           const SizedBox(width: 2),
-          Text(
-            'Working',
-            style: theme.textTheme.labelSmall?.copyWith(color: Colors.green),
+          Flexible(
+            child: Text(
+              reason,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: badgeColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
-      );
-    }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.error_outline_rounded, size: 12, color: cs.error),
-        const SizedBox(width: 2),
-        Flexible(
-          child: Text(
-            _shortReason(result.failureReason),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: theme.textTheme.labelSmall?.copyWith(color: cs.error),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
