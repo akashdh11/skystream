@@ -216,9 +216,12 @@ class NuvioStreamService {
         // Encode both halves: a raw `|` inside the url (or the scraper id)
         // could otherwise split the key into someone else's id|url pair and
         // the second link would be deduped away as a duplicate.
-        if (!seen.add(
-          '${Uri.encodeComponent(scraperId)}|${Uri.encodeComponent(result.url)}',
-        )) continue;
+        final key =
+            '${Uri.encodeComponent(scraperId)}|'
+            '${Uri.encodeComponent(result.url)}';
+        if (!seen.add(key)) {
+          continue;
+        }
         streams.add(result);
         added++;
       }
