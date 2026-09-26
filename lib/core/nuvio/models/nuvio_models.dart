@@ -699,13 +699,13 @@ class NuvioUrls {
     if (filename.trim().isEmpty) return null;
     final manifest = Uri.tryParse(manifestUrl);
     if (manifest == null) return null;
-    // A manifest may list a file whose name carries a space, `#` or `+`.
-    // resolve() would start a fragment at the `#`, read the `+` as a space
-    // or mangle the rest, and the code fetch would 404 — the plugin then
-    // never runs and the sheet reads "no links" for a provider that has
-    // them. Encode each path segment the way a URL path is meant to be
-    // encoded. An absolute filename is a full URL on its own; it is left
-    // alone because re-encoding it would break its scheme.
+    // A manifest may list a file whose name carries a space, `#` or `?`.
+    // A bare resolve() would start a fragment at the `#` and a query at
+    // the `?`, so the code fetch hits the wrong path and 404s — the plugin
+    // then never runs and the sheet reads "no links" for a provider that
+    // has them. Encode each path segment first; Uri keeps the escaping for
+    // everything a path cannot hold as a literal. An absolute filename is
+    // a full URL on its own; re-encoding it would break its scheme.
     if (filename.contains('://')) return manifest.resolve(filename);
     final encoded = filename.split('/').map(Uri.encodeComponent).join('/');
     return manifest.resolve(encoded);

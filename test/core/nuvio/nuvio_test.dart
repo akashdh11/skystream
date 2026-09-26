@@ -66,15 +66,19 @@ void main() {
         manifestUrl: 'https://raw.example/main/manifest.json',
         addedAt: DateTime.utc(2026),
       );
+      // Uri keeps the escaping only where the path cannot hold the
+      // character as a literal: spaces stay %20, # and ? stay escaped
+      // (a literal # would start a fragment, a ? a query), while
+      // ( v2 ) is legal in a path and comes back unescaped.
       for (final (filename, expected) in const [
         (
           'providers/4k hd hub (v2).js',
-          'https://raw.example/main/providers/4k%20hd%20hub%20%28v2%29.js',
+          'https://raw.example/main/providers/4k%20hd%20hub%20(v2).js',
         ),
         // A raw # would start a fragment and the fetch would 404.
         ('providers/a#1.js', 'https://raw.example/main/providers/a%231.js'),
-        // A + in a path is not a space, and must not be read as one.
-        ('providers/a+b.js', 'https://raw.example/main/providers/a%2Bb.js'),
+        // A raw ? would start a query string.
+        ('providers/a?b.js', 'https://raw.example/main/providers/a%3Fb.js'),
       ]) {
         final scraper = NuvioScraperInfo(
           id: 'x',
