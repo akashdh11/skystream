@@ -146,11 +146,14 @@ void main() {
   /// The bottom padding of the first [ListView] / [GridView] on screen.
   double bottomPadding(WidgetTester tester) {
     final list = find.byType(ListView);
+    if (list.evaluate().isNotEmpty) {
+      final listView = tester.widget<ListView>(list.first);
+      final padding = listView.padding!;
+      return padding.resolve(TextDirection.ltr).bottom;
+    }
     final grid = find.byType(GridView);
-    final ScrollView scrollable = list.evaluate().isNotEmpty
-        ? tester.widget<ListView>(list.first)
-        : tester.widget<GridView>(grid.first);
-    final padding = scrollable.padding!;
+    final gridView = tester.widget<GridView>(grid.first);
+    final padding = gridView.padding!;
     return padding.resolve(TextDirection.ltr).bottom;
   }
 
