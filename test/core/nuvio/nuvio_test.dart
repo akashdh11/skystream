@@ -61,6 +61,39 @@ void main() {
       );
     });
 
+    test('a file name with spaces, ( ) or # does not break the code URL', () {
+      final repo = NuvioRepo(
+        manifestUrl: 'https://raw.example/main/manifest.json',
+        addedAt: DateTime.utc(2026),
+      );
+      // Uri keeps the escaping only where the path cannot hold the
+      // character as a literal: spaces stay %20, # and ? stay escaped
+      // (a literal # would start a fragment, a ? a query), while
+      // ( v2 ) is legal in a path and comes back unescaped.
+      for (final (filename, expected) in const [
+        (
+          'providers/4k hd hub (v2).js',
+          'https://raw.example/main/providers/4k%20hd%20hub%20(v2).js',
+        ),
+        // A raw # would start a fragment and the fetch would 404.
+        ('providers/a#1.js', 'https://raw.example/main/providers/a%231.js'),
+        // A raw ? would start a query string.
+        ('providers/a?b.js', 'https://raw.example/main/providers/a%3Fb.js'),
+      ]) {
+        final scraper = NuvioScraperInfo(
+          id: 'x',
+          name: 'X',
+          version: '1.0.0',
+          filename: filename,
+        );
+        expect(
+          repo.codeUrlFor(scraper).toString(),
+          expected,
+          reason: filename,
+        );
+      }
+    });
+
     test('manifest-disabled scrapers stay off, user toggles persist', () {
       final repo = NuvioRepo(
         manifestUrl: 'https://x/manifest.json',
@@ -655,6 +688,50 @@ void main() {
       expect(result!.url, startsWith('magnet:?xt=urn:btih:abc123'));
       expect(result.isTorrent, isTrue);
     });
+
+    test('an embedded stream object carries its own quality and headers', () {
+      // The shape several All-in-One providers return: the row label lives
+      // on the outside, the stream (with the CDN's Referer) is embedded.
+      final result = NuvioStreamResult.fromJson(
+        const {
+          'name': 'Provider row',
+          'seeders': 7,
+          'stream': {
+            'url': 'https://cdn.example/embedded.mkv',
+            'quality': '1080p',
+            'behaviorHints': {
+              'proxyHeaders': {
+                'request': {'Referer': 'https://origin.example/'},
+              },
+            },
+          },
+        },
+        scraperId: 's',
+        scraperName: 'P',
+      );
+
+      expect(result, isNotNull);
+      expect(result!.url, 'https://cdn.example/embedded.mkv');
+      expect(result.quality, '1080p');
+      expect(result.headers?['Referer'], 'https://origin.example/');
+      // The outer entry still contributes what the embedded one lacks.
+      expect(result.seeders, 7);
+      expect(result.name, 'Provider row');
+    });
+
+    test('an embedded object without url fields loses nothing from the outer', () {
+      final result = NuvioStreamResult.fromJson(
+        const {
+          'name': 'Row',
+          'url': 'https://cdn.example/plain.mkv',
+          'quality': '720p',
+        },
+        scraperId: 's',
+        scraperName: 'P',
+      );
+      expect(result!.url, 'https://cdn.example/plain.mkv');
+      expect(result.quality, '720p');
+    });
   });
 
   group('plugin code cache', () {
@@ -689,6 +766,45 @@ void main() {
       );
       expect(name.contains('..'), isFalse);
       expect(name.contains('/'), isFalse);
+    });
+
+    test('ids with # or @ round-trip without colliding with the key shape', () async {
+      final dir = await Directory.systemTemp.createTemp('nuvio_code');
+      addTearDown(() => dir.delete(recursive: true));
+      final store = NuvioCodeStore(root: dir);
+      const url = 'https://example.com/manifest.json';
+
+      // # and @ are the code-store key's own separators; an id that carries
+      // them must not be misread as one.
+      await store.write(
+        manifestUrl: url,
+        scraperId: 'a@b#c',
+        version: '1.0',
+        code: 'module.exports = {};',
+      );
+      expect(
+        await store.read(
+          manifestUrl: url,
+          scraperId: 'a@b#c',
+          version: '1.0',
+        ),
+        'module.exports = {};',
+      );
+
+      // A delete for the raw id has to find the encoded file and the entry.
+      await store.deleteScrapers(manifestUrl: url, scraperIds: {'a@b#c'});
+      expect(
+        await store.read(
+          manifestUrl: url,
+          scraperId: 'a@b#c',
+          version: '1.0',
+        ),
+        isNull,
+      );
+      expect(
+        await store.read(manifestUrl: url, scraperId: 'a@b#c', version: '1.1'),
+        isNull,
+      );
     });
 
     test('reads and writes through a temporary directory', () async {

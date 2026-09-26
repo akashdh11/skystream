@@ -196,9 +196,15 @@ class _CustomSliderState extends State<CustomSlider> {
   }
 }
 
-/// A TextField widget that allows D-pad navigation out of the text field.
-/// Up/Down D-pad navigates to other focusable elements instead of being trapped.
-/// When keyboard OK is pressed, focus automatically moves to the next element.
+/// A TextField widget that leaves the D-pad entirely to text entry.
+///
+/// On Android TV the leanback IME needs all four arrow keys to walk its
+/// letter grid while the field is focused, so this widget must not
+/// intercept a single direction. The old up/down -> previous/next focus
+/// dropped focus out of the field mid-word and stranded the remote user on
+/// one letter of the keyboard. Focus moves out the normal way (the clear
+/// button, the surrounding controls), and Enter / numpad-Enter submits
+/// through [onSubmitted].
 class CustomTextField extends StatefulWidget {
   final TextEditingController? controller;
   final InputDecoration? decoration;
@@ -232,26 +238,13 @@ class _CustomTextFieldState extends State<CustomTextField> {
   void initState() {
     super.initState();
     _focusNode = FocusNode(
-      onKeyEvent: (node, event) {
-        if (event is! KeyDownEvent) return KeyEventResult.ignored;
-
-        final key = event.logicalKey;
-
-        // Use sequential focus traversal for D-pad Up/Down instead of spatial.
-        // Spatial traversal (focusInDirection) is erratic in complex dialogs.
-        if (key == LogicalKeyboardKey.arrowUp) {
-          _focusNode.previousFocus();
-          return KeyEventResult.handled;
-        }
-
-        if (key == LogicalKeyboardKey.arrowDown) {
-          _focusNode.nextFocus();
-          return KeyEventResult.handled;
-        }
-
-        // Let left/right pass through for text cursor navigation
-        return KeyEventResult.ignored;
-      },
+      // No arrow handling at all. The leanback IME uses all four directions
+      // to walk its letter grid while this field is focused, and returning
+      // `handled` for up/down used to steal the key, move focus out of the
+      // field and kill the keyboard mid-word. Left/right still reach the
+      // text caret through the framework's own editing shortcuts, and
+      // Enter / numpad-Enter submit through [CustomTextField.onSubmitted].
+      onKeyEvent: (node, event) => KeyEventResult.ignored,
     );
   }
 

@@ -378,8 +378,8 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen>
     }
 
     return ListView(
-      padding: const EdgeInsets.only(
-        bottom: 100,
+      padding: EdgeInsets.only(
+        bottom: LayoutConstants.shellBottomContentPadding(context),
         top: LayoutConstants.spacingMd,
       ),
       addAutomaticKeepAlives: false,
@@ -455,8 +455,8 @@ class _ExtensionsScreenState extends ConsumerState<ExtensionsScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(
-        bottom: 100,
+      padding: EdgeInsets.only(
+        bottom: LayoutConstants.shellBottomContentPadding(context),
         top: LayoutConstants.spacingMd,
       ),
       addAutomaticKeepAlives: false,

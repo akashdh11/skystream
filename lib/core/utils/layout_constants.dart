@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 /// Centralized spacing and layout values for consistent UI.
 /// Use from details_screen, explore_carousel, and other layout code.
 class LayoutConstants {
@@ -36,4 +37,18 @@ class LayoutConstants {
   static const double contentCardRadius = 24;
   static const double dashboardHeaderHeight = 56;
   static const double dashboardContentPadding = 24;
+
+  /// Bottom padding so list content clears the floating bottom nav.
+  ///
+  /// Prefer [MediaQuery.padding.bottom] when [AppScaffold] has already inflated
+  /// it for the shell; fall back to a safe minimum when it has not (e.g. a
+  /// screen opened outside the shell).
+  static double shellBottomContentPadding(
+    BuildContext context, {
+    double minimum = 100,
+  }) {
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    return bottom > minimum ? bottom : minimum;
+  }
+
 }

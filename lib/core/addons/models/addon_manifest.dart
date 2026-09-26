@@ -285,6 +285,10 @@ class AddonManifest {
 
   /// Type aliases, following ARVIO: add-ons are inconsistent about whether a
   /// show is `series`, `tv` or `show`.
+  ///
+  /// `other` is a Stremio-legal catch-all used by multi-provider scrapers
+  /// (CNCVerse bridges, MovieBox aggregators). Keep it first so the add-on's
+  /// own type is asked before any movie/series fallback.
   static List<String> typeAliases(String type) {
     final normalized = type.toLowerCase();
     if (normalized == 'series' || normalized == 'tv' || normalized == 'show') {
@@ -292,6 +296,11 @@ class AddonManifest {
     }
     if (normalized == 'movie' || normalized == 'film') {
       return const ['movie', 'film'];
+    }
+    if (normalized == 'other') {
+      // Prefer the declared type, then try the two canonical ones — some
+      // bridges accept both `other` and `movie` for the same id.
+      return const ['other', 'movie', 'series'];
     }
     return [normalized];
   }
@@ -365,6 +374,26 @@ class ManagedAddon {
       manifest?.name ?? Uri.tryParse(manifestUrl)?.host ?? 'Add-on';
 
   bool get isActive => enabled && manifest != null;
+
+  /// Whether [query] matches this install for the Manage-tab search box.
+  ///
+  /// Empty queries match everything. Otherwise name, id, URL, description,
+  /// content types and resource names are searched case-insensitively.
+  bool matchesQuery(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    final m = manifest;
+    final haystack = [
+      displayName,
+      m?.id ?? '',
+      manifestUrl,
+      m?.description ?? '',
+      if (m != null) ...m.types,
+      if (m != null)
+        for (final r in m.resources) r.name,
+    ].join(' ').toLowerCase();
+    return haystack.contains(q);
+  }
 
   ManagedAddon copyWith({
     String? manifestUrl,

@@ -49,19 +49,33 @@ class NuvioCodeStore {
         .convert(utf8.encode(manifestUrl))
         .toString()
         .substring(0, 12);
-    // `..` must not survive: these become file names.
-    String sanitize(String value) => value
-        .replaceAll(RegExp(r'[^A-Za-z0-9_.-]'), '_')
-        .replaceAll(RegExp(r'\.{2,}'), '.')
-        // A leading dot would run into the separator and recreate '..'.
-        .replaceAll(RegExp(r'^\.+|\.+$'), '');
-    final safeId = sanitize(scraperId);
-    final safeVersion = sanitize(version);
+    final safeId = _safeName(scraperId);
+    final safeVersion = _safeName(version);
     return '$repo.$safeId@$safeVersion.js';
   }
 
+  /// Uri.encodeComponent-style naming for a file-name piece: everything
+  /// outside the unreserved set becomes %XX, so no path separator, query
+  /// character, `@` or `..` pair can survive into a file name.
+  /// encodeComponent keeps dots on its own, and a leading dot would hide
+  /// the file while `..` would read as traversal — dots are encoded too.
+  static String _safeName(String value) =>
+      Uri.encodeComponent(value).replaceAll('.', '%2E');
+
+  /// The inverse of [_safeName]; a name written by an older build (plain
+  /// sanitising) decodes to itself, which is close enough for the sweep.
+  static String _decodedName(String piece) {
+    try {
+      return Uri.decodeComponent(piece);
+    } catch (_) {
+      return piece;
+    }
+  }
+
+  /// The in-memory key encodes id and version the same way, so an id that
+  /// contains `#` or `@` cannot be mistaken for the key's own separators.
   String _memoryKey(String manifestUrl, String scraperId, String version) =>
-      '$manifestUrl#$scraperId@$version';
+      '$manifestUrl#${Uri.encodeComponent(scraperId)}@${Uri.encodeComponent(version)}';
 
   void _remember(String key, String code) {
     _memory[key] = code;
@@ -133,11 +147,13 @@ class NuvioCodeStore {
     required Set<String> scraperIds,
   }) async {
     if (scraperIds.isEmpty) return;
+    final wanted = {for (final id in scraperIds) Uri.encodeComponent(id)};
     _memory.removeWhere((key, _) {
       if (!key.startsWith('$manifestUrl#')) return false;
       final id = key.split('#').last.split('@').first;
-      return scraperIds.contains(id);
+      return wanted.contains(id);
     });
+    // [_sweep] hands back decoded ids, so the raw set matches there.
     await _sweep(manifestUrl, (id, _) => scraperIds.contains(id));
   }
 
@@ -148,7 +164,12 @@ class NuvioCodeStore {
   }) async {
     _memory.removeWhere((key, _) {
       if (!key.startsWith('$manifestUrl#')) return false;
-      return !keepIdVersions.contains(key.split('#').last);
+      final rest = key.split('#').last;
+      final at = rest.lastIndexOf('@');
+      if (at < 0) return false;
+      final id = _decodedName(rest.substring(0, at));
+      final version = _decodedName(rest.substring(at + 1));
+      return !keepIdVersions.contains('$id@$version');
     });
     await _sweep(
       manifestUrl,
@@ -177,7 +198,12 @@ class NuvioCodeStore {
         final body = name.substring(prefix.length, name.length - 3);
         final at = body.lastIndexOf('@');
         if (at < 0) continue;
-        if (shouldDelete(body.substring(0, at), body.substring(at + 1))) {
+        // File names carry encodeComponent pieces; decode them back so the
+        // caller can compare against the ids the manifest actually uses.
+        if (shouldDelete(
+          _decodedName(body.substring(0, at)),
+          _decodedName(body.substring(at + 1)),
+        )) {
           await entity.delete();
         }
       }

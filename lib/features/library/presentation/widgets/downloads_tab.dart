@@ -116,7 +116,12 @@ class _DownloadsTabState extends ConsumerState<DownloadsTab>
             ),
             Expanded(
               child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  8,
+                  16,
+                  LayoutConstants.shellBottomContentPadding(context),
+                ),
                 itemCount: keys.length,
                 separatorBuilder: (context, index) =>
                     const SizedBox(height: 16),

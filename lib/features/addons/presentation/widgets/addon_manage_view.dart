@@ -9,11 +9,16 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/addons/data/addon_repository.dart';
 import '../../../../core/addons/data/debrid_service.dart';
 import '../../../../core/addons/models/addon_manifest.dart';
+import '../../../../l10n/generated/app_localizations.dart';
 import '../../../../shared/widgets/text_input_dialog.dart';
 import '../../../../shared/focus/app_focus.dart';
+import '../addon_providers.dart';
+import '../../../../core/utils/layout_constants.dart';
 
-/// One-tap starter add-ons: catalogs, streams and subtitles, so a fresh
-/// install can be useful in three taps.
+/// One-tap starter add-ons, matching the official Stremio apps: the two
+/// official add-ons that work the moment they are installed — Cinemeta for
+/// catalogs and metadata, OpenSubtitles v3 for subtitles. Everything else
+/// lives in the community directory on the Discover tab.
 class AddonPreset {
   final String name;
   final String description;
@@ -28,9 +33,9 @@ class AddonPreset {
   });
 }
 
-/// Curated starters. The mix matters: a catalog add-on to browse, a torrent
-/// add-on for links, a deep-link add-on for the streaming services themselves,
-/// and subtitles.
+/// The official add-ons, like the official Stremio client shows them. The
+/// community add-ons (Torrentio, Comet, MediaFusion…) are intentionally not
+/// repeated here — the Discover tab is their home.
 const List<AddonPreset> kAddonPresets = [
   AddonPreset(
     name: 'Cinemeta',
@@ -39,40 +44,10 @@ const List<AddonPreset> kAddonPresets = [
     icon: Icons.movie_filter_rounded,
   ),
   AddonPreset(
-    name: 'Torrentio',
-    description: 'Torrent streams from public trackers',
-    url: 'https://torrentio.strem.fun/manifest.json',
-    icon: Icons.bolt_rounded,
-  ),
-  AddonPreset(
     name: 'OpenSubtitles v3',
     description: 'Subtitles in 60+ languages',
     url: 'https://opensubtitles-v3.strem.io/manifest.json',
     icon: Icons.subtitles_rounded,
-  ),
-  AddonPreset(
-    name: 'WatchHub',
-    description: 'Where to watch: Netflix, Prime, Plex… (opens the service)',
-    url: 'https://watchhub.strem.io/manifest.json',
-    icon: Icons.open_in_new_rounded,
-  ),
-  AddonPreset(
-    name: 'MediaFusion',
-    description: 'Streams from many sources, debrid-friendly',
-    url: 'https://mediafusion.elfhosted.com/manifest.json',
-    icon: Icons.hub_rounded,
-  ),
-  AddonPreset(
-    name: 'Comet',
-    description: 'Torrent + debrid streams',
-    url: 'https://comet.elfhosted.com/manifest.json',
-    icon: Icons.bolt_outlined,
-  ),
-  AddonPreset(
-    name: 'Streaming Catalogs',
-    description: 'Netflix, Disney+, HBO… catalogs (browse only, no streams)',
-    url: 'https://7a82163c306e-stremio-netflix-catalog-addon.baby-beamup.club/manifest.json',
-    icon: Icons.grid_view_rounded,
   ),
 ];
 
@@ -86,6 +61,26 @@ class AddonManageView extends ConsumerStatefulWidget {
 
 class _AddonManageViewState extends ConsumerState<AddonManageView> {
   final Set<String> _busy = {};
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+  }
+
+  Future<void> _refreshAll() async {
+    // Re-fetch manifests and re-run the liveness badges together — a manual
+    // refresh is the moment the user expects honest status, not a cache hit.
+    await ref.read(addonRepositoryProvider.notifier).refreshAll();
+    ref.invalidate(addonHealthProvider);
+  }
 
   Future<void> _install(String url, {String? label}) async {
     final messenger = ScaffoldMessenger.of(context);
@@ -155,11 +150,29 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(addonRepositoryProvider);
+    final healthAsync = ref.watch(addonHealthProvider);
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
+    final l10n = AppLocalizations.of(context)!;
+    final healthByUrl = healthAsync.value ?? const <String, AddonHealth>{};
+    // While the probe is running the tiles show "checking" — but the moment
+    // the probe errored as a whole (should not happen, it is one map) the
+    // badges simply hide rather than lying.
+    final healthProbing = healthAsync.isLoading;
+    final healthGone = healthAsync.hasError;
+    final searching = _searchQuery.trim().isNotEmpty;
+    final filtered = [
+      for (final addon in state.addons)
+        if (addon.matchesQuery(_searchQuery)) addon,
+    ];
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        LayoutConstants.shellBottomContentPadding(context),
+      ),
       children: [
         // Top Management Card
         Card(
@@ -182,9 +195,7 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
                       ),
                     ),
                     DpadFocusable(
-                      onSelect: () => unawaited(
-                        ref.read(addonRepositoryProvider.notifier).refreshAll(),
-                      ),
+                      onSelect: () => unawaited(_refreshAll()),
                       child: const SizedBox.shrink(),
                       builder: (context, focusState, _) {
                         final isFocused = focusState.focused;
@@ -201,11 +212,7 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
                           ),
                           child: IconButton(
                             tooltip: 'Refresh manifests',
-                            onPressed: () => unawaited(
-                              ref
-                                  .read(addonRepositoryProvider.notifier)
-                                  .refreshAll(),
-                            ),
+                            onPressed: () => unawaited(_refreshAll()),
                             icon: const Icon(Icons.refresh_rounded),
                           ),
                         );
@@ -310,13 +317,15 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
         Row(
           children: [
             Text(
-              'Installed (${state.addons.length})',
+              searching
+                  ? 'Installed (${filtered.length}/${state.addons.length})'
+                  : 'Installed (${state.addons.length})',
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
             ),
             const Spacer(),
-            if (state.addons.isNotEmpty)
+            if (state.addons.isNotEmpty && !searching)
               Text(
                 'Use 3-dot menu to reorder',
                 style: theme.textTheme.labelSmall?.copyWith(
@@ -325,6 +334,29 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
               ),
           ],
         ),
+        if (state.addons.length >= 2) ...[
+          const SizedBox(height: 10),
+          TextField(
+            controller: _searchController,
+            textInputAction: TextInputAction.search,
+            onChanged: (value) => setState(() => _searchQuery = value),
+            decoration: InputDecoration(
+              isDense: true,
+              prefixIcon: const Icon(Icons.search_rounded),
+              suffixIcon: _searchQuery.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: l10n.discoverClearSearch,
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: _clearSearch,
+                    ),
+              hintText: l10n.addonManageSearchHint,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 10),
         if (state.isLoading && state.addons.isEmpty)
           const Padding(
@@ -343,43 +375,60 @@ class _AddonManageViewState extends ConsumerState<AddonManageView> {
               ),
             ),
           ),
-        for (int i = 0; i < state.addons.length; i++) ...[
-          _AddonTile(
-            key: ValueKey(state.addons[i].manifestUrl),
-            addon: state.addons[i],
-            index: i,
-            isFirst: i == 0,
-            isLast: i == state.addons.length - 1,
-            onToggle: (value) => unawaited(
-              ref
-                  .read(addonRepositoryProvider.notifier)
-                  .setEnabled(state.addons[i].manifestUrl, value),
+        if (!state.isLoading && state.addons.isNotEmpty && filtered.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20),
+            child: Text(
+              l10n.addonManageNoMatch(_searchQuery),
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
             ),
-            onRemove: () => unawaited(_confirmRemove(state.addons[i])),
-            onMoveUp: i > 0
-                ? () => unawaited(
-                    ref
-                        .read(addonRepositoryProvider.notifier)
-                        .reorder(i, i - 1),
-                  )
-                : null,
-            onMoveDown: i < state.addons.length - 1
-                ? () => unawaited(
-                    ref
-                        .read(addonRepositoryProvider.notifier)
-                        .reorder(i, i + 2),
-                  )
-                : null,
-            onConfigure: () async {
-              final configureUrl = AddonTransport.baseUrl(
-                state.addons[i].manifestUrl,
-              );
-              final uri = Uri.tryParse('$configureUrl/configure');
-              if (uri == null) return;
-              await launchUrl(uri, mode: LaunchMode.externalApplication);
-            },
           ),
-        ],
+        // Index into state.addons so reorder stays correct while searching
+        // only hides rows (reorder actions are disabled while searching).
+        for (int i = 0; i < state.addons.length; i++)
+          if (state.addons[i].matchesQuery(_searchQuery))
+            _AddonTile(
+              key: ValueKey(state.addons[i].manifestUrl),
+              addon: state.addons[i],
+              index: i,
+              isFirst: i == 0,
+              isLast: i == state.addons.length - 1,
+              health: healthGone
+                  ? null
+                  : healthByUrl[state.addons[i].manifestUrl],
+              healthProbing: !healthGone && healthProbing,
+              onToggle: (value) => unawaited(
+                ref
+                    .read(addonRepositoryProvider.notifier)
+                    .setEnabled(state.addons[i].manifestUrl, value),
+              ),
+              onRemove: () => unawaited(_confirmRemove(state.addons[i])),
+              onMoveUp: i > 0 && !searching
+                  ? () => unawaited(
+                      ref
+                          .read(addonRepositoryProvider.notifier)
+                          .reorder(i, i - 1),
+                    )
+                  : null,
+              onMoveDown: i < state.addons.length - 1 && !searching
+                  ? () => unawaited(
+                      ref
+                          .read(addonRepositoryProvider.notifier)
+                          .reorder(i, i + 2),
+                    )
+                  : null,
+              onConfigure: () async {
+                final configureUrl = AddonTransport.baseUrl(
+                  state.addons[i].manifestUrl,
+                );
+                final uri = Uri.tryParse('$configureUrl/configure');
+                if (uri == null) return;
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              },
+            ),
       ],
     );
   }
@@ -390,6 +439,10 @@ class _AddonTile extends StatefulWidget {
   final int index;
   final bool isFirst;
   final bool isLast;
+
+  /// Liveness verdict from [addonHealthProvider] — null while probing.
+  final AddonHealth? health;
+  final bool healthProbing;
   final ValueChanged<bool> onToggle;
   final VoidCallback onRemove;
   final Future<void> Function() onConfigure;
@@ -402,6 +455,8 @@ class _AddonTile extends StatefulWidget {
     required this.index,
     required this.isFirst,
     required this.isLast,
+    required this.health,
+    required this.healthProbing,
     required this.onToggle,
     required this.onRemove,
     required this.onConfigure,
@@ -543,6 +598,14 @@ class _AddonTileState extends State<_AddonTile> {
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: cs.error,
                                 ),
+                              ),
+                            )
+                          else
+                            Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: _HealthBadge(
+                                health: widget.health,
+                                probing: widget.healthProbing,
                               ),
                             ),
                           const SizedBox(height: 6),
@@ -1113,6 +1176,67 @@ class _DebridCardState extends ConsumerState<_DebridCard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Small Nuvio-style liveness line for one installed add-on: coloured dot +
+/// "Working · 340 ms" / "Unavailable" / "Checking add-on…". Every string runs
+/// through AppLocalizations — the hardcoded-strings gate polices this file.
+class _HealthBadge extends StatelessWidget {
+  final AddonHealth? health;
+  final bool probing;
+
+  const _HealthBadge({required this.health, required this.probing});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final Color color;
+    final IconData icon;
+    final String label;
+    final health = this.health;
+    if (health == null) {
+      if (!probing) return const SizedBox.shrink();
+      color = cs.onSurfaceVariant;
+      icon = Icons.hourglass_top_rounded;
+      label = l10n.addonHealthChecking;
+    } else {
+      switch (health.status) {
+        case AddonHealthStatus.working:
+          color = const Color(0xFF4CAF50);
+          icon = Icons.check_circle_rounded;
+          label = l10n.addonHealthWorking(health.latencyMs ?? 0);
+        case AddonHealthStatus.unavailable:
+          color = cs.error;
+          icon = Icons.error_rounded;
+          label = l10n.addonHealthUnavailable;
+      }
+    }
+
+    return Semantics(
+      label: label,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

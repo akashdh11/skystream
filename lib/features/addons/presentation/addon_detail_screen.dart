@@ -905,12 +905,16 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
         context,
         item: item,
         request: AddonStreamRequest(
-          type: meta.isSeries ? 'series' : 'movie',
+          // Preserve the meta's own type (other/tv/…) so bridges like
+          // CNCVerse answer /stream on the type they published.
+          type: meta.streamRequestType,
           contentId: meta.id,
           videoId: firstVideo?.id,
           season: firstVideo?.season,
           episode: firstVideo?.episode,
           imdbId: meta.imdbId,
+          title: meta.name,
+          year: meta.year,
         ),
         episode: firstVideo?.toEpisode(),
         playlist: meta.videos,
@@ -1033,12 +1037,14 @@ class _AddonDetailScreenState extends ConsumerState<AddonDetailScreen> {
     }
 
     AddonStreamRequest requestFor(AddonVideo video) => AddonStreamRequest(
-      type: meta.isSeries ? 'series' : 'movie',
+      type: meta.streamRequestType,
       contentId: meta.id,
       videoId: video.id,
       season: video.season,
       episode: video.episode,
       imdbId: meta.imdbId,
+      title: meta.name,
+      year: meta.year,
     );
 
     return Column(

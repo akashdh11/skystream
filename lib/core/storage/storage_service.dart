@@ -452,7 +452,13 @@ class StorageService {
 
   // --- Player Settings ---
   Future<void> setPlayerSetting(String key, dynamic value) async {
-    await _settingsBox.put(key, value);
+    // Hive stores null as a present entry; delete so get() returns the
+    // default and preferredPlayer: null means "internal" again.
+    if (value == null) {
+      await _settingsBox.delete(key);
+    } else {
+      await _settingsBox.put(key, value);
+    }
   }
 
   T? getPlayerSetting<T>(String key, {T? defaultValue}) {

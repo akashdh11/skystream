@@ -2,6 +2,24 @@
   "@@locale": "en",
   "appTitle": "SkyStream",
   "languageName": "English",
+  "addonHealthChecking": "Checking add-on…",
+  "@addonHealthChecking": {
+    "description": "Manage tab, Stremio add-ons: the liveness probe for an installed add-on is still running."
+  },
+  "addonHealthWorking": "Working · {ms} ms",
+  "@addonHealthWorking": {
+    "description": "Manage tab, Stremio add-ons: the add-on answered its manifest ping. {ms} is the round-trip latency in milliseconds.",
+    "placeholders": {
+      "ms": {
+        "type": "int",
+        "example": "340"
+      }
+    }
+  },
+  "addonHealthUnavailable": "Unavailable",
+  "@addonHealthUnavailable": {
+    "description": "Manage tab, Stremio add-ons: the add-on did not answer its manifest ping (offline, moved, or wrong URL)."
+  },
   "home": "Home",
   "search": "Search",
   "explore": "Explore",
@@ -328,6 +346,10 @@
     }
   },
   "install": "Install",
+  "discoverSearchHint": "Search community add-ons",
+  "discoverClearSearch": "Clear",
+  "discoverNeedsWebSetup": "Needs quick setup on the add-on's website",
+  "discoverOpenSetup": "Set up on the add-on website",
   "error": "Error",
   "ok": "OK",
   "pluginSettings": "{pluginName} Settings",
@@ -1197,5 +1219,36 @@
     "placeholders": {
       "count": { "type": "int" }
     }
+  },
+"addonSourcesSearchTooltip": "Search links",
+  "@addonSourcesSearchTooltip": {
+    "description": "Stremio sources sheet header: opens the free-text filter over add-on and provider names."
+  },
+  "addonSourcesCloseSearchTooltip": "Close search",
+  "@addonSourcesCloseSearchTooltip": {
+    "description": "Stremio sources sheet header: hides the search field and clears the query."
+  },
+  "addonSourcesSearchHint": "Add-on, provider, quality…",
+  "@addonSourcesSearchHint": {
+    "description": "Stremio sources sheet search field placeholder. Users type an add-on name (Torrentio), an inner provider (VegaMovies), or a quality token."
+  },
+  "addonSourcesNoMatchFilter": "No links match. Clear search or try \"All\".",
+  "@addonSourcesNoMatchFilter": {
+    "description": "Stremio sources sheet empty state when HD/kind chips or the text search hide every link."
+  },
+  "addonManageSearchHint": "Search installed add-ons…",
+  "@addonManageSearchHint": {
+    "description": "Installed add-ons list on the Manage tab: placeholder for filtering by name, id, or resource."
+  },
+  "addonManageNoMatch": "No installed add-on matches \"{query}\".",
+  "@addonManageNoMatch": {
+    "description": "Installed add-ons list empty state when the search box filters everything out.",
+    "placeholders": {
+      "query": {
+        "type": "String",
+        "example": "torrentio"
+      }
+    }
   }
 }
+

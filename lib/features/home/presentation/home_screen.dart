@@ -439,7 +439,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 ),
               ),
 
-              const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
+              SliverPadding(
+                padding: EdgeInsets.only(
+                  bottom: LayoutConstants.shellBottomContentPadding(context),
+                ),
+              ),
             ],
           ),
         ),

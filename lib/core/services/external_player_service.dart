@@ -221,10 +221,12 @@ class ExternalPlayerService {
   /// What a hand-off to [player] can still tell the origin about the request.
   ///
   /// Android goes out as an ACTION_VIEW intent carrying a URL, a package, a
-  /// MIME type and a title and nothing else (MainActivity.kt); iOS goes out as
-  /// a URL scheme; macOS hands the URL to `open -a`, which passes it as a
-  /// document and gives no argv to add to. None of those three has anywhere to
-  /// put a header. The desktop CLI hand-off does, as far as the player's own
+  /// MIME type, a title and the headers as extras (MainActivity.kt) — but the
+  /// extras are best-effort: VLC, MX and Just Player read them, everything
+  /// else ignores them, so the table still counts Android as carrying nothing
+  /// *guaranteed*. iOS goes out as a URL scheme; macOS hands the URL to
+  /// `open -a`, which passes it as a document and gives no argv to add to.
+  /// The desktop CLI hand-off does carry headers, as far as the player's own
   /// options reach: VLC has the two above, mpv has `--user-agent`,
   /// `--referrer` and `--http-header-fields` for the rest.
   ExternalHeaderSupport headerSupport(
@@ -381,12 +383,18 @@ class ExternalPlayerService {
       // Use the native Kotlin channel which constructs a proper Android Intent.
       // This avoids url_launcher's Uri.parse() which breaks on video URLs
       // containing query parameters (?key=value&...).
+      //
+      // The headers ride along as intent extras (MainActivity.kt turns them
+      // into `HTTP_HEADERS` and friends). They are best-effort: VLC, MX and
+      // Just Player read them, other players ignore them, so the header
+      // table above still counts Android as carrying nothing guaranteed.
       final result = await _playerChannel
           .invokeMethod<bool>('launchVideoInPlayer', {
             'url': videoUrl,
             'package': player.androidPackage,
             'mimeType': 'video/*',
             'title': ?title,
+            'headers': headers,
           });
       return result ?? false;
     } on PlatformException catch (e) {

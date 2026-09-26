@@ -984,9 +984,14 @@ void showDefaultPlayerDialog(
       content: SingleChildScrollView(
         child: RadioGroup<String?>(
           groupValue: currentPlayerId,
-          onChanged: (val) {
-            ref.read(playerSettingsProvider.notifier).setPreferredPlayer(val);
-            Navigator.pop<void>(context);
+          onChanged: (val) async {
+            // Close only once the choice is on disk: a relaunch in the gap
+            // would read the old player back and the "Default Player" row
+            // would lie until the next launch.
+            await ref
+                .read(playerSettingsProvider.notifier)
+                .setPreferredPlayer(val);
+            if (context.mounted) Navigator.pop<void>(context);
           },
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -999,11 +1004,11 @@ void showDefaultPlayerDialog(
                   subtitle: Text(l10n.builtInPlayer),
                   leading: const Radio<String?>(value: null),
                   trailing: const Icon(Icons.play_circle_filled_rounded),
-                  onTap: () {
-                    ref
+                  onTap: () async {
+                    await ref
                         .read(playerSettingsProvider.notifier)
                         .setPreferredPlayer(null);
-                    Navigator.pop<void>(context);
+                    if (context.mounted) Navigator.pop<void>(context);
                   },
                 ),
               ),
@@ -1017,11 +1022,11 @@ void showDefaultPlayerDialog(
                     title: Text(player.displayName),
                     leading: Radio<String?>(value: player.id),
                     trailing: Icon(player.icon),
-                    onTap: () {
-                      ref
+                    onTap: () async {
+                      await ref
                           .read(playerSettingsProvider.notifier)
                           .setPreferredPlayer(player.id);
-                      Navigator.pop<void>(context);
+                      if (context.mounted) Navigator.pop<void>(context);
                     },
                   ),
                 );

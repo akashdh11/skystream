@@ -7,6 +7,12 @@ import 'custom_widgets.dart';
 /// Asks for one line of text and pops with the trimmed value, or `null` on
 /// cancel.
 ///
+/// What confirms it: the field's own Enter / numpad-Enter (its IME action),
+/// or an explicit press on the confirm button. Select is deliberately bound
+/// to nothing in this dialog — on Android TV it is the leanback keyboard's
+/// letter-select key, and a dialog that claimed it would make mid-word entry
+/// impossible while the field is focused.
+///
 /// The controller lives in this widget's State on purpose. `await showDialog`
 /// resolves the moment the route is popped, but the dialog's element tree
 /// stays mounted for the exit transition and TextField re-subscribes to its

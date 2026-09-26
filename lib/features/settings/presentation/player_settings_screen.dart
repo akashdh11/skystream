@@ -65,7 +65,7 @@ class PlayerSettingsScreen extends ConsumerWidget {
             // Vertical only; SettingsGroup owns the horizontal inset.
             padding: const EdgeInsets.symmetric(
               vertical: LayoutConstants.spacingSm,
-            ).copyWith(bottom: 100),
+            ).copyWith(bottom: LayoutConstants.shellBottomContentPadding(context)),
             children: [
               SettingsGroup(
                 title: l10n.player,

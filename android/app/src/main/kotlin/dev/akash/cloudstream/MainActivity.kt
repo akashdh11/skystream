@@ -1,6 +1,7 @@
 package dev.akash.skystream
 
 import android.content.Intent
+import android.os.Bundle
 import android.net.Uri
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -127,6 +128,8 @@ class MainActivity : FlutterActivity() {
                 val packageName = call.argument<String>("package")
                 val mimeType = call.argument<String>("mimeType") ?: "video/*"
                 val title = call.argument<String>("title")
+                @Suppress("UNCHECKED_CAST")
+                val headers = call.argument<Map<String, String>>("headers")
 
                 try {
                     val uri = if (videoUrl.startsWith("file://") || (videoUrl.startsWith("/") && File(videoUrl).exists())) {
@@ -148,6 +151,23 @@ class MainActivity : FlutterActivity() {
                         if (!title.isNullOrEmpty()) {
                             putExtra("title", title)
                             putExtra("android.intent.extra.TITLE", title)
+                        }
+                        // VLC / MX / Just Player style HTTP headers.
+                        if (!headers.isNullOrEmpty()) {
+                            val headerBundle = Bundle()
+                            val headerString = StringBuilder()
+                            for ((key, value) in headers) {
+                                if (key.isBlank() || value.isBlank()) continue
+                                headerBundle.putString(key, value)
+                                headerString.append(key).append(": ").append(value).append("\r\n")
+                            }
+                            putExtra("android.media.intent.extra.HTTP_HEADERS", headerBundle)
+                            putExtra("headers", headerString.toString())
+                            // VLC-Android accepts a string array of "Key: Value".
+                            putExtra(
+                                "android.media.intent.extra.HTTP_HEADERS_ARRAY",
+                                headers.map { "${it.key}: ${it.value}" }.toTypedArray(),
+                            )
                         }
                     }
                     startActivity(intent)

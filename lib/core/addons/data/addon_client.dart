@@ -81,6 +81,24 @@ class _Entry {
   const _Entry(this.value, this.expiresAt);
 }
 
+/// Signatures of add-ons that trade in pirate streams. The community
+/// directory is largely subtitles/metadata/catalog utilities, but p2p and
+/// torrent catalog add-ons do appear in it; SkyStream does not surface those
+/// — they are the copyright problems that get unofficial directories and
+/// their users in trouble. (Note these are dropped from Discover only;
+/// nothing is blocked server-side, and anything already installed keeps
+/// working.)
+final RegExp _copyrightRiskPattern = RegExp(
+  r'(?:torrent|magnet|p2p|pirate(?:bay)?|yify|rarbg|1337x|1377x|kickass|eztv|limetorrent|h33t|iptv)',
+  caseSensitive: false,
+);
+
+bool _looksCopyrightRisky(AddonManifest manifest) {
+  if (manifest.behaviorHints.p2p) return true;
+  final haystack = '${manifest.id} ${manifest.name} ${manifest.description}';
+  return _copyrightRiskPattern.hasMatch(haystack);
+}
+
 /// Community add-on entry from Stremio's public collection.
 class CommunityAddon {
   final String transportUrl;
@@ -103,6 +121,12 @@ class AddonClient {
 
   static const Duration _fast = Duration(seconds: 12);
   static const Duration _slow = Duration(seconds: 20);
+
+  /// Scraping bridges (CNCVerse, multi-provider profiles) routinely take
+  /// 20–30 s to assemble /stream answers. The generic [_slow] ceiling was
+  /// clipping them mid-scrape and the sheet only ever showed
+  /// "TimeoutException after 0:00:18". Streams get their own budget.
+  static const Duration _stream = Duration(seconds: 45);
 
   Options _options(Duration timeout) => Options(
     receiveTimeout: timeout,
@@ -251,7 +275,7 @@ class AddonClient {
     return _cache.run('stream:$url', streamTtl, () async {
       final json = await _getJson(
         url,
-        timeout: _slow,
+        timeout: _stream,
         cancelToken: cancelToken,
       );
       final streams = json?['streams'];
@@ -268,6 +292,95 @@ class AddonClient {
         }
       }
       return out;
+    });
+  }
+
+
+  /// Resolve a title to an IMDb id via Cinemeta search.
+  ///
+  /// Scraper bridges (CNCVerse Multimovies, …) identify titles with opaque
+  /// `cnc:…` ids that often return empty `/stream` lists. Stremio and Nuvio
+  /// still show links because they also query by IMDb. We look the title up
+  /// once (cached) and feed `tt…` into the stream id-candidate list.
+  Future<String?> resolveImdbId({
+    required String title,
+    String? type,
+    int? year,
+    CancelToken? cancelToken,
+  }) async {
+    final cleaned = title.trim();
+    if (cleaned.isEmpty) return null;
+
+    final cacheKey =
+        'imdb:${cleaned.toLowerCase()}|${(type ?? '').toLowerCase()}|${year ?? ''}';
+    return _cache.run(cacheKey, const Duration(hours: 12), () async {
+      // Prefer the matching content type; fall back across movie/series.
+      final types = <String>[];
+      final t = (type ?? '').toLowerCase();
+      if (t == 'series' || t == 'tv' || t == 'show') {
+        types.addAll(const ['series', 'movie']);
+      } else if (t == 'movie' || t == 'film' || t == 'other') {
+        types.addAll(const ['movie', 'series']);
+      } else {
+        types.addAll(const ['movie', 'series']);
+      }
+
+      String? best;
+      var bestScore = -1;
+
+      for (final catalogType in types) {
+        final url =
+            'https://v3-cinemeta.strem.io/catalog/$catalogType/top/search='
+            '${Uri.encodeComponent(cleaned)}.json';
+        final json = await _getJson(
+          url,
+          timeout: _fast,
+          cancelToken: cancelToken,
+        );
+        final metas = json?['metas'];
+        if (metas is! List) continue;
+
+        final needle = cleaned.toLowerCase();
+        for (final entry in metas) {
+          if (entry is! Map) continue;
+          final map = Map<String, dynamic>.from(entry);
+          final name = (map['name'] as String?)?.trim() ?? '';
+          if (name.isEmpty) continue;
+          final id = (map['imdb_id'] as String?)?.trim() ??
+              (map['id'] as String?)?.trim() ??
+              '';
+          final match = RegExp(r'tt\d{5,}', caseSensitive: false).firstMatch(id);
+          if (match == null) continue;
+          final imdb = match.group(0)!.toLowerCase();
+
+          var score = 0;
+          final lower = name.toLowerCase();
+          if (lower == needle) {
+            score = 100;
+          } else if (lower.contains(needle) || needle.contains(lower)) {
+            score = 60;
+          } else {
+            // Token overlap
+            final a = needle.split(RegExp(r'[^a-z0-9]+')).where((s) => s.length > 2).toSet();
+            final b = lower.split(RegExp(r'[^a-z0-9]+')).where((s) => s.length > 2).toSet();
+            if (a.isEmpty || b.isEmpty) continue;
+            final overlap = a.intersection(b).length;
+            score = ((overlap / a.length) * 50).round();
+            if (score < 25) continue;
+          }
+
+          if (year != null) {
+            final info = '${map['releaseInfo'] ?? map['year'] ?? ''}';
+            if (info.contains('$year')) score += 20;
+          }
+          if (score > bestScore) {
+            bestScore = score;
+            best = imdb;
+          }
+        }
+        if (bestScore >= 100) break; // exact name match
+      }
+      return best;
     });
   }
 
@@ -307,6 +420,18 @@ class AddonClient {
   }
 
   /// Stremio's official community collection, used by the Discover tab.
+  ///
+  /// This is the same `api.strem.io/addonscollection.json` the official
+  /// Stremio apps render as their Community add-ons page, so what the
+  /// Discover tab shows tracks what a Play Store Stremio install shows.
+  ///
+  /// Failure handling is deliberate: a failed request throws (the Discover
+  /// tab shows an error row with a retry) and, because it throws, it is NOT
+  /// cached — the old code swallowed errors into an empty list and cached
+  /// that for three hours, leaving the directory dead for hours after a
+  /// single offline blip. Individual broken entries are skipped instead,
+  /// with duplicates by manifest id folded (the server occasionally lists
+  /// the same add-on twice, e.g. community.trakt-tv).
   Future<List<CommunityAddon>> communityAddons({
     bool forceRefresh = false,
   }) async {
@@ -314,34 +439,54 @@ class AddonClient {
     if (forceRefresh) _cache.invalidatePrefix(key);
 
     return _cache.run(key, const Duration(hours: 3), () async {
-      try {
-        final response = await _dio.get<dynamic>(
-          'https://api.strem.io/addonscollection.json',
-          options: _options(_slow),
+      final response = await _dio.get<dynamic>(
+        'https://api.strem.io/addonscollection.json',
+        options: _options(_slow),
+      );
+      final data = response.data;
+      if (data is! List) {
+        throw const AddonException(
+          'The add-on directory returned an unexpected response.',
         );
-        final data = response.data;
-        if (data is! List) return const <CommunityAddon>[];
-        final out = <CommunityAddon>[];
-        for (final entry in data) {
-          if (entry is! Map) continue;
+      }
+      final out = <CommunityAddon>[];
+      final seenIds = <String>{};
+      for (final entry in data) {
+        if (entry is! Map) continue;
+        try {
           final map = Map<String, dynamic>.from(entry);
           final transportUrl = map['transportUrl'] as String?;
           final manifest = map['manifest'];
-          if (transportUrl == null || manifest is! Map) continue;
-          out.add(
-            CommunityAddon(
-              transportUrl: transportUrl,
-              manifest: AddonManifest.fromJson(
-                Map<String, dynamic>.from(manifest),
-              ),
-            ),
+          if (transportUrl == null ||
+              transportUrl.isEmpty ||
+              manifest is! Map) {
+            continue;
+          }
+          final parsed = AddonManifest.fromJson(
+            Map<String, dynamic>.from(manifest),
           );
+          if (parsed.id.isEmpty || parsed.name.isEmpty) continue;
+          if (!seenIds.add(parsed.id)) continue; // server duplicate
+          if (_looksCopyrightRisky(parsed)) {
+            if (kDebugMode) {
+              debugPrint(
+                '[AddonClient] copyright-risk add-on hidden: ${parsed.id}',
+              );
+            }
+            continue;
+          }
+          out.add(CommunityAddon(transportUrl: transportUrl, manifest: parsed));
+        } catch (error) {
+          // One junk manifest must not sink the whole directory.
+          if (kDebugMode) {
+            debugPrint('[AddonClient] community entry skipped: $error');
+          }
         }
-        return out;
-      } catch (error) {
-        if (kDebugMode) debugPrint('[AddonClient] community list: $error');
-        return const <CommunityAddon>[];
       }
+      if (out.isEmpty) {
+        throw const AddonException('The add-on directory returned nothing.');
+      }
+      return out;
     });
   }
 

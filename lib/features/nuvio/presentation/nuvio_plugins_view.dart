@@ -91,9 +91,9 @@ class _NuvioPluginsViewState extends ConsumerState<NuvioPluginsView> {
     return FocusTraversalGroup(
       policy: ReadingOrderTraversalPolicy(),
       child: ListView(
-        padding: const EdgeInsets.only(
+        padding: EdgeInsets.only(
           top: LayoutConstants.spacingMd,
-          bottom: 100,
+          bottom: LayoutConstants.shellBottomContentPadding(context),
         ),
         addAutomaticKeepAlives: false,
         children: [

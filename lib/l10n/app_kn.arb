@@ -2,6 +2,9 @@
   "@@locale": "kn",
   "appTitle": "SkyStream",
   "languageName": "ಕನ್ನಡ",
+  "addonHealthChecking": "ಆಡ್-ಆನ್ ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…",
+  "addonHealthWorking": "ಕೆಲಸ ಮಾಡುತ್ತಿದೆ · {ms} ಮಿ.ಸೆ.",
+  "addonHealthUnavailable": "ಲಭ್ಯವಿಲ್ಲ",
   "home": "ಮುಖಪುಟ",
   "search": "ಹುಡುಕಿ",
   "explore": "ಅನ್ವೇಷಿಸಿ",
@@ -199,6 +202,10 @@
   "installed": "ಇನ್‌ಸ್ಟಾಲ್ ಆಗಿದೆ",
   "updateTo": "{version} ಗೆ ಅಪ್‌ಡೇಟ್ ಮಾಡಿ",
   "install": "ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ",
+  "discoverSearchHint": "Search community add-ons",
+  "discoverClearSearch": "Clear",
+  "discoverNeedsWebSetup": "Needs quick setup on the add-on's website",
+  "discoverOpenSetup": "Set up on the add-on website",
   "error": "ದೋಷ",
   "ok": "ಸರಿ",
   "pluginSettings": "{pluginName} ಸೆಟ್ಟಿಂಗ್‌ಗಳು",
@@ -480,5 +487,12 @@
   "playerSourceOpening": "ತೆರೆಯಲಾಗುತ್ತಿದೆ…",
   "playerSourceNotChecked": "ಪರಿಶೀಲಿಸಿಲ್ಲ",
   "playerReasonNoAnswer": "ಲಿಂಕ್‌ನಿಂದ ಉತ್ತರ ಬಂದಿಲ್ಲ",
-  "playerSourceUnplayable": "ಪ್ಲೇ ಆಗಲಿಲ್ಲ"
+  "playerSourceUnplayable": "ಪ್ಲೇ ಆಗಲಿಲ್ಲ",
+"addonSourcesSearchTooltip": "Search links",
+  "addonSourcesCloseSearchTooltip": "Close search",
+  "addonSourcesSearchHint": "Add-on, provider, quality…",
+  "addonSourcesNoMatchFilter": "No links match. Clear search or try \"All\".",
+  "addonManageSearchHint": "Search installed add-ons…",
+  "addonManageNoMatch": "No installed add-on matches \"{query}\"."
 }
+

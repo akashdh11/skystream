@@ -213,7 +213,15 @@ class NuvioStreamService {
     void publish(String scraperId, String name, List<NuvioStreamResult> found) {
       var added = 0;
       for (final result in found) {
-        if (!seen.add('$scraperId|${result.url}')) continue;
+        // Encode both halves: a raw `|` inside the url (or the scraper id)
+        // could otherwise split the key into someone else's id|url pair and
+        // the second link would be deduped away as a duplicate.
+        final key =
+            '${Uri.encodeComponent(scraperId)}|'
+            '${Uri.encodeComponent(result.url)}';
+        if (!seen.add(key)) {
+          continue;
+        }
         streams.add(result);
         added++;
       }

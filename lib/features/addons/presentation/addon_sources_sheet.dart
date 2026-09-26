@@ -14,10 +14,11 @@ import '../../../core/addons/models/addon_meta.dart';
 import '../../../core/addons/models/addon_stream_source.dart';
 import '../../../core/domain/entity/multimedia_item.dart';
 import '../../../core/services/download_service.dart';
+import '../../../l10n/generated/app_localizations.dart';
+import '../../../shared/focus/app_focus.dart';
 import '../../details/presentation/playback_launcher.dart';
 import '../../settings/presentation/player_settings_provider.dart';
 import '../../sources/presentation/source_sheet_widgets.dart';
-import '../../../shared/focus/app_focus.dart';
 
 /// Add-on sources sheet: play or download a title using **only** the links
 /// returned by installed add-ons.
@@ -74,6 +75,11 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
   _KindFilter _kind = _KindFilter.all;
   String? _debridStatus;
 
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
+  bool _searchOpen = false;
+  String _searchQuery = '';
+
   /// Whether the sheet was opened to download rather than to play. It is fixed
   /// for the lifetime of the sheet — both actions sit on every row, so the mode
   /// only picks the default action and hides links that cannot be saved.
@@ -89,7 +95,63 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
   void dispose() {
     _disposed = true;
     _sub?.cancel();
+    _searchController.dispose();
+    _searchFocus.dispose();
     super.dispose();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _searchOpen = !_searchOpen;
+      if (!_searchOpen) {
+        _searchController.clear();
+        _searchQuery = '';
+        return;
+      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _searchFocus.requestFocus();
+      });
+    });
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+  }
+
+  void _applyProviderFilter(String name, {required bool selected}) {
+    setState(() {
+      if (selected) {
+        _searchQuery = name;
+        _searchController.value = TextEditingValue(
+          text: name,
+          selection: TextSelection.collapsed(offset: name.length),
+        );
+      } else {
+        _searchQuery = '';
+        _searchController.clear();
+      }
+    });
+  }
+
+  Widget _headerAction({
+    required String tooltip,
+    required IconData icon,
+    required VoidCallback onPressed,
+    required Color color,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.15),
+      ),
+      child: IconButton(
+        tooltip: tooltip,
+        visualDensity: VisualDensity.standard,
+        icon: Icon(icon, size: kSourceSheetHeaderIcon, color: color),
+        onPressed: onPressed,
+      ),
+    );
   }
 
   Future<void> _start({bool forceRefresh = false}) async {
@@ -119,6 +181,7 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
         if (_downloadMode && (!s.isDirect || s.url == null)) {
           return false;
         }
+        if (!s.matchesQuery(_searchQuery)) return false;
         return switch (_kind) {
           _KindFilter.all => true,
           _KindFilter.direct => s.isDirect,
@@ -293,7 +356,11 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
     final buffer = StringBuffer()
       ..writeln('Addon sources diagnostics')
       ..writeln('title: ${widget.item.title}')
-      ..writeln('id candidates: ${widget.request.idCandidates.join(', ')}')
+      ..writeln(
+        'id candidates: ${widget.request.idCandidates.join(', ')}'
+        '${widget.request.imdbId == null ? '' : ' (imdb ${widget.request.imdbId})'}'
+        '${widget.request.title == null ? '' : ' · title lookup on'}',
+      )
       ..writeln(
         'add-ons: ${_result.streams.length} links, '
         '${_result.completedCount}/${_result.totalCount} done',
@@ -457,6 +524,7 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final glass = GlassPalette.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final episode = widget.episode;
     final subtitleText = episode != null
         ? 'S${episode.season} · E${episode.episode} ${episode.name}'
@@ -482,23 +550,19 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
       title: 'Stremio Sources',
       subtitle: subtitleText,
       actions: [
-        Container(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: cs.primary.withValues(alpha: 0.15),
-          ),
-          child: IconButton(
-            tooltip: 'Refresh',
-            // Standard density, like the close button beside it: compact is
-            // the desktop default and gives a 40 dp target.
-            visualDensity: VisualDensity.standard,
-            icon: Icon(
-              Icons.refresh_rounded,
-              size: kSourceSheetHeaderIcon,
-              color: cs.primary,
-            ),
-            onPressed: () => unawaited(_start(forceRefresh: true)),
-          ),
+        _headerAction(
+          tooltip: _searchOpen
+              ? l10n.addonSourcesCloseSearchTooltip
+              : l10n.addonSourcesSearchTooltip,
+          icon: _searchOpen ? Icons.search_off_rounded : Icons.search_rounded,
+          onPressed: _toggleSearch,
+          color: cs.primary,
+        ),
+        _headerAction(
+          tooltip: 'Refresh',
+          icon: Icons.refresh_rounded,
+          onPressed: () => unawaited(_start(forceRefresh: true)),
+          color: cs.primary,
         ),
       ],
       child: Column(
@@ -623,6 +687,72 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
             ),
           ),
 
+          if (_searchOpen) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                kSourceSheetGutter,
+                6,
+                kSourceSheetGutter,
+                0,
+              ),
+              child: TextField(
+                controller: _searchController,
+                focusNode: _searchFocus,
+                textInputAction: TextInputAction.search,
+                onChanged: (value) => setState(() => _searchQuery = value),
+                decoration: InputDecoration(
+                  isDense: true,
+                  prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                  suffixIcon: _searchQuery.isEmpty
+                      ? null
+                      : IconButton(
+                          tooltip: l10n.discoverClearSearch,
+                          icon: const Icon(Icons.close_rounded, size: 18),
+                          onPressed: _clearSearch,
+                        ),
+                  hintText: l10n.addonSourcesSearchHint,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+            ),
+            if (_result.streams.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: SizedBox(
+                  height: 34,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: kSourceSheetGutter,
+                    ),
+                    children: [
+                      for (final name in addonStreamProviderLabels(
+                        _result.streams,
+                      ))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: SourceFilterChip(
+                            text: name,
+                            selected:
+                                _searchQuery.trim().toLowerCase() ==
+                                name.toLowerCase(),
+                            outline: glass.tint(0.15),
+                            onSelected: (selected) =>
+                                _applyProviderFilter(name, selected: selected),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+
           const SizedBox(height: 6),
 
           // Stream Source List (Structured with Top Pick & Ready to play)
@@ -650,7 +780,7 @@ class _AddonSourcesSheetState extends ConsumerState<AddonSourcesSheet> {
                                 const SizedBox(height: 12),
                                 Text(
                                   _result.streams.isNotEmpty
-                                      ? 'No links match this filter. Try "All".'
+                                      ? l10n.addonSourcesNoMatchFilter
                                       : _result.error ??
                                             'No add-on returned links for this title. '
                                                 'Install a stream add-on such as Torrentio, '
@@ -898,9 +1028,11 @@ class _SourceRowState extends State<_SourceRow> {
               ),
               const SizedBox(height: 6),
 
-              // Source name (starts from left, uses all horizontal space)
+              // Add-on · provider (Nuvio-style: which add-on, which source
+              // inside it). Quality lives in the badge above so it is never
+              // missing from the row.
               Text(
-                stream.addonName,
+                stream.headline,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -912,10 +1044,10 @@ class _SourceRowState extends State<_SourceRow> {
               ),
               const SizedBox(height: 2),
 
-              // Description (starts from left, uses horizontal space)
+              // Stream's own label + description from the add-on.
               Text(
                 stream.subtitleLine,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: cs.onSurfaceVariant,

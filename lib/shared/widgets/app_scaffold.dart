@@ -231,9 +231,15 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
 
         if (profile.isTv || context.isTabletOrLarger) {
           return PopScope(
-            canPop: isAtDefaultHome,
+            canPop: false,
             onPopInvokedWithResult: (didPop, result) {
-              if (!didPop) {
+              if (isAtDefaultHome) {
+                // Nothing is left to go back to. The shell's own route has
+                // nowhere to pop to, so an unhandled back press is a button
+                // that does nothing — the most common "the app is stuck"
+                // report on a television. Leave the app instead.
+                SystemNavigator.pop();
+              } else {
                 widget.navigationShell.goBranch(defaultIndex);
               }
             },
@@ -335,9 +341,13 @@ class _AppScaffoldState extends ConsumerState<AppScaffold> {
         final mq = MediaQuery.of(context);
 
         return PopScope(
-          canPop: isAtDefaultHome,
+          canPop: false,
           onPopInvokedWithResult: (didPop, result) {
-            if (!didPop) {
+            if (isAtDefaultHome) {
+              // Same rule as the television branch: at the default home the
+              // back button leaves the app instead of doing nothing.
+              SystemNavigator.pop();
+            } else {
               widget.navigationShell.goBranch(defaultIndex);
             }
           },

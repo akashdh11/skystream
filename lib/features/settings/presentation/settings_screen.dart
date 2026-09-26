@@ -44,7 +44,7 @@ class SettingsScreen extends ConsumerWidget {
               // Accounts screen, which never added one.
               padding: const EdgeInsets.symmetric(
                 vertical: LayoutConstants.spacingSm,
-              ).copyWith(bottom: 100),
+              ).copyWith(bottom: LayoutConstants.shellBottomContentPadding(context)),
               children: [
                 _buildGeneralSettingsGroup(
                   context,

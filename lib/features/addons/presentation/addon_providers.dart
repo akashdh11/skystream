@@ -18,12 +18,14 @@ class BrowsableCatalog {
   const BrowsableCatalog({required this.addon, required this.catalog});
 
   String get title {
-    final type = catalog.type == 'series'
-        ? 'Series'
-        : catalog.type == 'movie'
-        ? 'Movies'
-        : catalog.type;
-    return '${catalog.name} · $type';
+    // Only the two canonical types get a pretty suffix; unusually typed
+    // catalogs (CNCVerse-style 'other'/'tv' rows) already carry their type
+    // in the server-provided name — "$name · other" reads as a duplication.
+    return switch (catalog.type) {
+      'series' => '${catalog.name} · Series',
+      'movie' => '${catalog.name} · Movies',
+      _ => catalog.name,
+    };
   }
 
   String get subtitle => addon.displayName;
@@ -205,4 +207,68 @@ Future<AddonMeta?> addonMeta(
 @riverpod
 Future<List<CommunityAddon>> communityAddons(Ref ref) {
   return ref.watch(addonClientProvider).communityAddons();
+}
+
+/// Outcome of one liveness probe, shown per add-on on the Manage tab — the
+/// Nuvio "Working / Unavailable" convention, for Stremio add-ons.
+enum AddonHealthStatus { working, unavailable }
+
+class AddonHealth {
+  final AddonHealthStatus status;
+
+  /// Manifest round-trip time — only set when [status] is working.
+  final int? latencyMs;
+
+  /// Why the probe failed (timeout, HTTP error, …), for debugging.
+  final String? message;
+
+  const AddonHealth.working(this.latencyMs)
+    : status = AddonHealthStatus.working,
+      message = null;
+
+  const AddonHealth.unavailable(this.message)
+    : status = AddonHealthStatus.unavailable,
+      latencyMs = null;
+}
+
+/// Ping every installed add-on's manifest concurrently. One dead host
+/// cannot stall the others — the map is always complete within [timeout].
+Future<Map<String, AddonHealth>> probeAddonsHealth(
+  AddonClient client,
+  List<ManagedAddon> addons, {
+  Duration timeout = const Duration(seconds: 8),
+}) async {
+  final results = await Future.wait([
+    for (final addon in addons)
+      () async {
+        final stopwatch = Stopwatch()..start();
+        try {
+          await client
+              .fetchManifest(addon.manifestUrl, forceRefresh: true)
+              .timeout(timeout);
+          return MapEntry(
+            addon.manifestUrl,
+            AddonHealth.working(stopwatch.elapsedMilliseconds),
+          );
+        } catch (error) {
+          return MapEntry(
+            addon.manifestUrl,
+            AddonHealth.unavailable(
+              error is AddonException ? error.message : error.toString(),
+            ),
+          );
+        }
+      }(),
+  ]);
+  return {for (final entry in results) entry.key: entry.value};
+}
+
+/// Liveness of every installed add-on, keyed by manifest URL. Re-probes
+/// automatically when the installed list changes (install/remove/refresh).
+@riverpod
+Future<Map<String, AddonHealth>> addonHealth(Ref ref) {
+  final addons = ref.watch(addonRepositoryProvider).addons;
+  final client = ref.watch(addonClientProvider);
+  if (addons.isEmpty) return Future.value(const {});
+  return probeAddonsHealth(client, addons);
 }

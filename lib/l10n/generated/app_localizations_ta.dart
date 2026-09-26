@@ -16,6 +16,17 @@ class AppLocalizationsTa extends AppLocalizations {
   String get languageName => 'தமிழ்';
 
   @override
+  String get addonHealthChecking => 'Checking add-on…';
+
+  @override
+  String addonHealthWorking(int ms) {
+    return 'Working · $ms ms';
+  }
+
+  @override
+  String get addonHealthUnavailable => 'Unavailable';
+
+  @override
   String get home => 'முகப்பு';
 
   @override
@@ -730,6 +741,19 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get install => 'நிறுவு';
+
+  @override
+  String get discoverSearchHint => 'Search community add-ons';
+
+  @override
+  String get discoverClearSearch => 'Clear';
+
+  @override
+  String get discoverNeedsWebSetup =>
+      'Needs quick setup on the add-on\'s website';
+
+  @override
+  String get discoverOpenSetup => 'Set up on the add-on website';
 
   @override
   String get error => 'பிழை';
@@ -1771,5 +1795,26 @@ class AppLocalizationsTa extends AppLocalizations {
       one: '1 add-on',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get addonSourcesSearchTooltip => 'Search links';
+
+  @override
+  String get addonSourcesCloseSearchTooltip => 'Close search';
+
+  @override
+  String get addonSourcesSearchHint => 'Add-on, provider, quality…';
+
+  @override
+  String get addonSourcesNoMatchFilter =>
+      'No links match. Clear search or try \"All\".';
+
+  @override
+  String get addonManageSearchHint => 'Search installed add-ons…';
+
+  @override
+  String addonManageNoMatch(String query) {
+    return 'No installed add-on matches \"$query\".';
   }
 }

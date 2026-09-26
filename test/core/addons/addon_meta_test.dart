@@ -129,6 +129,27 @@ void main() {
     });
   });
 
+  group('streamRequestType', () {
+    test('preserves other/tv so multi-provider bridges get the right /stream', () {
+      expect(
+        AddonMeta.fromJson(meta({'type': 'other', 'id': 'cnc:x'})).streamRequestType,
+        'other',
+      );
+      expect(
+        AddonMeta.fromJson(meta({'type': 'tv', 'id': 'cnc:y'})).streamRequestType,
+        'tv',
+      );
+      expect(
+        AddonMeta.fromJson(meta({'type': 'movie', 'id': 'tt1'})).streamRequestType,
+        'movie',
+      );
+      expect(
+        AddonMeta.fromJson(meta({'type': 'series', 'id': 'tt2'})).streamRequestType,
+        'series',
+      );
+    });
+  });
+
   group('AddonVideo.fromJson', () {
     test('accepts season and episode numbers sent as strings', () {
       final parsed = AddonMeta.fromJson(meta({

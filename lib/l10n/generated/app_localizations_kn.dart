@@ -16,6 +16,17 @@ class AppLocalizationsKn extends AppLocalizations {
   String get languageName => 'ಕನ್ನಡ';
 
   @override
+  String get addonHealthChecking => 'ಆಡ್-ಆನ್ ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…';
+
+  @override
+  String addonHealthWorking(int ms) {
+    return 'ಕೆಲಸ ಮಾಡುತ್ತಿದೆ · $ms ಮಿ.ಸೆ.';
+  }
+
+  @override
+  String get addonHealthUnavailable => 'ಲಭ್ಯವಿಲ್ಲ';
+
+  @override
   String get home => 'ಮುಖಪುಟ';
 
   @override
@@ -732,6 +743,19 @@ class AppLocalizationsKn extends AppLocalizations {
 
   @override
   String get install => 'ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ';
+
+  @override
+  String get discoverSearchHint => 'Search community add-ons';
+
+  @override
+  String get discoverClearSearch => 'Clear';
+
+  @override
+  String get discoverNeedsWebSetup =>
+      'Needs quick setup on the add-on\'s website';
+
+  @override
+  String get discoverOpenSetup => 'Set up on the add-on website';
 
   @override
   String get error => 'ದೋಷ';
@@ -1772,5 +1796,26 @@ class AppLocalizationsKn extends AppLocalizations {
       one: '1 add-on',
     );
     return '$_temp0';
+  }
+
+  @override
+  String get addonSourcesSearchTooltip => 'Search links';
+
+  @override
+  String get addonSourcesCloseSearchTooltip => 'Close search';
+
+  @override
+  String get addonSourcesSearchHint => 'Add-on, provider, quality…';
+
+  @override
+  String get addonSourcesNoMatchFilter =>
+      'No links match. Clear search or try \"All\".';
+
+  @override
+  String get addonManageSearchHint => 'Search installed add-ons…';
+
+  @override
+  String addonManageNoMatch(String query) {
+    return 'No installed add-on matches \"$query\".';
   }
 }

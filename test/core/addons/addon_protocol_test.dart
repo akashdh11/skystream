@@ -141,6 +141,26 @@ void main() {
       expect(loose.supportsId('stream', 'kitsu:42'), isTrue);
     });
 
+    // CNCVerse catalogs are typed `other`. Asking only movie/series yields
+    // empty /stream answers — `other` must lead the alias list.
+    test('other is asked first, then movie/series fallbacks', () {
+      final bridge = AddonManifest.fromJson(const {
+        'id': 'cnc',
+        'name': 'CNCVerse',
+        'version': '1',
+        'types': ['movie', 'series', 'other', 'tv'],
+        'resources': [
+          {
+            'name': 'stream',
+            'types': ['movie', 'series', 'other', 'tv'],
+          },
+        ],
+      });
+      expect(bridge.requestTypesFor('stream', 'other').first, 'other');
+      expect(bridge.requestTypesFor('stream', 'other'), contains('movie'));
+      expect(AddonManifest.typeAliases('other').first, 'other');
+    });
+
     test('idPrefixes gate matches prefix and prefix:', () {
       expect(manifest.supportsId('stream', 'tt0111161'), isTrue);
       expect(manifest.supportsId('stream', 'kitsu:42'), isFalse);
@@ -298,6 +318,44 @@ void main() {
       });
       expect(stream.proxyHeaders, {'Referer': 'https://site'});
     });
+
+    // Multi-provider bridges (CNCVerse, MovieBox aggregators) put the real
+    // source in `name`. The row must show "Add-on · Provider" and still
+    // surface a resolution badge when the free text only says "1080".
+    test('provider chip and bare resolution for multi-provider bridges', () {
+      final movieBox = AddonStreamSource.fromJson(const {
+        'name': 'MovieBox\n1080p WEB-DL',
+        'title': 'Waiting Hai',
+        'url': 'https://cdn.example/a.mp4',
+      }, addonId: 'cnc', addonName: 'CNCVerse Bridge');
+      expect(movieBox.providerName, 'MovieBox');
+      expect(movieBox.headline, 'CNCVerse Bridge · MovieBox');
+      expect(movieBox.qualityLabel, '1080p');
+
+      final bracket = AddonStreamSource.fromJson(const {
+        'name': '[VegaMovies] 4K',
+        'url': 'https://cdn.example/b.mp4',
+      }, addonId: 'cnc', addonName: 'CNCVerse Bridge');
+      expect(bracket.providerName, 'VegaMovies');
+      expect(bracket.qualityLabel, '4K');
+
+      final bare = AddonStreamSource.fromJson(const {
+        'name': 'MoviesDrive 1080',
+        'url': 'https://cdn.example/c.mp4',
+      }, addonId: 'cnc', addonName: 'CNCVerse Bridge');
+      expect(bare.providerName, 'MoviesDrive');
+      expect(bare.qualityScore, 1080);
+      expect(bare.qualityLabel, '1080p');
+
+      // A pure quality name is NOT a provider — headline stays the add-on.
+      final qualityOnly = AddonStreamSource.fromJson(const {
+        'name': '1080p',
+        'url': 'https://cdn.example/d.mp4',
+      }, addonId: 't', addonName: 'Torrentio');
+      expect(qualityOnly.providerName, isNull);
+      expect(qualityOnly.headline, 'Torrentio');
+      expect(qualityOnly.qualityLabel, '1080p');
+    });
   });
 
   group('AddonSubtitleTrack', () {
@@ -400,6 +458,31 @@ void main() {
       expect(DebridProvider.fromId('alldebrid'), DebridProvider.allDebrid);
       expect(DebridProvider.fromId(null), DebridProvider.none);
       expect(DebridProvider.fromId('nonsense'), DebridProvider.none);
+    });
+  });
+
+group('AddonStreamRequest id ordering', () {
+    test('opaque cnc ids put IMDb first so empty scrapers do not burn the budget', () {
+      const request = AddonStreamRequest(
+        type: 'other',
+        contentId:
+            'cnc:TXVsdGltb3ZpZXM6Omh0dHBzOi8vbXVsdGltb3ZpZXMuY2FzYS9tb3ZpZXMvZGVtb24tc2xheWVyLWtpbWV0c3Utbm8teWFpYmEtdG8tdGhlLWhhc2hpcmEtdHJhaW5pbmcv',
+        imdbId: 'tt30395619',
+        title: 'Demon Slayer: Kimetsu no Yaiba -To the Hashira Training',
+      );
+      expect(request.hasOpaqueContentId, isTrue);
+      expect(request.idCandidates.first, 'tt30395619');
+      expect(request.idCandidates, contains(request.contentId));
+    });
+
+    test('canonical IMDb content ids stay first', () {
+      const request = AddonStreamRequest(
+        type: 'movie',
+        contentId: 'tt0111161',
+        imdbId: 'tt0111161',
+      );
+      expect(request.hasOpaqueContentId, isFalse);
+      expect(request.idCandidates.first, 'tt0111161');
     });
   });
 }

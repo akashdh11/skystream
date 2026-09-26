@@ -269,6 +269,12 @@ class AddonStreamSource {
     r'(\d{3,4})\s*[pi]\b',
     caseSensitive: false,
   );
+  // Bare height tokens used by multi-provider scrapers ("1080", "720 HD")
+  // without a trailing p/i — only match common ladder values so a seeder
+  // count like "1360 seeds" is never mistaken for a resolution.
+  static final RegExp _bareRes = RegExp(
+    r'(?<![.\d])(2160|1440|1080|720|576|540|480|360|240)(?!\d)',
+  );
   static final RegExp _uhd = RegExp(
     r'\b(4k|uhd|2160p?)\b',
     caseSensitive: false,
@@ -287,12 +293,29 @@ class AddonStreamSource {
     r'(\d+(?:[.,]\d+)?)\s*(gb|mb|gib|mib)\b',
     caseSensitive: false,
   );
+  // Quality / release token that ends a provider chip:
+  // "MovieBox 1080p", "VegaMovies · 4K", "MoviesDrive 1080", "[RD+] 720p".
+  static final RegExp _trailingQuality = RegExp(
+    r'(?:'
+    r'[\s|\n·•\-–—/]+'
+    r'(?:\[(?:rd|pm|ad|dl|oc|tb|ed)\+?\]\s*)?'
+    r'(?:'
+    r'\d{3,4}\s*[pi]\b'
+    r'|(?:2160|1440|1080|720|576|540|480|360|240)(?!\d)'
+    r'|4k\b|uhd\b|2k\b|cam(?:rip)?\b|hdr(?:10\+?)?\b|auto\b'
+    r')'
+    r'.*$'
+    r')',
+    caseSensitive: false,
+  );
 
   int get qualityScore {
     if (_uhd.hasMatch(_text)) return 2160;
     if (_qhd.hasMatch(_text)) return 1440;
     final match = _res.firstMatch(_text);
-    return match == null ? 0 : (int.tryParse(match.group(1)!) ?? 0);
+    if (match != null) return int.tryParse(match.group(1)!) ?? 0;
+    final bare = _bareRes.firstMatch(_text);
+    return bare == null ? 0 : (int.tryParse(bare.group(1)!) ?? 0);
   }
 
   String get qualityLabel {
@@ -302,6 +325,54 @@ class AddonStreamSource {
     if (score > 0) return '${score}p';
     if (isCam) return 'CAM';
     return isTorrent ? 'Torrent' : 'Auto';
+  }
+
+  /// Provider / scraper name inside a multi-provider add-on (MovieBox,
+  /// MoviesDrive, VegaMovies…), or null when the stream only names the
+  /// add-on itself. CNCVerse-style bridges put the real source in `name`.
+  String? get providerName {
+    final raw = (name ?? '').trim();
+    if (raw.isEmpty) return null;
+
+    String? chip;
+    // Bracket form: "[MovieBox] 1080p" / "[VegaMovies]".
+    final bracket = RegExp(r'^\[([^\]]+)\]').firstMatch(raw);
+    if (bracket != null) {
+      chip = bracket.group(1)!.trim();
+    } else {
+      // Split on an explicit separator (newline / bullet / pipe).
+      final sep = RegExp(r'[\n|·•]').firstMatch(raw);
+      final head = (sep == null ? raw : raw.substring(0, sep.start)).trim();
+      final peeled = head.replaceFirst(_trailingQuality, '').trim();
+      if (peeled.isNotEmpty && peeled.toLowerCase() != head.toLowerCase()) {
+        // "MovieBox 1080p" → "MovieBox"
+        chip = peeled;
+      } else if (sep != null && head.isNotEmpty) {
+        // "MovieBox · something" → "MovieBox"
+        chip = head;
+      } else if (RegExp(r'^\S{2,32}$').hasMatch(head) &&
+          !_isQualityOnly(head)) {
+        // Bare short token: name: "MovieBox"
+        chip = head;
+      }
+    }
+    if (chip == null || chip.isEmpty) return null;
+    if (_isQualityOnly(chip)) return null;
+    if (chip.toLowerCase() == addonName.trim().toLowerCase()) return null;
+    if (chip.length > 40) return null;
+    return chip;
+  }
+
+  static bool _isQualityOnly(String value) {
+    final lower = value.trim().toLowerCase();
+    return RegExp(
+      r'^(?:\[?(?:rd|pm|ad|dl|oc|tb|ed)\+?\]?\s*)?'
+      r'(?:'
+      r'\d{3,4}\s*[pi]'
+      r'|2160|1440|1080|720|576|540|480|360|240'
+      r'|4k|uhd|2k|cam(?:rip)?|hdr(?:10\+?)?|auto'
+      r')$',
+    ).hasMatch(lower);
   }
 
   bool get isHdr => _hdr.hasMatch(_text);
@@ -353,16 +424,62 @@ class AddonStreamSource {
   }
 
   /// Headline shown in the sources list.
+  ///
+  /// Nuvio layout: add-on name first, then the inner provider when the
+  /// stream names one (so a CNCVerse → MovieBox row reads
+  /// "CNCVerse Bridge · MovieBox", not a free-form dump of the name field).
   String get headline {
-    final label = (name ?? '').trim().replaceAll('\n', ' ');
-    return label.isEmpty ? addonName : label;
+    final provider = providerName;
+    if (provider == null || provider.isEmpty) return addonName;
+    if (addonName.trim().isEmpty) return provider;
+    return '$addonName · $provider';
   }
 
-  /// Secondary line: whatever descriptive text the add-on provided.
+  /// Secondary line: stream's own label + descriptive text the add-on sent.
   String get subtitleLine {
+    final parts = <String>[];
+    final streamLabel = (name ?? '').trim().replaceAll(
+      RegExp(r'[\n\r]+'),
+      ' · ',
+    );
+    if (streamLabel.isNotEmpty && streamLabel != addonName) {
+      parts.add(streamLabel);
+    }
     final text = (title ?? description ?? '').trim();
-    if (text.isNotEmpty) return text.replaceAll('\n', ' · ');
-    return filename ?? addonName;
+    if (text.isNotEmpty) {
+      final cleaned = text.replaceAll(RegExp(r'[\n\r]+'), ' · ');
+      if (parts.isEmpty || cleaned.toLowerCase() != streamLabel.toLowerCase()) {
+        parts.add(cleaned);
+      }
+    }
+    if (parts.isEmpty) {
+      final file = filename?.trim();
+      if (file != null && file.isNotEmpty) return file;
+      return qualityLabel;
+    }
+    return parts.join(' · ');
+  }
+
+  /// Whether [query] matches this stream for the sources-sheet filter.
+  ///
+  /// Empty / whitespace-only queries match everything. Otherwise the needle is
+  /// looked for (case-insensitive) in the add-on name, inner provider chip
+  /// (VegaMovies, MovieBox…), quality label, and the free-text fields the
+  /// add-on published.
+  bool matchesQuery(String query) {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return true;
+    final haystack = [
+      addonName,
+      providerName ?? '',
+      headline,
+      subtitleLine,
+      qualityLabel,
+      name ?? '',
+      title ?? '',
+      description ?? '',
+    ].join(' ').toLowerCase();
+    return haystack.contains(q);
   }
 
   /// De-dup key, mirroring ARVIO's.
@@ -409,4 +526,24 @@ class AddonStreamSource {
     }
     return value;
   }
+}
+
+/// Distinct provider / add-on labels for a sources-sheet chip rail.
+///
+/// Prefers the inner provider (VegaMovies) when a multi-provider bridge named
+/// one; otherwise the add-on itself (Torrentio). Sorted case-insensitively.
+List<String> addonStreamProviderLabels(Iterable<AddonStreamSource> streams) {
+  final seen = <String>{};
+  final out = <String>[];
+  for (final s in streams) {
+    final provider = s.providerName?.trim();
+    final label = (provider != null && provider.isNotEmpty)
+        ? provider
+        : s.addonName.trim();
+    if (label.isEmpty) continue;
+    if (!seen.add(label.toLowerCase())) continue;
+    out.add(label);
+  }
+  out.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  return out;
 }

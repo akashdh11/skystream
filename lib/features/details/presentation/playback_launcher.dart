@@ -270,10 +270,12 @@ class PlaybackLauncher {
     final playerName = player?.displayName ?? playerId;
 
     // A scraped link that only answers to its Referer, User-Agent or Cookie
-    // reaches the other app as a bare URL and dies there as a 403 or a black
-    // screen, with nothing on screen to say SkyStream dropped them. Say it
-    // here, before the hand-off, and play the source in the one player that
-    // can send them.
+    // is not guaranteed to survive every hand-off: the desktop CLIs take
+    // only what their flags admit, and the Android intent attaches the
+    // headers as extras the receiving player may or may not honour. Say
+    // what cannot be guaranteed here, before the hand-off — but warn only.
+    // The setting names an external player, so that player still gets the
+    // attempt; the built-in one takes over only if the launch fails.
     final dropped = player == null
         ? const <String>[]
         : service.unsupportedHeaders(player, stream.headers);
@@ -287,25 +289,17 @@ class PlaybackLauncher {
             title: playerName,
             icon: Icons.play_circle_outline_rounded,
           );
-      unawaited(
-        _openInternal(
-          context,
-          item,
-          episodeDataUrl,
-          episode: episode,
-          preloadedStreams: preloadedStreams,
-        ),
-      );
-      return;
     }
 
-    String playUrl = stream.url;
-    if (stream.url.startsWith("magnet:") ||
-        stream.url.endsWith(".torrent") ||
-        (stream.url.startsWith("/") && stream.source.contains("Torrent"))) {
+    // Scrapers occasionally emit links padded with whitespace, and the URL
+    // is the whole request the other app makes — it goes out trimmed.
+    String playUrl = stream.url.trim();
+    if (playUrl.startsWith("magnet:") ||
+        playUrl.endsWith(".torrent") ||
+        (playUrl.startsWith("/") && stream.source.contains("Torrent"))) {
       final torrentUrl = await _ref
           .read(torrentServiceProvider)
-          .getStreamUrl(stream.url);
+          .getStreamUrl(playUrl);
       if (torrentUrl != null) {
         playUrl = torrentUrl;
       }
@@ -319,13 +313,18 @@ class PlaybackLauncher {
     );
 
     if (!success && context.mounted) {
-      _ref
-          .read(notificationServiceProvider)
-          .showError(
-            AppLocalizations.of(context)!.playerNotDetected(playerName),
-            title: playerName,
-            icon: Icons.play_circle_outline_rounded,
-          );
+      // When the warning above already explained why the hand-off is
+      // suspect, a second "not detected" toast would claim a different
+      // reason for the same fallback — the silent one is the honest one.
+      if (dropped.isEmpty) {
+        _ref
+            .read(notificationServiceProvider)
+            .showError(
+              AppLocalizations.of(context)!.playerNotDetected(playerName),
+              title: playerName,
+              icon: Icons.play_circle_outline_rounded,
+            );
+      }
       unawaited(
         _openInternal(
           context,

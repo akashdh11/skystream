@@ -189,6 +189,24 @@ abstract class AppLocalizations {
   /// **'English'**
   String get languageName;
 
+  /// Manage tab, Stremio add-ons: the liveness probe for an installed add-on is still running.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking add-on…'**
+  String get addonHealthChecking;
+
+  /// Manage tab, Stremio add-ons: the add-on answered its manifest ping. {ms} is the round-trip latency in milliseconds.
+  ///
+  /// In en, this message translates to:
+  /// **'Working · {ms} ms'**
+  String addonHealthWorking(int ms);
+
+  /// Manage tab, Stremio add-ons: the add-on did not answer its manifest ping (offline, moved, or wrong URL).
+  ///
+  /// In en, this message translates to:
+  /// **'Unavailable'**
+  String get addonHealthUnavailable;
+
   /// No description provided for @home.
   ///
   /// In en, this message translates to:
@@ -1490,6 +1508,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Install'**
   String get install;
+
+  /// No description provided for @discoverSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search community add-ons'**
+  String get discoverSearchHint;
+
+  /// No description provided for @discoverClearSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get discoverClearSearch;
+
+  /// No description provided for @discoverNeedsWebSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Needs quick setup on the add-on\'s website'**
+  String get discoverNeedsWebSetup;
+
+  /// No description provided for @discoverOpenSetup.
+  ///
+  /// In en, this message translates to:
+  /// **'Set up on the add-on website'**
+  String get discoverOpenSetup;
 
   /// No description provided for @error.
   ///
@@ -3236,6 +3278,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 add-on} other{{count} add-ons}}'**
   String stremioAddonCount(int count);
+
+  /// Stremio sources sheet header: opens the free-text filter over add-on and provider names.
+  ///
+  /// In en, this message translates to:
+  /// **'Search links'**
+  String get addonSourcesSearchTooltip;
+
+  /// Stremio sources sheet header: hides the search field and clears the query.
+  ///
+  /// In en, this message translates to:
+  /// **'Close search'**
+  String get addonSourcesCloseSearchTooltip;
+
+  /// Stremio sources sheet search field placeholder. Users type an add-on name (Torrentio), an inner provider (VegaMovies), or a quality token.
+  ///
+  /// In en, this message translates to:
+  /// **'Add-on, provider, quality…'**
+  String get addonSourcesSearchHint;
+
+  /// Stremio sources sheet empty state when HD/kind chips or the text search hide every link.
+  ///
+  /// In en, this message translates to:
+  /// **'No links match. Clear search or try \"All\".'**
+  String get addonSourcesNoMatchFilter;
+
+  /// Installed add-ons list on the Manage tab: placeholder for filtering by name, id, or resource.
+  ///
+  /// In en, this message translates to:
+  /// **'Search installed add-ons…'**
+  String get addonManageSearchHint;
+
+  /// Installed add-ons list empty state when the search box filters everything out.
+  ///
+  /// In en, this message translates to:
+  /// **'No installed add-on matches \"{query}\".'**
+  String addonManageNoMatch(String query);
 }
 
 class _AppLocalizationsDelegate

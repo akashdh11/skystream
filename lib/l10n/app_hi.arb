@@ -2,6 +2,9 @@
   "@@locale": "hi",
   "appTitle": "SkyStream",
   "languageName": "हिन्दी",
+  "addonHealthChecking": "ऐड-ऑन की जाँच हो रही है…",
+  "addonHealthWorking": "चालू है · {ms} मि.से.",
+  "addonHealthUnavailable": "अनुपलब्ध",
   "home": "होम",
   "search": "खोजें",
   "explore": "अन्वेषण करें",
@@ -199,6 +202,10 @@
   "installed": "इंस्टॉल किया गया",
   "updateTo": "{version} पर अपडेट करें",
   "install": "इंस्टॉल करें",
+  "discoverSearchHint": "Search community add-ons",
+  "discoverClearSearch": "Clear",
+  "discoverNeedsWebSetup": "Needs quick setup on the add-on's website",
+  "discoverOpenSetup": "Set up on the add-on website",
   "error": "त्रुटि",
   "ok": "ठीक है",
   "pluginSettings": "{pluginName} सेटिंग्स",
@@ -480,5 +487,12 @@
   "playerSourceOpening": "खुल रहा है…",
   "playerSourceNotChecked": "जाँचा नहीं गया",
   "playerReasonNoAnswer": "लिंक से कोई जवाब नहीं मिला",
-  "playerSourceUnplayable": "चल नहीं सका"
+  "playerSourceUnplayable": "चल नहीं सका",
+"addonSourcesSearchTooltip": "Search links",
+  "addonSourcesCloseSearchTooltip": "Close search",
+  "addonSourcesSearchHint": "Add-on, provider, quality…",
+  "addonSourcesNoMatchFilter": "No links match. Clear search or try \"All\".",
+  "addonManageSearchHint": "Search installed add-ons…",
+  "addonManageNoMatch": "No installed add-on matches \"{query}\"."
 }
+

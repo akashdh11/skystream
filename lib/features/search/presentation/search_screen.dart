@@ -53,23 +53,17 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     // so down from the field meant "into the pill"; down now means "into the
     // list", and the pill is reached by going right.
     _focusNode.onKeyEvent = (node, event) {
-      if (event is KeyDownEvent) {
-        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
-          // Only once the caret is at the end, so arrow-right still walks
-          // the text the user is editing.
-          if (_controller.selection.extentOffset == _controller.text.length) {
-            if (_controller.text.isNotEmpty) {
-              _clearButtonFocusNode.requestFocus();
-            } else {
-              _focusScopePill();
-            }
-            return KeyEventResult.handled;
-          }
-        }
-        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          return _focusBelowBar();
-        }
+      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+      final key = event.logicalKey;
+
+      // Do NOT handle left/right here. Android TV leanback keyboards use those
+      // to move between letter keys; stealing them left users stuck mid-word.
+      // Clear / scope pills stay reachable via the clear icon and Up from results.
+
+      if (key == LogicalKeyboardKey.arrowDown) {
+        return _focusBelowBar();
       }
+      // Enter / select submit is handled by TextField.onSubmitted.
       return KeyEventResult.ignored;
     };
 
@@ -586,7 +580,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         // only repaints the list — not the entire scaffold.
         return RepaintBoundary(
           child: ListView.builder(
-            padding: const EdgeInsets.only(bottom: 100),
+            padding: EdgeInsets.only(
+              bottom: LayoutConstants.shellBottomContentPadding(context),
+            ),
             itemCount: state.results.length,
             itemBuilder: (context, index) {
               final pResult = state.results[index];
@@ -695,7 +691,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       shrinkWrap: isFlyout,
       padding: isFlyout
           ? const EdgeInsets.symmetric(horizontal: 8, vertical: 8)
-          : const EdgeInsets.only(left: 8, right: 8, bottom: 100),
+          : EdgeInsets.only(
+              left: 8,
+              right: 8,
+              bottom: LayoutConstants.shellBottomContentPadding(context),
+            ),
       children: [
         if (recents.isNotEmpty)
           Semantics(

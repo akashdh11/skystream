@@ -529,6 +529,12 @@ class NuvioStreamResult {
     required String scraperName,
   }) {
     String? url;
+    // Some providers embed the stream as an *object* under `url`, `link` or
+    // `stream`, and that object carries its own quality, behaviorHints,
+    // headers and subtitles. When it does, the embedded object is the stream:
+    // its fields win, and the outer entry only contributes what the embedded
+    // one lacks (a row label, a seeder count...).
+    Map<String, dynamic>? embedded;
     for (final candidate in [
       json['url'],
       json['link'],
@@ -540,23 +546,30 @@ class NuvioStreamResult {
         url = candidate.trim();
         break;
       }
-      if (candidate is Map && candidate['url'] is String) {
-        final nested = (candidate['url'] as String).trim();
+      if (candidate is Map) {
+        final nested =
+            candidate['url'] is String ? (candidate['url'] as String).trim() : '';
         if (nested.isNotEmpty) {
           url = nested;
+          embedded = Map<String, dynamic>.from(candidate);
           break;
         }
       }
     }
-    final behaviorHints = json['behaviorHints'] is Map
-        ? Map<String, dynamic>.from(json['behaviorHints'] as Map)
-        : const <String, dynamic>{};
+    final source = embedded ?? json;
+    final behaviorHints = source['behaviorHints'] is Map
+        ? Map<String, dynamic>.from(source['behaviorHints'] as Map)
+        : json['behaviorHints'] is Map
+            ? Map<String, dynamic>.from(json['behaviorHints'] as Map)
+            : const <String, dynamic>{};
     if (url == null || url.isEmpty) {
       final direct = behaviorHints['directUrl'] ?? behaviorHints['url'];
       if (direct is String && direct.trim().isNotEmpty) url = direct.trim();
     }
 
-    final infoHash = (json['infoHash'] as String?)?.trim();
+    final infoHash =
+        (source['infoHash'] as String?)?.trim() ??
+        (json['infoHash'] as String?)?.trim();
     if ((url == null || url.isEmpty) &&
         (infoHash == null || infoHash.isEmpty)) {
       return null;
@@ -573,15 +586,18 @@ class NuvioStreamResult {
       return map.isEmpty ? null : map;
     }
 
+    /// The embedded object's field when it has one, else the outer entry's.
+    Object? field(String key) => source[key] ?? json[key];
+
     final proxyHeaders = behaviorHints['proxyHeaders'];
     final headers =
-        readHeaders(json['headers']) ??
+        readHeaders(field('headers')) ??
         readHeaders(proxyHeaders is Map ? proxyHeaders['request'] : null) ??
         readHeaders(behaviorHints['headers']) ??
-        readHeaders(json['requestHeaders']);
+        readHeaders(field('requestHeaders'));
 
     final subtitles = <SubtitleFile>[];
-    final rawSubs = json['subtitles'];
+    final rawSubs = field('subtitles');
     if (rawSubs is List) {
       for (final entry in rawSubs) {
         if (entry is! Map) continue;
@@ -599,15 +615,16 @@ class NuvioStreamResult {
     }
 
     final title = _clean(
-      (json['title'] ?? json['name'] ?? scraperName).toString(),
+      (field('title') ?? field('name') ?? scraperName).toString(),
     );
-    final name = json['name'] == null ? null : _clean(json['name'].toString());
+    final rawName = field('name');
+    final name = rawName == null ? null : _clean(rawName.toString());
     final quality =
-        _cleanOrNull(json['quality']?.toString()) ??
+        _cleanOrNull(field('quality')?.toString()) ??
         _qualityFromText('$title ${name ?? ''}');
     final size =
-        _cleanOrNull(json['size']?.toString()) ??
-        _sizeFromBytes(json['sizeBytes'] ?? json['filesize'] ?? json['bytes']);
+        _cleanOrNull(field('size')?.toString()) ??
+        _sizeFromBytes(field('sizeBytes') ?? field('filesize') ?? field('bytes'));
 
     return NuvioStreamResult(
       scraperId: scraperId,
@@ -617,10 +634,10 @@ class NuvioStreamResult {
       url: url ?? 'magnet:?xt=urn:btih:$infoHash',
       quality: quality,
       size: size,
-      language: _cleanOrNull(json['language']?.toString()),
-      provider: _cleanOrNull(json['provider']?.toString()),
-      type: json['type']?.toString(),
-      seeders: _asInt(json['seeders']),
+      language: _cleanOrNull(field('language')?.toString()),
+      provider: _cleanOrNull(field('provider')?.toString()),
+      type: field('type')?.toString(),
+      seeders: _asInt(field('seeders')),
       infoHash: infoHash,
       headers: headers,
       subtitles: subtitles,
@@ -682,7 +699,16 @@ class NuvioUrls {
     if (filename.trim().isEmpty) return null;
     final manifest = Uri.tryParse(manifestUrl);
     if (manifest == null) return null;
-    return manifest.resolve(filename);
+    // A manifest may list a file whose name carries a space, `#` or `?`.
+    // A bare resolve() would start a fragment at the `#` and a query at
+    // the `?`, so the code fetch hits the wrong path and 404s — the plugin
+    // then never runs and the sheet reads "no links" for a provider that
+    // has them. Encode each path segment first; Uri keeps the escaping for
+    // everything a path cannot hold as a literal. An absolute filename is
+    // a full URL on its own; re-encoding it would break its scheme.
+    if (filename.contains('://')) return manifest.resolve(filename);
+    final encoded = filename.split('/').map(Uri.encodeComponent).join('/');
+    return manifest.resolve(encoded);
   }
 }
 

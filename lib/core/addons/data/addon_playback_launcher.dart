@@ -36,7 +36,10 @@ class AddonStreamConverter {
         StreamResult(
           url: url,
           source: describe(source),
-          providerName: source.addonName,
+          // Player rows render as "provider · source". Prefer the inner
+          // provider (MovieBox, VegaMovies…) when a multi-provider add-on
+          // names one; fall back to the add-on itself.
+          providerName: source.providerName ?? source.addonName,
           headers: source.proxyHeaders,
           subtitles: source.subtitles.isEmpty
               ? null
@@ -55,8 +58,18 @@ class AddonStreamConverter {
   }
 
   /// Label shown in the player's Sources list.
+  ///
+  /// Always leads with the resolution so every row shows quality even when
+  /// the free-text name didn't carry a "1080p" token the parser could find.
   String describe(AddonStreamSource source) {
     final parts = <String>[
+      // Add-on identity first so a CNCVerse row still says which bridge it
+      // came from after the providerName has been set to MovieBox etc.
+      if (source.providerName != null &&
+          source.addonName.trim().isNotEmpty &&
+          source.providerName!.toLowerCase() !=
+              source.addonName.trim().toLowerCase())
+        source.addonName,
       source.qualityLabel,
       if (source.isHdr) 'HDR',
       if (source.isTorrent) 'Torrent',

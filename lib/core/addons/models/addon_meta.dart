@@ -42,6 +42,11 @@ class AddonMetaPreview {
   final String? description;
   final String? releaseInfo;
   final String? imdbRating;
+  /// Explicit IMDb id from the meta payload (`imdb_id` / `imdbId`), when the
+  /// add-on bothers to send one. Scraper bridges usually omit this — see
+  /// [imdbId] which also falls back to a `tt…` primary id.
+  final String? imdbIdField;
+  final int? yearField;
   final List<String> genres;
   final String addonId;
   final String addonName;
@@ -56,6 +61,8 @@ class AddonMetaPreview {
     this.description,
     this.releaseInfo,
     this.imdbRating,
+    this.imdbIdField,
+    this.yearField,
     this.genres = const [],
     this.addonId = '',
     this.addonName = '',
@@ -77,6 +84,10 @@ class AddonMetaPreview {
       }
     }
 
+    final explicitImdb = _asString(json['imdb_id']) ??
+        _asString(json['imdbId']) ??
+        _asString(json['imdb']);
+
     return AddonMetaPreview(
       id: _asString(json['id']) ?? '',
       type: _asString(json['type']) ?? 'movie',
@@ -87,6 +98,8 @@ class AddonMetaPreview {
       description: _asString(json['description']),
       releaseInfo: _asString(json['releaseInfo']),
       imdbRating: _asString(json['imdbRating']),
+      imdbIdField: explicitImdb,
+      yearField: _asInt(json['year']),
       genres: genres,
       addonId: addonId,
       addonName: addonName,
@@ -95,14 +108,41 @@ class AddonMetaPreview {
 
   bool get isSeries => type == 'series' || type == 'tv' || type == 'show';
 
+  /// Type string handed to `/stream/{type}/{id}` requests.
+  ///
+  /// Canonical Stremio types are `movie` / `series`. Scraping bridges
+  /// (CNCVerse, MovieBox multi-provider manifests, …) publish catalogs as
+  /// `other` or `tv` and only answer stream queries on those same types —
+  /// rewriting them to `movie`/`series` yields empty link lists. Preserve
+  /// whatever the meta declared; only fall back when the field is blank.
+  String get streamRequestType {
+    final t = type.trim().toLowerCase();
+    if (t.isEmpty) return isSeries ? 'series' : 'movie';
+    return t;
+  }
+
   int? get year {
+    if (yearField != null && yearField! > 1800 && yearField! < 2100) {
+      return yearField;
+    }
     final info = releaseInfo;
     if (info == null) return null;
     final match = RegExp(r'(\d{4})').firstMatch(info);
     return match == null ? null : int.tryParse(match.group(1)!);
   }
 
-  String? get imdbId => id.startsWith('tt') ? id.split(':').first : null;
+  String? get imdbId {
+    final explicit = imdbIdField?.trim();
+    if (explicit != null && explicit.isNotEmpty) {
+      final match = RegExp(r'(tt\d{5,})', caseSensitive: false).firstMatch(explicit);
+      if (match != null) return match.group(1)!.toLowerCase();
+      if (explicit.toLowerCase().startsWith('tt')) {
+        return explicit.split(':').first.toLowerCase();
+      }
+    }
+    if (id.startsWith('tt')) return id.split(':').first;
+    return null;
+  }
 
   MultimediaItem toMultimediaItem() {
     return MultimediaItem(
@@ -196,6 +236,8 @@ class AddonMeta extends AddonMetaPreview {
     super.description,
     super.releaseInfo,
     super.imdbRating,
+    super.imdbIdField,
+    super.yearField,
     super.genres,
     super.addonId,
     super.addonName,
@@ -448,6 +490,8 @@ class AddonMeta extends AddonMetaPreview {
       description: preview.description,
       releaseInfo: preview.releaseInfo,
       imdbRating: preview.imdbRating,
+      imdbIdField: preview.imdbIdField,
+      yearField: preview.yearField,
       genres: preview.genres,
       addonId: addonId,
       addonName: addonName,
