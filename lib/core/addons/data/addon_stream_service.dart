@@ -300,7 +300,7 @@ class AddonStreamService {
       );
     }
 
-    Future<List<AddonStreamSource>> _ask({
+    Future<List<AddonStreamSource>> ask({
       required ManagedAddon addon,
       required String type,
       required String id,
@@ -323,7 +323,7 @@ class AddonStreamService {
     /// costs exactly one request. Only if that comes back empty do the
     /// remaining aliases race in parallel — a CNCVerse `other` miss then
     /// discovers `movie` without waiting out every alias one-by-one.
-    Future<List<AddonStreamSource>> _typesForId({
+    Future<List<AddonStreamSource>> typesForId({
       required ManagedAddon addon,
       required String id,
       required List<String> types,
@@ -334,7 +334,7 @@ class AddonStreamService {
       Object? lastError;
 
       try {
-        final primary = await _ask(
+        final primary = await ask(
           addon: addon,
           type: types.first,
           id: id,
@@ -374,7 +374,7 @@ class AddonStreamService {
       for (final type in rest) {
         unawaited(() async {
           try {
-            final results = await _ask(
+            final results = await ask(
               addon: addon,
               type: type,
               id: id,
@@ -431,7 +431,7 @@ class AddonStreamService {
             : _requestTimeout;
 
         try {
-          final results = await _typesForId(
+          final results = await typesForId(
             addon: addon,
             id: id,
             types: types,

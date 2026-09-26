@@ -111,7 +111,7 @@ void main() {
           AddonStreamSource.fromJson(
             {
               'name': addon.displayName,
-              'url': 'https://files.example/' + addon.displayName + '.mp4',
+              'url': 'https://files.example/${addon.displayName}.mp4',
             },
             addonId: addon.manifest?.id ?? addon.manifestUrl,
             addonName: addon.displayName,
