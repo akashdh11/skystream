@@ -28,6 +28,7 @@ import 'package:skystream/features/settings/presentation/cache_provider.dart';
 import 'package:skystream/features/settings/presentation/developer_options_screen.dart';
 import 'package:skystream/features/settings/presentation/general_settings_provider.dart';
 import 'package:skystream/features/settings/presentation/player_settings_provider.dart';
+import 'package:skystream/features/settings/presentation/player_settings_screen.dart';
 import 'package:skystream/features/settings/presentation/settings_screen.dart';
 import 'package:skystream/features/tracking/presentation/tracking_auth_provider.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
@@ -145,16 +146,11 @@ void main() {
   /// The bottom padding of the first [ListView] / [GridView] on screen.
   double bottomPadding(WidgetTester tester) {
     final list = find.byType(ListView);
-    if (list.evaluate().isNotEmpty) {
-      final listView = tester.widget<ListView>(list.first);
-      return listView.padding!.bottom;
-    }
     final grid = find.byType(GridView);
-    final gridView = tester.widget<GridView>(grid.first);
-    final padding = gridView.padding!;
-    if (padding is EdgeInsets) {
-      return padding.bottom;
-    }
+    final ScrollView scrollable = list.evaluate().isNotEmpty
+        ? tester.widget<ListView>(list.first)
+        : tester.widget<GridView>(grid.first);
+    final padding = scrollable.padding!;
     return padding.resolve(TextDirection.ltr).bottom;
   }
 
