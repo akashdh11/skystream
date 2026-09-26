@@ -93,8 +93,6 @@ class _SignedOutTrackers extends TrackingAuth {
 
 /// A library with bookmarks in it, so the grid branch is what renders.
 class _FakeLibrary extends Library {
-  _FakeLibrary() : super();
-
   @override
   LibraryState build() =>
       LibrarySuccess(<MultimediaItem>[
@@ -146,20 +144,18 @@ void main() {
 
   /// The bottom padding of the first [ListView] / [GridView] on screen.
   double bottomPadding(WidgetTester tester) {
-    final listView = find.byType(ListView);
-    if (listView.evaluate().isNotEmpty) {
-      final padding = tester.widget<ListView>(listView.first).padding!;
-      return (padding is EdgeInsets
-              ? padding
-              : padding.resolve(const TextDirection.ltr))
-          .bottom;
+    final list = find.byType(ListView);
+    if (list.evaluate().isNotEmpty) {
+      final listView = tester.widget<ListView>(list.first);
+      return listView.padding!.bottom;
     }
-    final padding = tester.widget<GridView>(find.byType(GridView).first)
-        .padding!;
-    return (padding is EdgeInsets
-            ? padding
-            : padding.resolve(const TextDirection.ltr))
-        .bottom;
+    final grid = find.byType(GridView);
+    final gridView = tester.widget<GridView>(grid.first);
+    final padding = gridView.padding!;
+    if (padding is EdgeInsets) {
+      return padding.bottom;
+    }
+    return padding.resolve(TextDirection.ltr).bottom;
   }
 
   // The standalone routes are what the shell pushes; the embedded variants
@@ -171,7 +167,7 @@ void main() {
     'Developer options': const DeveloperOptionsScreen(),
   };
 
-  for (final (name, screen) in screens.entries) {
+  screens.forEach((name, screen) {
     testWidgets('$name clears the shell bottom bar', (tester) async {
       await pump(tester, screen);
       expect(
@@ -183,7 +179,7 @@ void main() {
             'padding',
       );
     });
-  }
+  });
 
   testWidgets('the bookmarks grid clears the shell bottom bar',
       (tester) async {
