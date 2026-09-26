@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'dart:async';
 
 import '../../../shared/widgets/text_input_dialog.dart';
+import '../../../core/utils/layout_constants.dart';
 import '../../extensions/providers/extensions_controller.dart';
 import '../../../core/storage/settings_repository.dart';
 import '../../../core/domain/entity/multimedia_item.dart';
@@ -49,8 +50,12 @@ class _DeveloperOptionsScreenState
         child: FocusTraversalGroup(
           policy: ReadingOrderTraversalPolicy(),
           child: ListView(
-            // Vertical only; SettingsGroup owns the horizontal inset.
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            // Vertical only; SettingsGroup owns the horizontal inset. The
+            // bottom must clear the shell's floating bottom bar, which
+            // overlays this pushed route just like the tab screens.
+            padding: const EdgeInsets.symmetric(vertical: 8).copyWith(
+              bottom: LayoutConstants.shellBottomContentPadding(context),
+            ),
             children: [
               SettingsGroup(
                 title: l10n.debugTools,

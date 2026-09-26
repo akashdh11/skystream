@@ -174,7 +174,9 @@ class _BookmarksTabState extends ConsumerState<BookmarksTab>
           LayoutConstants.spacingMd,
           LayoutConstants.spacingMd,
           LayoutConstants.spacingMd,
-          100,
+          0,
+        ).copyWith(
+          bottom: LayoutConstants.shellBottomContentPadding(context),
         ),
         gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: totalHeight,
