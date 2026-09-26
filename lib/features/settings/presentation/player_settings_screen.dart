@@ -63,7 +63,7 @@ class PlayerSettingsScreen extends ConsumerWidget {
           policy: ReadingOrderTraversalPolicy(),
           child: ListView(
             // Vertical only; SettingsGroup owns the horizontal inset.
-            padding: EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               vertical: LayoutConstants.spacingSm,
             ).copyWith(bottom: LayoutConstants.shellBottomContentPadding(context)),
             children: [
