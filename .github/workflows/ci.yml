@@ -354,7 +354,7 @@ jobs:
           # lands, for the artifact upload. Both mirror release.yml so the gate
           # exercises the artifact users install.
           ANDROID='{"name":"Android","os":"ubuntu-latest","build":"flutter build apk --debug","smoke":"","torrserver":"","out":"build/app/outputs/flutter-apk"}'
-          LINUX='{"name":"Linux","os":"ubuntu-latest","build":"flutter build linux --debug","smoke":"linux","torrserver":"TorrServer-linux-amd64","out":"build/linux/x64/debug/bundle"}'
+          LINUX='{"name":"Linux","os":"ubuntu-22.04","build":"flutter build linux --debug","smoke":"linux","torrserver":"TorrServer-linux-amd64","out":"build/linux/x64/debug/bundle"}'
           # windows-2022, not windows-latest: the release and preview workflows
           # both pin windows-2022 (MSVC 17). On windows-latest the gate would
           # compile the vendored vlc_player C++ with Visual Studio 2026 / MSVC
@@ -489,7 +489,7 @@ jobs:
           sudo apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=30
           sudo apt-get install -y --no-install-recommends \
             clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libvlc-dev libasound2-dev libsecret-1-dev \
+            libgtk-3-dev liblzma-dev libvlc-dev libasound2-dev libsecret-1-dev libicu-dev \
             xvfb
 
       - name: Cache Pub Dependencies

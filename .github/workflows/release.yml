@@ -510,16 +510,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            arch: x64
-            torrserver_binary: TorrServer-linux-amd64
           # 22.04, deliberately, not ubuntu-latest. The runner's glibc becomes
           # the floor for the shipped .deb and tarball: 22.04 is glibc 2.35,
-          # 24.04 is 2.39. Building arm64 on 24.04 silently drops every arm64
-          # user on Ubuntu 22.04 LTS, Debian 12 and anything else below 2.39 -
+          # 24.04 is 2.39. Building on 24.04 silently drops every user
+          # on Ubuntu 22.04 LTS, Debian 12 and anything else below 2.39 -
           # they can no longer run an artifact that worked last release.
           # If this label is ever retired, bumping it is a user-facing decision
           # about the minimum supported distro, not a maintenance detail.
+          - os: ubuntu-22.04
+            arch: x64
+            torrserver_binary: TorrServer-linux-amd64
           - os: ubuntu-22.04-arm
             arch: arm64
             torrserver_binary: TorrServer-linux-arm64
@@ -546,7 +546,7 @@ jobs:
           # 3. Install required libraries with --no-install-recommends to avoid fetching 190+ bloated recommended packages (tilix, pocketsphinx, etc.)
           sudo apt-get install -y --no-install-recommends \
             clang cmake ninja-build pkg-config \
-            libgtk-3-dev liblzma-dev libvlc-dev libasound2-dev libsecret-1-dev
+            libgtk-3-dev liblzma-dev libvlc-dev libasound2-dev libsecret-1-dev libicu-dev
           
       - name: Install Flutter Dependencies
         run: |
