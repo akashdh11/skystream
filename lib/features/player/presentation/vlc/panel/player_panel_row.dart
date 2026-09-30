@@ -82,13 +82,19 @@ class PanelRow extends StatefulWidget {
     required this.onTap,
     this.detail,
     this.badges = const <String>[],
+    this.badgeIcon,
+    this.badgeColor,
+    this.neutralBadges = false,
     this.leading,
     this.icon,
     this.selected = false,
     this.selectedLabel,
+    this.selectedLabelIcon,
     this.status,
+    this.statusIcon,
     this.statusColor,
     this.outcome,
+    this.outcomeIcon,
     this.outcomeColor,
     this.enabled = true,
     this.autofocus = false,
@@ -104,6 +110,11 @@ class PanelRow extends StatefulWidget {
 
   /// Short chips: quality, size, seeders. Rendered right-aligned in order.
   final List<String> badges;
+  final IconData? badgeIcon;
+  final Color? badgeColor;
+
+  /// Give metadata and statuses a single quiet treatment in dense lists.
+  final bool neutralBadges;
 
   /// Episode thumbnail. Takes the place of [icon] when both are given.
   final Widget? leading;
@@ -116,14 +127,17 @@ class PanelRow extends StatefulWidget {
   /// What "selected" means here — `Now playing` for a source, nothing for a
   /// track, where the tick alone is the whole story.
   final String? selectedLabel;
+  final IconData? selectedLabelIcon;
 
   /// Live state that is not selection: a probe result, a download marker.
   final String? status;
+  final IconData? statusIcon;
   final Color? statusColor;
 
   /// A second live fact, drawn after [status] and never folded into it - a
   /// source that was reachable and then failed to play says both.
   final String? outcome;
+  final IconData? outcomeIcon;
   final Color? outcomeColor;
 
   final bool enabled;
@@ -247,18 +261,29 @@ class _PanelRowState extends State<PanelRow> {
                                     widget.selectedLabel != null)
                                   PanelBadge(
                                     text: widget.selectedLabel!,
+                                    icon: widget.selectedLabelIcon,
+                                    neutral: widget.neutralBadges,
                                     color: HotstarPlayerStyle.accent,
                                   ),
                                 for (final badge in widget.badges)
-                                  PanelBadge(text: badge),
+                                  PanelBadge(
+                                    text: badge,
+                                    icon: widget.badgeIcon,
+                                    color: widget.badgeColor,
+                                    neutral: widget.neutralBadges,
+                                  ),
                                 if (widget.status != null)
                                   PanelBadge(
                                     text: widget.status!,
+                                    icon: widget.statusIcon,
+                                    neutral: widget.neutralBadges,
                                     color: widget.statusColor,
                                   ),
                                 if (widget.outcome != null)
                                   PanelBadge(
                                     text: widget.outcome!,
+                                    icon: widget.outcomeIcon,
+                                    neutral: widget.neutralBadges,
                                     color: widget.outcomeColor,
                                   ),
                               ],
@@ -309,36 +334,67 @@ class _PanelRowState extends State<PanelRow> {
 /// A small chip. Quality, size, seeders, probe state — anything short enough to
 /// read at a glance from a sofa.
 class PanelBadge extends StatelessWidget {
-  const PanelBadge({required this.text, this.color, super.key});
+  const PanelBadge({
+    required this.text,
+    this.color,
+    this.neutral = false,
+    this.icon,
+    super.key,
+  });
 
   final String text;
   final Color? color;
+  final bool neutral;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
-    final color = this.color;
+    final color = neutral ? null : this.color;
     final metrics = PlayerPanelMetrics.of(context);
+    final background = neutral
+        ? const Color(0x0FFFFFFF)
+        : HotstarPlayerStyle.panelElevated;
+    final label = Text(
+      text,
+      style: TextStyle(
+        color: color ?? metrics.secondaryText,
+        fontSize: metrics.badgeSize,
+        fontWeight: neutral ? FontWeight.w500 : FontWeight.w700,
+        letterSpacing: neutral ? 0 : 0.2,
+      ),
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: color == null
-            ? HotstarPlayerStyle.panelElevated
+            ? background
             : Color.alphaBlend(
                 color.withValues(alpha: 0.18),
                 _kPanelSurfaceOpaque,
               ),
-        borderRadius: BorderRadius.circular(5),
-        border: Border.all(color: color ?? metrics.divider, width: 0.8),
+        borderRadius: BorderRadius.circular(neutral ? 6 : 5),
+        border: neutral
+            ? null
+            : Border.all(color: color ?? metrics.divider, width: 0.8),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color ?? metrics.secondaryText,
-          fontSize: metrics.badgeSize,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.2,
-        ),
-      ),
+      child: icon == null
+          ? label
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ExcludeSemantics(
+                  child: Icon(
+                    icon,
+                    size: metrics.badgeSize + 2,
+                    color:
+                        this.color?.withValues(alpha: 0.8) ??
+                        metrics.secondaryText,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(child: label),
+              ],
+            ),
     );
   }
 }

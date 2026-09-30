@@ -154,7 +154,8 @@ class _PlayerSourcesTabState extends State<PlayerSourcesTab> {
     final filter = _activeFilter;
     return <int>[
       for (var i = 0; i < widget.sources.length; i++)
-        if (filter == null || sourceFactsOf(widget.sources[i]).quality == filter)
+        if (filter == null ||
+            sourceFactsOf(widget.sources[i]).quality == filter)
           i,
     ];
   }
@@ -249,12 +250,16 @@ class _PlayerSourcesTabState extends State<PlayerSourcesTab> {
             ?facts.size,
             if (facts.seeders != null) l10n.playerSeeders(facts.seeders!),
           ],
+          neutralBadges: true,
           selected: selected,
           selectedLabel: l10n.playerNowPlaying,
+          selectedLabelIcon: Icons.play_arrow_rounded,
           status: sourceReachabilityLabel(l10n, reachability),
-          statusColor: _reachabilityColour(reachability),
+          statusIcon: _reachabilityIcon(reachability),
+          statusColor: _reachabilityColor(reachability),
           outcome: hasFailed ? l10n.playerSourceUnplayable : null,
-          outcomeColor: hasFailed ? const Color(0xFFE57373) : null,
+          outcomeIcon: Icons.error_outline_rounded,
+          outcomeColor: const Color(0xFFCF9292),
           autofocus: widget.autofocus && position == anchorPosition,
           icon: Icons.dns_outlined,
           onTap: () => widget.onPick(index),
@@ -263,24 +268,22 @@ class _PlayerSourcesTabState extends State<PlayerSourcesTab> {
     );
   }
 
-  /// The reachability chip's colour, worded the way the startup view words it.
-  ///
-  /// Colour only where it says something the word does not: green for a
-  /// source that answered, amber for one the check got no answer from - a
-  /// warning, since the probe is wrong about slow hosts - and for one that
-  /// answered but cannot be sought in. Red is the failure chip's, for a
-  /// source that was played and failed, and a web page is as sure a failure
-  /// as that. Everything else falls through to the ramp's own badge
-  /// treatment (`metrics.secondaryText` on `metrics.divider`), so on a
-  /// television it is as legible as the badges beside it. A literal there is
-  /// what once left "still looking" at the phone's 45 % white on a set that
-  /// crushes it, reading as "nothing there".
-  static Color? _reachabilityColour(SourceReachability reachability) =>
-      switch (reachability) {
-        SourceReachability.reachable => const Color(0xFF4CAF50),
+  static IconData _reachabilityIcon(SourceReachability status) =>
+      switch (status) {
+        SourceReachability.reachable => Icons.check_circle_outline_rounded,
+        SourceReachability.checking => Icons.sync_rounded,
+        SourceReachability.unseekable => Icons.info_outline_rounded,
+        SourceReachability.unreachable => Icons.help_outline_rounded,
+        SourceReachability.notVideo => Icons.error_outline_rounded,
+        SourceReachability.notChecked => Icons.radio_button_unchecked_rounded,
+      };
+
+  static Color? _reachabilityColor(SourceReachability status) =>
+      switch (status) {
+        SourceReachability.reachable => const Color(0xFF8DBAA0),
         SourceReachability.unseekable ||
-        SourceReachability.unreachable => const Color(0xFFFFB74D),
-        SourceReachability.notVideo => const Color(0xFFE57373),
+        SourceReachability.unreachable => const Color(0xFFC5AD83),
+        SourceReachability.notVideo => const Color(0xFFCF9292),
         SourceReachability.checking || SourceReachability.notChecked => null,
       };
 }
@@ -405,12 +408,8 @@ class _QualityChipState extends State<_QualityChip> {
                   // painted the same colour for either.
                   color: showFocus
                       ? HotstarPlayerStyle.focusRing
-                      : (active
-                            ? HotstarPlayerStyle.accent
-                            : metrics.divider),
-                  width: showFocus
-                      ? HotstarPlayerStyle.focusRingWidth
-                      : 1,
+                      : (active ? HotstarPlayerStyle.accent : metrics.divider),
+                  width: showFocus ? HotstarPlayerStyle.focusRingWidth : 1,
                 ),
               ),
               child: Center(

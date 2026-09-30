@@ -89,13 +89,23 @@ class PlayerEpisodesTab extends StatelessWidget {
           label: _title(l10n, episode),
           detail: _detail(l10n, episode),
           badges: <String>[?_dubBadge(l10n, episode)],
+          badgeIcon: switch (episode.dubStatus) {
+            DubStatus.dubbed => Icons.mic_rounded,
+            DubStatus.subbed => Icons.subtitles_rounded,
+            DubStatus.none => null,
+          },
+          badgeColor: const Color(0xFFA0ADC5),
+          neutralBadges: true,
           selected: current,
           selectedLabel: l10n.playing,
+          selectedLabelIcon: Icons.play_arrow_rounded,
           // The chip is not suppressed on the playing row, where the dim and
           // the bar are: it says something the play glyph does not - that this
           // is a re-watch - and unlike a position it cannot go stale under the
           // viewer, because the row is about to make it true anyway.
           status: progress.watched ? l10n.watched : null,
+          statusIcon: Icons.check_circle_outline_rounded,
+          statusColor: const Color(0xFF8DBAA0),
           autofocus: autofocus && index == anchor,
           leading: _EpisodeThumbnail(
             posterUrl: episode.posterUrl,
