@@ -482,6 +482,21 @@ class StorageService {
     await _settingsBox.delete(key);
   }
 
+  // --- UI Scale ---
+  Future<void> setUiScale(double? value) async {
+    if (value == null) {
+      await _settingsBox.delete('ui_scale');
+    } else {
+      await _settingsBox.put('ui_scale', value);
+    }
+  }
+
+  double? getUiScale() {
+    final val = _settingsBox.get('ui_scale');
+    if (val is num) return val.toDouble();
+    return null;
+  }
+
   // --- Watch History ---
 
   static const String kHistoryBox = 'history_box';

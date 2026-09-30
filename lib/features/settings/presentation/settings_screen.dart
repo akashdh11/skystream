@@ -15,6 +15,7 @@ import 'app_version_provider.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
 
 import '../../../core/providers/locale_provider.dart';
+import '../../../core/providers/ui_scale_provider.dart';
 import '../../../core/router/app_router.dart';
 import 'cache_provider.dart';
 
@@ -98,6 +99,7 @@ class SettingsScreen extends ConsumerWidget {
     GeneralSettings generalSettings,
   ) {
     final fullScreenModeEnabled = ref.watch(fullScreenModeProvider);
+    final uiScale = ref.watch(uiScaleProvider);
     return SettingsGroup(
       title: l10n.general,
       children: [
@@ -108,6 +110,12 @@ class SettingsScreen extends ConsumerWidget {
               ? l10n.system
               : (themeMode == ThemeMode.dark ? l10n.dark : l10n.light),
           onTap: () => showThemeDialog(context, ref, themeMode),
+        ),
+        SettingsTile(
+          icon: Icons.zoom_in_rounded,
+          title: 'UI Scale',
+          subtitle: getUiScaleLabel(uiScale),
+          onTap: () => showUiScaleDialog(context, ref, uiScale),
         ),
         SettingsTile(
           icon: Icons.translate_rounded,

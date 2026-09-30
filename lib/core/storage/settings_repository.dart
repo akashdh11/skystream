@@ -45,6 +45,10 @@ class SettingsRepository {
     return _storageService.getDefaultHomeScreen();
   }
 
+  Future<void> setUiScale(double scale) => _storageService.setUiScale(scale);
+
+  double? getUiScale() => _storageService.getUiScale();
+
   Future<void> setDownloadDirectory(String? path) =>
       _storageService.setDownloadDirectory(path);
 

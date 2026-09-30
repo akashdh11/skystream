@@ -1075,9 +1075,9 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
 
   static IconData _brightnessIcon(double value) {
     final clamped = value.clamp(0.0, 1.0);
-    if (clamped < 0.33) return Icons.brightness_7_rounded;
+    if (clamped < 0.33) return Icons.brightness_5_rounded;
     if (clamped < 0.67) return Icons.brightness_6_rounded;
-    return Icons.brightness_5_rounded;
+    return Icons.brightness_7_rounded;
   }
 
   void _railDragEnd() {

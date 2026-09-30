@@ -28,6 +28,7 @@ void main() {
     WidgetTester tester, {
     required Size panel,
     required bool enabled,
+    double userScale = 1.0,
     double logicalWidth = kTvLogicalWidth,
   }) async {
     tester.view.physicalSize = panel;
@@ -37,6 +38,7 @@ void main() {
       MaterialApp(
         home: TvLogicalScale(
           enabled: enabled,
+          userScale: userScale,
           logicalWidth: logicalWidth,
           child: const SizedBox.expand(
             child: ColoredBox(color: Color(0xFF000000), key: Key('body')),
@@ -156,5 +158,37 @@ void main() {
     await pump(tester, panel: const Size(0, 0), enabled: true);
 
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('userScale scales the logical canvas on non-television devices', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      panel: const Size(1000, 500),
+      enabled: false,
+      userScale: 1.25,
+    );
+
+    final measured = measure(tester);
+    expect(measured.size.width, closeTo(1000 / 1.25, 0.01));
+    expect(measured.size.height, closeTo(500 / 1.25, 0.01));
+    expect(find.byType(FittedBox), findsOneWidget);
+  });
+
+  testWidgets('userScale scales the logical canvas down when < 1.0', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      panel: const Size(1000, 500),
+      enabled: false,
+      userScale: 0.85,
+    );
+
+    final measured = measure(tester);
+    expect(measured.size.width, closeTo(1000 / 0.85, 0.01));
+    expect(measured.size.height, closeTo(500 / 0.85, 0.01));
+    expect(find.byType(FittedBox), findsOneWidget);
   });
 }
