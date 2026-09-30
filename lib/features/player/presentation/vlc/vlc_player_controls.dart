@@ -902,8 +902,9 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
             : (level > 100
                   ? Icons.volume_up_rounded
                   : Icons.volume_down_rounded),
-        value: level / _maxVolume,
-        label: '$level%',
+        value: level / 100,
+        maxValue: _maxVolume / 100,
+        semanticLabel: AppLocalizations.of(context)!.volume,
       ),
       hideAfter: hideAfter,
     );
@@ -1063,7 +1064,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
         PlayerRail(
           icon: Icons.brightness_6_rounded,
           value: _brightness,
-          label: '${(_brightness * 100).round()}%',
+          semanticLabel: AppLocalizations.of(context)!.brightness,
           onLeft: false,
         ),
       );
@@ -1087,20 +1088,23 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       key == LogicalKeyboardKey.arrowRight;
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
-    // Hold-to-2x needs the whole press rather than its leading edge, so the
-    // repeat and the release are read before the down-only fast path. Both are
-    // gated on [_spaceHeld], which is set only by a Space this file already
-    // claimed, so every other key is seen once, on the way down.
-    if (event is KeyRepeatEvent) {
-      if (!_spaceHeld || event.logicalKey != LogicalKeyboardKey.space) {
-        return KeyEventResult.ignored;
-      }
-      // A key still down is still interaction, so the bars stay up for the
-      // life of the boost. [_startSpeedBoost] is idempotent, so every further
-      // repeat is a poke and nothing else.
+    // Space has its own hold-to-2x behavior. Incremental shortcuts also
+    // accept platform repeat events; toggles must remain one action per press.
+    final key = event.logicalKey;
+    if (event is KeyRepeatEvent && _spaceHeld && key == LogicalKeyboardKey.space) {
       _chrome.poke();
       _startSpeedBoost();
       return KeyEventResult.handled;
+    }
+    if (event is KeyRepeatEvent &&
+        !_isDirectional(key) &&
+        key != LogicalKeyboardKey.keyJ &&
+        key != LogicalKeyboardKey.keyL &&
+        key != LogicalKeyboardKey.gameButtonLeft1 &&
+        key != LogicalKeyboardKey.gameButtonRight1 &&
+        key != LogicalKeyboardKey.audioVolumeUp &&
+        key != LogicalKeyboardKey.audioVolumeDown) {
+      return KeyEventResult.ignored;
     }
     if (event is KeyUpEvent) {
       if (!_spaceHeld || event.logicalKey != LogicalKeyboardKey.space) {
@@ -1116,7 +1120,9 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       }
       return KeyEventResult.handled;
     }
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
 
     // Back is not ours, and must not poke. Android delivers it as this key
     // first and as popRoute second; the screen's _handleBack decides between
@@ -1131,8 +1137,6 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     // say nothing else in the player does. With a control focused they are
     // traversal and belong to the focus system.
     final bare = node.hasPrimaryFocus;
-
-    final key = event.logicalKey;
 
     // The remote's transport: a D-pad with the bars down is the transport
     // itself, not a way of summoning the bars.

@@ -1268,7 +1268,8 @@ void main() {
         findsOneWidget,
         reason: 'and the player says so, the way every other route does',
       );
-      expect(find.text('30%'), findsOneWidget);
+      expect(tester.widget<PlayerRail>(find.byType(PlayerRail)).value, 0.3);
+      expect(find.text('30%'), findsNothing);
 
       await tester.pump(const Duration(seconds: 1));
       await _snapshot(tester, state: 'paused');
@@ -2594,6 +2595,116 @@ void main() {
             'in full screen mode the same device is a ten-foot one, and '
             'a remote steers around a glyph in the middle of the frame',
       );
+    });
+  });
+
+  group('desktop key repeats', () {
+    testWidgets('held volume arrows keep stepping and respect the ceiling', (
+      tester,
+    ) async {
+      final engine = FakeVlcEngine();
+      await _pumpControls(
+        tester,
+        isTv: false,
+        desktop: true,
+        desktopProfile: true,
+        engine: engine,
+        settings: const PlayerSettings(maxVolumePercent: 110),
+      );
+      _byLabel('player-key-sink').requestFocus();
+      await tester.pump();
+      engine.calls.clear();
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowUp);
+      expect(_volumes(engine), [105, 110, 110]);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pump();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowDown);
+      expect(_volumes(engine).sublist(3), [105, 100]);
+      await _snapshot(tester, state: 'paused');
+    });
+
+    for (final (key, targets) in [
+      (LogicalKeyboardKey.arrowRight, [75000, 90000, 105000]),
+      (LogicalKeyboardKey.arrowLeft, [45000, 30000, 15000]),
+    ]) {
+      testWidgets('held ${key.debugName} chains the configured seek step', (
+        tester,
+      ) async {
+        final engine = FakeVlcEngine();
+        await _pumpControls(
+          tester,
+          isTv: false,
+          desktop: true,
+          engine: engine,
+          settings: const PlayerSettings(seekDuration: 15),
+        );
+        await _snapshot(tester, position: 60000, duration: 300000);
+        _byLabel('player-key-sink').requestFocus();
+        await tester.pump();
+        engine.calls.clear();
+
+        await tester.sendKeyDownEvent(key);
+        await tester.pump(VlcPlayerController.seekMergeWindow);
+        for (var i = 0; i < 2; i++) {
+          await tester.sendKeyRepeatEvent(key);
+          await tester.pump(VlcPlayerController.seekMergeWindow);
+        }
+        await tester.sendKeyUpEvent(key);
+        await tester.pump(VlcPlayerController.seekMergeWindow);
+        expect(_seeks(engine), targets);
+        await _snapshot(tester, state: 'paused', position: targets.last);
+      });
+    }
+
+    testWidgets('held mute stays a single toggle', (tester) async {
+      final engine = FakeVlcEngine();
+      await _pumpControls(
+        tester,
+        isTv: false,
+        desktop: true,
+        desktopProfile: true,
+        engine: engine,
+      );
+      _byLabel('player-key-sink').requestFocus();
+      await tester.pump();
+      engine.calls.clear();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.keyM);
+      await tester.pump();
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyM);
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.keyM);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.keyM);
+      await tester.pump();
+      expect(_volumes(engine), [0]);
+      await _snapshot(tester, state: 'paused');
+    });
+
+    testWidgets('held arrows on controls remain focus navigation', (
+      tester,
+    ) async {
+      final engine = FakeVlcEngine();
+      await _pumpControls(tester, isTv: false, desktop: true, engine: engine);
+      _byLabel('player-play-pause').requestFocus();
+      await tester.pump();
+      engine.calls.clear();
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowRight);
+      expect(_inChrome(_primary), isTrue);
+      expect(_seeks(engine), isEmpty);
+      expect(_volumes(engine), isEmpty);
+      await _snapshot(tester, state: 'paused');
     });
   });
 
