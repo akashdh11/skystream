@@ -656,16 +656,24 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     target?.requestFocus();
   }
 
-  /// A scope above the sink holding primary focus means nothing beneath it
-  /// does. That is what hiding leaves behind when a control was focused, and
-  /// what a sheet leaves behind when it closes over chrome that hid under it;
-  /// either way the next arrow would be spent re-focusing the scope. The sink
-  /// takes it instead, so every key still reaches [_handleKey].
+  /// Recovers a parked scope or focus that escaped the active player route.
+  /// Hiding controls and closing sheets can park the scope; desktop fullscreen
+  /// transitions can instead restore a button on the covered Details route.
+  /// The sink keeps those keys in playback without taking focus from player
+  /// controls, sibling prompts, or a dialog above this route.
   void _claimLooseFocus() {
+    if (!mounted) return;
+    final route = ModalRoute.of(context);
+    // A panel or dialog above the player owns its own keyboard focus.
+    if (route != null && !route.isCurrent) return;
     final primary = FocusManager.instance.primaryFocus;
-    if (primary is FocusScopeNode &&
-        _sink.ancestors.contains(primary) &&
-        _sink.canRequestFocus) {
+    final parkedScope =
+        primary is FocusScopeNode && _sink.ancestors.contains(primary);
+    // Desktop window transitions can restore a real button on the Details
+    // route, rather than parking focus on a scope. Recover that escaped focus
+    // while preserving controls and sibling overlays inside the player route.
+    final escapedFocus = primary != null && !FocusScope.of(context).hasFocus;
+    if ((parkedScope || escapedFocus) && _sink.canRequestFocus) {
       _sink.requestFocus();
     }
   }

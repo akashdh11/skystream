@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/domain/entity/multimedia_item.dart';
@@ -42,6 +43,8 @@ class PlaybackLauncher {
     MultimediaItem? detailedItem,
     Episode? episode,
   }) async {
+    // Ignore a covered Details action before download lookup or resolution.
+    if (playerRouteIsOnTop(GoRouter.of(context))) return;
     final settings = await _ref.read(playerSettingsProvider.future);
     if (!context.mounted) return;
 
@@ -101,6 +104,7 @@ class PlaybackLauncher {
     Episode? episode,
     List<StreamResult> streams = const <StreamResult>[],
   }) async {
+    if (playerRouteIsOnTop(GoRouter.of(context))) return;
     // Read through the snapshot when the provider is already warm. Callers pop
     // themselves before handing over, and an await here would resume against a
     // context on its way out.
@@ -145,6 +149,8 @@ class PlaybackLauncher {
     Episode? episode,
     List<StreamResult> preloadedStreams = const <StreamResult>[],
   }) {
+    // Recheck after asynchronous lookups and external-player fallbacks.
+    if (playerRouteIsOnTop(GoRouter.of(context))) return Future<void>.value();
     return PlayerRoute(
       $extra: PlayerRouteExtra(
         item: item,

@@ -57,7 +57,7 @@ const Size _tv = Size(2560, 1440);
 /// The handset the touch-only affordances exist for, and the same frame
 /// controls_lock_test.dart renders its phone at.
 const Size _phone = Size(844, 390);
-const Duration _hideAfter = Duration(seconds: 3);
+const Duration _hideAfter = Duration(seconds: 2);
 const EventChannel _events = EventChannel('vlc_player/events/1');
 
 /// Every list button the bar can show, so a test that is not about them sees
@@ -256,6 +256,12 @@ Future<VlcPlayerController> _pumpControls(
     ),
   );
   await tester.pump();
+  // These tests exercise visible controls and their subsequent hiding.
+  // Since 14d5f1f0 the player starts hidden, so summon them explicitly.
+  await tester.sendKeyEvent(LogicalKeyboardKey.select);
+  await tester.pump();
+  // Advance the fade off zero so the controls enter the semantics tree.
+  await tester.pump(const Duration(milliseconds: 1));
   await _play(tester);
   return controller;
 }
@@ -2215,8 +2221,9 @@ void main() {
     // which is exactly why it is bound: unlike a bare arrow it does not have
     // to be given up to the focus system when a control is focused, and
     // unlike a bare arrow on television it is not spent revealing the chrome.
-    testWidgets('a shoulder press seeks with a control focused, and the press '
-        'that wakes the bars seeks too', (tester) async {
+    testWidgets('a shoulder press seeks with focused or hidden controls', (
+      tester,
+    ) async {
       final engine = FakeVlcEngine();
       await _pumpControls(tester, engine: engine);
       expect(_primary.debugLabel, 'player-play-pause');
@@ -2241,11 +2248,9 @@ void main() {
       expect(
         _seeks(engine),
         <int>[10000, 10000],
-        reason:
-            'a bare arrow on TV is spent on the reveal; a shoulder button is '
-            'unambiguous and seeks as well',
+        reason: 'a shoulder press seeks without revealing hidden controls',
       );
-      _expectShown(tester);
+      _expectHidden(tester);
 
       await _snapshot(tester, state: 'paused', position: 10000);
     });
