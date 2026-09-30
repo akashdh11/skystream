@@ -439,7 +439,7 @@ void main() {
       // from having just taken focus, and settling that fade ran the clock
       // past the timeout. The moment that fade stopped happening the tap
       // stopped landing, with nothing about this test to say why.
-      await _tapControl(tester, find.byTooltip('Sources'));
+      await _tapControl(tester, find.byTooltip('Options'));
       await tester.pumpAndSettle();
       _expectHidden(tester, reason: 'out of sight behind the panel');
 
@@ -684,13 +684,13 @@ void main() {
         'brings it back on play/pause', (tester) async {
       await _pumpControls(tester);
 
-      // Rest on Subtitles. Focus alone must not hold the bars: on a
+      // Rest on Options. Focus alone must not hold the bars: on a
       // television focus is always on *some* control while the chrome is up,
       // so a hold-while-focused rule would mean the chrome never hides.
-      final subtitles = _button(tester, 'Subtitles');
-      subtitles.requestFocus();
+      final options = _button(tester, 'Options');
+      options.requestFocus();
       await tester.pump();
-      expect(_primary, subtitles);
+      expect(_primary, options);
 
       await _letHide(tester);
       _expectHidden(
@@ -922,10 +922,7 @@ void main() {
       expect(trail, <String>[
         l10n.pause,
         l10n.next,
-        l10n.sources,
-        l10n.audioTracks,
-        l10n.subtitles,
-        l10n.episodes,
+        l10n.options,
         l10n.volume,
         l10n.torrentFiles,
         '1x',
@@ -1327,15 +1324,12 @@ void main() {
   });
 
   group('VlcPlayerControls list buttons', () {
-    // Five buttons, one callback, one panel. Each button opens the panel on
-    // its own tab and holds the chrome for the panel's life, so the control
+    // Options and Files share one callback and one panel. Each opens
+    // its initial tab and holds the chrome for the panel's life, so the control
     // focus returns to is still there when the panel pops.
     for (final (String Function(AppLocalizations) tooltip, PlayerPanelTab tab)
         in <(String Function(AppLocalizations), PlayerPanelTab)>[
-          ((l10n) => l10n.sources, PlayerPanelTab.sources),
-          ((l10n) => l10n.audioTracks, PlayerPanelTab.audio),
-          ((l10n) => l10n.subtitles, PlayerPanelTab.subtitles),
-          ((l10n) => l10n.episodes, PlayerPanelTab.episodes),
+          ((l10n) => l10n.options, PlayerPanelTab.sources),
           ((l10n) => l10n.torrentFiles, PlayerPanelTab.files),
         ]) {
       testWidgets('${tab.name}: opens the panel on its tab and holds the '
@@ -1371,19 +1365,19 @@ void main() {
       });
     }
 
-    testWidgets('Subtitles opens the panel; no sheet remains', (tester) async {
+    testWidgets('Options opens the panel; no sheet remains', (tester) async {
       // The panel is the one surface for every list, so Back and focus obey one
       // set of rules everywhere.
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
       final opened = <PlayerPanelTab>[];
       await _pumpControls(tester, onOpenPanel: (tab) async => opened.add(tab));
 
-      await tester.tap(find.byTooltip(l10n.subtitles));
+      await tester.tap(find.byTooltip(l10n.options));
       await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
       await tester.pump();
 
       expect(find.byType(BottomSheet), findsNothing);
-      expect(opened, <PlayerPanelTab>[PlayerPanelTab.subtitles]);
+      expect(opened, <PlayerPanelTab>[PlayerPanelTab.sources]);
     });
 
     // Absent, not disabled: focus must never land on a control whose list
@@ -1403,15 +1397,17 @@ void main() {
 
       expect(find.byTooltip(l10n.episodes), findsNothing);
       expect(find.byTooltip(l10n.torrentFiles), findsNothing);
-      expect(find.byTooltip(l10n.sources), findsOneWidget);
+      expect(find.byTooltip(l10n.options), findsOneWidget);
     });
 
-    testWidgets('no Sources button without the tab; Audio and Subtitles stay', (
+    testWidgets('Options opens Audio when Sources is unavailable', (
       tester,
     ) async {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      final opened = <PlayerPanelTab>[];
       await _pumpControls(
         tester,
+        onOpenPanel: (tab) async => opened.add(tab),
         panelTabs: const <PlayerPanelTab>{
           PlayerPanelTab.audio,
           PlayerPanelTab.subtitles,
@@ -1419,12 +1415,12 @@ void main() {
       );
 
       expect(find.byTooltip(l10n.sources), findsNothing);
-      expect(
-        find.byTooltip(l10n.audioTracks),
-        findsOneWidget,
-        reason: 'always present: an empty list is still something to say',
-      );
-      expect(find.byTooltip(l10n.subtitles), findsOneWidget);
+      expect(find.byTooltip(l10n.audioTracks), findsNothing);
+      expect(find.byTooltip(l10n.subtitles), findsNothing);
+      expect(find.byIcon(Icons.tune_rounded), findsOneWidget);
+      await tester.tap(find.byTooltip(l10n.options));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
+      expect(opened, <PlayerPanelTab>[PlayerPanelTab.audio]);
     });
 
     testWidgets('Episodes follows the same setting as Next', (tester) async {
@@ -1436,7 +1432,7 @@ void main() {
 
       expect(find.byTooltip(l10n.episodes), findsNothing);
       expect(find.byTooltip(l10n.next), findsNothing);
-      expect(find.byTooltip(l10n.subtitles), findsOneWidget);
+      expect(find.byTooltip(l10n.options), findsOneWidget);
     });
 
     testWidgets('with no panel to open there is no list button at all', (
@@ -1445,13 +1441,7 @@ void main() {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
       await _pumpControls(tester, withoutPanel: true);
 
-      for (final tooltip in <String>[
-        l10n.sources,
-        l10n.audioTracks,
-        l10n.subtitles,
-        l10n.episodes,
-        l10n.torrentFiles,
-      ]) {
+      for (final tooltip in <String>[l10n.options, l10n.torrentFiles]) {
         expect(find.byTooltip(tooltip), findsNothing, reason: tooltip);
       }
       expect(find.byTooltip(l10n.pause), findsOneWidget);
@@ -3421,7 +3411,7 @@ void main() {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
 
       // What is left: play/pause - no seek pair, because a live edge cannot
-      // step - and three utilities.
+      // step - and two utilities.
       final List<String> rendered = tester
           .widgetList<PlayerIconButton>(find.byType(PlayerIconButton))
           .map((b) => b.tooltip)
@@ -3443,8 +3433,7 @@ void main() {
 
       expect(trail, <String>[
         l10n.pause,
-        l10n.audioTracks,
-        l10n.subtitles,
+        l10n.options,
         l10n.volume,
       ], reason: 'every button that exists is on the way, and nothing else is');
 
@@ -3500,14 +3489,8 @@ void main() {
       }
 
       expect(
-        <int>[
-          at(l10n.sources),
-          at(l10n.audioTracks),
-          at(l10n.subtitles),
-          at(l10n.episodes),
-          at(l10n.volume),
-        ],
-        <int>[0, 1, 2, 3, 4],
+        <int>[at(l10n.options), at(l10n.volume)],
+        <int>[0, 1],
         reason: 'band one leads, in this order; the full row is $tooltips',
       );
       expect(
@@ -3568,7 +3551,7 @@ void main() {
         reason: 'nothing is hidden, so nothing may claim it is',
       );
 
-      // Twelve, which is what a torrent series actually renders.
+      // Twelve buttons force overflow even with short labels.
       await tester.pumpWidget(host(360, 12));
       await tester.pump();
       expect(
@@ -3642,9 +3625,9 @@ void main() {
       );
       expect(
         actions.length,
-        greaterThanOrEqualTo(8),
+        greaterThanOrEqualTo(7),
         reason:
-            'a torrent series renders eight utilities or more, which is what '
+            'a torrent series renders seven utilities or more, which is what '
             'makes a 320 dp line overflow in the first place. The exact count '
             'moves as controls come and go - that the row really does '
             'overflow is asserted by the edge hint below, not by this floor',

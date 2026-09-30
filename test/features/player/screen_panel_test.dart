@@ -28,8 +28,8 @@ import 'package:skystream/features/settings/presentation/player_settings_provide
 
 import 'vlc_screen_harness.dart';
 
-/// The panel as the screen drives it: the bottom bar opens the tab it names,
-/// a pick reaches the engine, and a failover moving the tick reaches the panel
+/// The panel as the screen drives it: Options opens the panel and the viewer
+/// selects a tab. A pick reaches the engine, and a failover updates the panel
 /// that is already up. The panel's own behaviour is pinned in
 /// player_panel_test.dart; this file is about the wiring between the two.
 ///
@@ -132,7 +132,12 @@ void main() {
   /// Opens the panel from the bottom bar, the way a remote does, and waits
   /// out the slide-in.
   Future<void> openFromBar(WidgetTester tester, String tooltip) async {
-    await tester.tap(find.byTooltip(tooltip));
+    final l10n = await english();
+    await tester.tap(find.byTooltip(l10n.options));
+    await settle(tester);
+    await tester.tap(
+      find.text(tooltip == l10n.audioTracks ? l10n.audio : tooltip),
+    );
     await settle(tester);
     expect(find.byType(PlayerPanel), findsOneWidget);
   }

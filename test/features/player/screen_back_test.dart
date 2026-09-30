@@ -235,17 +235,17 @@ void main() {
   });
 
   group('Back over the panel on a television', () {
-    /// Opens the panel from the bottom bar's Subtitles button, the way a
+    /// Opens the panel from the bottom bar's Options button, the way a
     /// remote does, and waits out the slide-in.
     Future<void> openPanel(WidgetTester tester) async {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
-      await tester.tap(find.byTooltip(l10n.subtitles));
+      await tester.tap(find.byTooltip(l10n.options));
       await settle(tester);
       expect(find.byType(PlayerPanel), findsOneWidget);
     }
 
     testWidgets(
-      'Subtitles opens the panel; Back closes the panel and not the player',
+      'Options opens the panel; Back closes the panel and not the player',
       variant: texturePlatform,
       (tester) async {
         // The panel is a route on top of the player, so the Navigator pops

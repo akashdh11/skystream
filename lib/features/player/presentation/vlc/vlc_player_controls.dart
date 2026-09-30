@@ -124,11 +124,11 @@ class VlcPlayerControls extends ConsumerStatefulWidget {
   /// Opens the panel on [tab] and completes when it closes, so the chrome can
   /// be held for the panel's life and the button that opened it is still there
   /// to take focus back. Null when there is no panel to open, and then none of
-  /// the five list buttons is rendered.
+  /// the panel buttons are rendered.
   final Future<void> Function(PlayerPanelTab tab)? onOpenPanel;
 
-  /// The tabs the panel would show right now; a button is rendered only for a
-  /// tab that exists. Audio and Subtitles are always present.
+  /// The tabs the panel would show right now. Panel buttons open only tabs
+  /// that exist. Audio and Subtitles are always present.
   final Set<PlayerPanelTab> panelTabs;
 
   /// Non-null only where picture-in-picture is actually available.
@@ -647,7 +647,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     // A television always lands on play/pause, whatever was focused when the
     // bars went down. The remote's D-pad is the transport while they are
     // hidden, so OK is the one press that opens them and the viewer should be
-    // able to predict where it puts them - waking up on Subtitles because
+    // able to predict where it puts them - waking up on Options because
     // that is where they happened to be four minutes ago is a guess they have
     // to read the screen to resolve.
     final target = _isTv
@@ -711,8 +711,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
         : (text.endsWith('0') ? text.substring(0, text.length - 1) : text);
   }
 
-  /// Whether a button for [tab] is rendered: there is a panel to open and the
-  /// panel would show that tab.
+  /// Whether the panel can open [tab].
   bool _hasPanelTab(PlayerPanelTab tab) =>
       widget.onOpenPanel != null && widget.panelTabs.contains(tab);
 
@@ -1510,7 +1509,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   /// The utility group, right-anchored.
   ///
   /// Three bands, in this order: the controls a viewer reaches for while
-  /// watching (sources, audio, subtitles, episodes, volume), then the rest,
+  /// watching (options and volume), then the rest,
   /// then the two that change the shape of the picture rather than the
   /// playback (resize and fullscreen), hard against the right edge.
   ///
@@ -1525,40 +1524,21 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     PlayerSettings settings, {
     required bool isTv,
   }) {
+    final optionsTab = <PlayerPanelTab>[
+      PlayerPanelTab.sources,
+      PlayerPanelTab.audio,
+      PlayerPanelTab.subtitles,
+      if (settings.showEpisodes) PlayerPanelTab.episodes,
+    ].where(_hasPanelTab).firstOrNull;
+
     return <Widget>[
-      // Band one: what a viewer reaches for without leaving the film, in the
-      // order they reach for it. The three list buttons each open the one
-      // panel on their own tab, and are present exactly when that tab is -
-      // see [VlcPlayerControls.panelTabs].
-      if (_hasPanelTab(PlayerPanelTab.sources))
+      // One entry point for sources, tracks, and available episodes.
+      if (optionsTab != null)
         PlayerIconButton(
-          icon: Icons.source,
-          tooltip: l10n.sources,
+          icon: Icons.tune_rounded,
+          tooltip: l10n.options,
           isTv: isTv,
-          onPressed: () => _open(PlayerPanelTab.sources),
-        ),
-      if (_hasPanelTab(PlayerPanelTab.audio))
-        PlayerIconButton(
-          icon: Icons.audiotrack_rounded,
-          tooltip: l10n.audioTracks,
-          isTv: isTv,
-          onPressed: () => _open(PlayerPanelTab.audio),
-        ),
-      if (_hasPanelTab(PlayerPanelTab.subtitles))
-        PlayerIconButton(
-          icon: Icons.subtitles_rounded,
-          tooltip: l10n.subtitles,
-          isTv: isTv,
-          onPressed: () => _open(PlayerPanelTab.subtitles),
-        ),
-      // Behind the same setting as the episode buttons in the transport group:
-      // a viewer who hid the episode controls hid all of them.
-      if (_hasPanelTab(PlayerPanelTab.episodes) && settings.showEpisodes)
-        PlayerIconButton(
-          icon: Icons.playlist_play_rounded,
-          tooltip: l10n.episodes,
-          isTv: isTv,
-          onPressed: () => _open(PlayerPanelTab.episodes),
+          onPressed: () => _open(optionsTab),
         ),
       // On every platform, not just TV. The vertical rail only carries volume
       // when the edge-gesture setting says so, so anyone who set both edges to

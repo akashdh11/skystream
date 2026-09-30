@@ -245,7 +245,11 @@ void main() {
         final l10n = await english();
         expect(find.byType(NextEpisodeCountdown), findsNothing);
 
-        await tester.tap(find.byTooltip(l10n.episodes));
+        await tester.tap(find.byTooltip(l10n.options));
+        await settle(tester);
+        Focus.of(tester.element(find.text(l10n.episodes))).requestFocus();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
         await settle(tester);
         expect(find.byType(PlayerPanel), findsOneWidget);
         expect(focusInPanel(), isTrue);

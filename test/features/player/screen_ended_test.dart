@@ -232,7 +232,7 @@ void main() {
         await sendFirstFrame(tester);
         final l10n = await english();
 
-        await tester.tap(find.byTooltip(l10n.subtitles));
+        await tester.tap(find.byTooltip(l10n.options));
         await settle(tester);
         expect(find.byType(PlayerPanel), findsOneWidget);
         expect(focusInPanel(), isTrue);
