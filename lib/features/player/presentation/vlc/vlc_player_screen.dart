@@ -3206,9 +3206,6 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       _playedRows.add(_attemptIndex);
       _publishPanelData();
       _setFailReason(null);
-      // A new picture, so the bars come up over it for a moment; on a
-      // television that is also where focus lands.
-      _chrome.poke();
       // The seek has already been applied as a start position, so this is a
       // notice rather than a prompt - and it belongs on the first real frame,
       // not on the stage change, which fires while the engine is still opening.

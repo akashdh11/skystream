@@ -1101,7 +1101,6 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     // accept platform repeat events; toggles must remain one action per press.
     final key = event.logicalKey;
     if (event is KeyRepeatEvent && _spaceHeld && key == LogicalKeyboardKey.space) {
-      _chrome.poke();
       _startSpeedBoost();
       return KeyEventResult.handled;
     }
@@ -1142,116 +1141,95 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       return KeyEventResult.ignored;
     }
 
-    // Arrows are shortcuts only while the sink itself holds focus, which is to
-    // say nothing else in the player does. With a control focused they are
-    // traversal and belong to the focus system.
+    // Arrows and shortcuts belong to playback while the sink holds focus
+    // (no control on screen is focused). With a control focused they belong
+    // to focus traversal and the focus system.
     final bare = node.hasPrimaryFocus;
 
-    // The remote's transport: a D-pad with the bars down is the transport
-    // itself, not a way of summoning the bars.
-    //
-    // It used to be the other way round - the press was spent revealing the
-    // chrome - and the cost of that was that a remote could not step through
-    // a film at all. The press woke the bars, focus landed on a control, and
-    // every arrow after it was traversal; seeking meant waiting for the bars
-    // to time out and then spending another press waking them again. OK is
-    // the key that opens the chrome, and it is the only one that needs to.
-    final tvTransport = bare && _isTv && _isDirectional(key);
-
-    // Any other key keeps the chrome alive, and summons it when hidden - on a
-    // remote there is no tap to reveal it with. Focus is restored after the
-    // frame, so the key doing the summoning is judged against where focus was.
-    //
-    // Skipped for the transport keys above: poking would raise the bars, and
-    // raising the bars is what takes the next arrow away from seeking.
-    if (!tvTransport) _chrome.poke();
-
-    if (tvTransport) {
+    if (bare) {
       if (key == LogicalKeyboardKey.arrowLeft) {
         _seekBy(-_seekStep);
-      } else if (key == LogicalKeyboardKey.arrowRight) {
-        _seekBy(_seekStep);
-      } else if (key == LogicalKeyboardKey.arrowUp) {
-        _nudgeVolume(_tvVolumeStep);
-      } else {
-        _nudgeVolume(-_tvVolumeStep);
+        _chrome.keepAlive();
+        return KeyEventResult.handled;
       }
-      return KeyEventResult.handled;
+      if (key == LogicalKeyboardKey.arrowRight) {
+        _seekBy(_seekStep);
+        _chrome.keepAlive();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.arrowUp) {
+        _nudgeVolume(_isTv ? _tvVolumeStep : _volumeStep);
+        _chrome.keepAlive();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.arrowDown) {
+        _nudgeVolume(_isTv ? -_tvVolumeStep : -_volumeStep);
+        _chrome.keepAlive();
+        return KeyEventResult.handled;
+      }
+      // Space is a shortcut only while nothing is focused: claimed with a button
+      // focused it would toggle playback instead of pressing the button.
+      if (key == LogicalKeyboardKey.space) {
+        _spaceHeld = true;
+        return KeyEventResult.handled;
+      }
     }
-    // K and the media keys have no activation meaning, so they stay global.
-    if (key == LogicalKeyboardKey.mediaPlayPause ||
-        key == LogicalKeyboardKey.keyK) {
-      _togglePlayback();
-      return KeyEventResult.handled;
-    }
-    // Space is the activation key for whatever is focused, so it is a shortcut
-    // only while nothing is: claimed with a button focused it would toggle
-    // playback instead of pressing the button.
-    //
-    // A bare Space is two shortcuts on one key - tap toggles, hold runs at 2x -
-    // and only the release tells them apart, so the down press claims the key
-    // and does nothing else. Toggling on the leading edge instead would pause
-    // the film under a viewer who meant to skim.
-    if (bare && key == LogicalKeyboardKey.space) {
-      _spaceHeld = true;
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.mediaPlay) {
-      widget.controller.play();
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.mediaPause) {
-      widget.controller.pause();
-      return KeyEventResult.handled;
-    }
-    // LB/RB, alongside J/L and through the same [_seekBy], so a pad inherits
-    // the chain window and the toast rather than growing a second seek path.
-    //
-    // A shoulder button has no traversal meaning and no activation meaning, so
-    // unlike the arrows and unlike Space it needs no `bare` guard and is not
-    // spent revealing the chrome on television: the press that wakes the bars
-    // also seeks, exactly as J and L do.
+
+    // Dedicated seek keys (J/L and shoulder buttons). These do not require
+    // bare focus and do not summon the chrome.
     if (key == LogicalKeyboardKey.keyJ ||
         key == LogicalKeyboardKey.gameButtonLeft1) {
       _seekBy(-_seekStep);
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.keyL ||
         key == LogicalKeyboardKey.gameButtonRight1) {
       _seekBy(_seekStep);
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
+
+    // Media transport keys have no activation meaning, so they stay global.
+    if (key == LogicalKeyboardKey.mediaPlayPause ||
+        key == LogicalKeyboardKey.keyK) {
+      _togglePlayback();
+      _chrome.keepAlive();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.mediaPlay) {
+      widget.controller.play();
+      _chrome.keepAlive();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.mediaPause) {
+      widget.controller.pause();
+      _chrome.keepAlive();
+      return KeyEventResult.handled;
+    }
+
+    // Fullscreen toggles
     if (key == LogicalKeyboardKey.keyF && widget.onToggleFullscreen != null) {
       widget.onToggleFullscreen!.call();
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.escape &&
         widget.isFullscreen &&
         widget.onToggleFullscreen != null) {
       widget.onToggleFullscreen!.call();
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
 
-    // The rocker is the phone's, not ours: off desktop this must fall through
-    // as ignored or the handset's own volume never moves and its HUD never
-    // appears, while the app walks its private libVLC gain. See
-    // [_ownsVolumeKeys] for the embedder path behind that.
+    // Hardware volume keys
     if (key == LogicalKeyboardKey.audioVolumeUp ||
         key == LogicalKeyboardKey.audioVolumeDown) {
       if (!_ownsVolumeKeys) return KeyEventResult.ignored;
       _nudgeVolume(
         key == LogicalKeyboardKey.audioVolumeUp ? _volumeStep : -_volumeStep,
       );
-      return KeyEventResult.handled;
-    }
-    // A bare arrow is the keyboard idiom, not a hardware key, and on TV it
-    // never reaches here - the directional guard above already spent it.
-    if (bare &&
-        (key == LogicalKeyboardKey.arrowUp ||
-            key == LogicalKeyboardKey.arrowDown)) {
-      _nudgeVolume(
-        key == LogicalKeyboardKey.arrowUp ? _volumeStep : -_volumeStep,
-      );
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.keyM) {
@@ -1259,24 +1237,30 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       if (current == 0) {
         _setVolume(_volumeBeforeMute ?? 100);
       } else {
-        // Also covers a level this widget never applied - the engine's own
-        // starting volume - which _setVolume has had no chance to record.
         _volumeBeforeMute = current;
         _setVolume(0);
       }
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
 
-    if (bare) {
-      if (key == LogicalKeyboardKey.arrowLeft) {
-        _seekBy(-_seekStep);
-        return KeyEventResult.handled;
-      }
-      if (key == LogicalKeyboardKey.arrowRight) {
-        _seekBy(_seekStep);
-        return KeyEventResult.handled;
-      }
+    // Explicit keys that reveal the chrome when bars are hidden.
+    // On a remote, OK (Select / Enter / D-pad center) is the designated key
+    // that summons the controls.
+    if (!_chrome.value &&
+        (key == LogicalKeyboardKey.select ||
+            key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter ||
+            key == LogicalKeyboardKey.gameButtonSelect)) {
+      _chrome.poke();
+      return KeyEventResult.handled;
     }
+
+    // If chrome is already visible, non-traversal keys keep it alive.
+    if (_chrome.value) {
+      _chrome.keepAlive();
+    }
+
     return KeyEventResult.ignored;
   }
 
@@ -1996,9 +1980,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       // Away from the viewer is up and is also forward: scrolling up raises
       // the volume, and a horizontal scroll to the right moves forward.
       final bool forward = horizontal ? primary > 0 : primary < 0;
-      // Any wheel is interaction, and reveals hidden chrome the way a key
-      // press does - there is no tap on the way to a wheel.
-      _chrome.poke();
+      _chrome.keepAlive();
       if (horizontal || HardwareKeyboard.instance.isShiftPressed) {
         _seekBy(forward ? _seekStep : -_seekStep);
       } else {
