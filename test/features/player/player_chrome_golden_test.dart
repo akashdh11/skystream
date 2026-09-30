@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skystream/core/providers/device_info_provider.dart';
@@ -9,8 +10,11 @@ import 'package:skystream/features/player/presentation/vlc/panel/player_panel.da
     show PlayerPanelTab;
 import 'package:skystream/features/player/presentation/vlc/resume_hint.dart';
 import 'package:skystream/features/player/presentation/vlc/vlc_player_controls.dart';
+import 'package:skystream/features/player/presentation/vlc/chrome_visibility_controller.dart';
+import 'package:skystream/features/player/presentation/system_volume.dart';
 import 'package:skystream/features/settings/presentation/player_settings_provider.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
+import 'package:skystream/shared/focus/app_focus.dart';
 import 'package:vlc_player/vlc_player.dart';
 
 import 'fake_vlc_engine.dart';
@@ -30,6 +34,16 @@ import 'fake_vlc_engine.dart';
 /// dropped its seek pair and took the clock down off the scrubber, and the
 /// only way to see that it is still balanced is against the bar that did not.
 void main() {
+  setUpAll(() async {
+    final icons = FontLoader('MaterialIcons')
+      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    await icons.load();
+    final text = FontLoader('Outfit')
+      ..addFont(rootBundle.load('assets/fonts/Outfit-Regular.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Outfit-SemiBold.ttf'))
+      ..addFont(rootBundle.load('assets/fonts/Outfit-Bold.ttf'));
+    await text.load();
+  });
   Future<void> draw(
     WidgetTester tester,
     String name, {
@@ -37,6 +51,7 @@ void main() {
     required bool desktop,
     required Size size,
     bool resumeHint = false,
+    String? focusedTooltip,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -47,64 +62,77 @@ void main() {
     addTearDown(fake.dispose);
     final VlcPlayerController controller = await fake.attach();
     addTearDown(controller.dispose);
+    final chrome = ChromeVisibilityController(
+      isPlaying: () => false,
+      initiallyVisible: true,
+    );
+    chrome.poke(hold: true);
+    addTearDown(chrome.dispose);
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           deviceProfileProvider.overrideWithValue(
-            AsyncValue.data(DeviceProfile(isTv: isTv)),
+            AsyncValue.data(DeviceProfile(isTv: isTv, isDesktopOS: desktop)),
           ),
           playerSettingsProvider.overrideWithBuild(
             (_, _) => const PlayerSettings(),
           ),
         ],
-        child: MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            backgroundColor: Colors.black,
-            body: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                // Something behind the scrim, so the bar's gradient is
-                // visible as a gradient rather than as black on black.
-                const DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: <Color>[Color(0xFF14323C), Color(0xFFD8C79A)],
+        child: FocusVisibilityScope(
+          television: isTv || focusedTooltip != null,
+          child: MaterialApp(
+            debugShowCheckedModeBanner: false,
+            theme: ThemeData(brightness: Brightness.dark, fontFamily: 'Outfit'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              backgroundColor: Colors.black,
+              body: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  // Something behind the scrim, so the bar's gradient is
+                  // visible as a gradient rather than as black on black.
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: <Color>[Color(0xFF14323C), Color(0xFFD8C79A)],
+                      ),
                     ),
+                    child: SizedBox.expand(),
                   ),
-                  child: SizedBox.expand(),
-                ),
-                VlcPlayerControls(
-                  controller: controller,
-                  title: 'The Body',
-                  subtitle: 'S5 E16',
-                  onBack: () {},
-                  onNextEpisode: () {},
-                  onPreviousEpisode: () {},
-                  onOpenPanel: (_) async {},
-                  panelTabs: const <PlayerPanelTab>{
-                    PlayerPanelTab.sources,
-                    PlayerPanelTab.audio,
-                    PlayerPanelTab.subtitles,
-                    PlayerPanelTab.episodes,
-                  },
-                  onToggleFullscreen: desktop ? () {} : null,
-                ),
-                // A sibling of the controls, which is how the screen mounts
-                // it: the hint is anchored off the chrome token rather than
-                // off anything it can see.
-                if (resumeHint)
-                  ResumeHint(
-                    position: const Duration(minutes: 8, seconds: 50),
-                    isTv: isTv,
-                    onStartOver: () {},
-                    onDismissed: () {},
+                  VlcPlayerControls(
+                    controller: controller,
+                    chrome: chrome,
+                    systemVolumeFactory: _PreviewVolume.new,
+                    title: 'The Body',
+                    subtitle: 'S5 E16',
+                    onBack: () {},
+                    onNextEpisode: () {},
+                    onPreviousEpisode: () {},
+                    onOpenPanel: (_) async {},
+                    panelTabs: const <PlayerPanelTab>{
+                      PlayerPanelTab.sources,
+                      PlayerPanelTab.audio,
+                      PlayerPanelTab.subtitles,
+                      PlayerPanelTab.episodes,
+                    },
+                    onToggleFullscreen: desktop ? () {} : null,
                   ),
-              ],
+                  // A sibling of the controls, which is how the screen mounts
+                  // it: the hint is anchored off the chrome token rather than
+                  // off anything it can see.
+                  if (resumeHint)
+                    ResumeHint(
+                      position: const Duration(minutes: 8, seconds: 50),
+                      isTv: isTv,
+                      onStartOver: () {},
+                      onDismissed: () {},
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -121,6 +149,19 @@ void main() {
     });
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 16));
+    if (focusedTooltip != null) {
+      final focus = tester
+          .widgetList<Focus>(
+            find.descendant(
+              of: find.byTooltip(focusedTooltip),
+              matching: find.byType(Focus),
+            ),
+          )
+          .firstWhere((focus) => focus.focusNode != null);
+      focus.focusNode!.requestFocus();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 160));
+    }
 
     await expectLater(
       find.byType(MaterialApp),
@@ -131,6 +172,8 @@ void main() {
     // and flutter_test checks for pending timers before tear-down.
     await fake.emit(<String, Object?>{'state': 'paused', 'position': 65000});
     await tester.pump();
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump(const Duration(seconds: 3));
   }
 
   testWidgets('the desktop bar', (tester) async {
@@ -160,6 +203,17 @@ void main() {
     );
   });
 
+  testWidgets('the desktop bar with keyboard focus on Options', (tester) async {
+    await draw(
+      tester,
+      'chrome_desktop_focused',
+      isTv: false,
+      desktop: true,
+      size: const Size(1280, 720),
+      focusedTooltip: 'Options',
+    );
+  });
+
   testWidgets('a handset held upright', (tester) async {
     // The transport is in the middle of the frame here, so the bar's left end
     // is the episode pair and the clock and the utility strip gets the rest.
@@ -182,4 +236,15 @@ void main() {
       size: const Size(1280, 720),
     );
   });
+}
+
+class _PreviewVolume implements SystemVolume {
+  @override
+  Stream<double> get changes => const Stream.empty();
+  @override
+  Future<double?> read() async => 0.5;
+  @override
+  Future<void> write(double level) async {}
+  @override
+  void dispose() {}
 }

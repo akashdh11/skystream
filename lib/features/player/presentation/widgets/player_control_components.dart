@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../../../../shared/widgets/custom_widgets.dart';
 import 'hotstar_player_style.dart';
 import 'player_activation.dart';
+import 'player_matte_pill.dart';
 import '../../../../shared/focus/app_focus.dart';
 
 /// Top zone: back button + title/subtitle. Paints its own top scrim.
@@ -294,20 +295,28 @@ class PlayerBottomBar extends StatelessWidget {
     return Row(
       children: [
         transport,
+        if (leading.isNotEmpty && actions.isNotEmpty) const SizedBox(width: 8),
         Expanded(
           // Touch: one line, right-anchored, finger-scrolled, with an edge
           // hint. No [LayoutBuilder] and no width threshold — a threshold is
           // what produced the second run.
-          child: scrollingActions
-              ? PlayerActionStrip(actions: actions)
-              // A television has no pointer to drag a strip with, so overflow
-              // is laid out rather than scrolled: extra runs go above the
-              // first and the bar grows upwards.
-              : Wrap(
-                  alignment: WrapAlignment.end,
-                  runAlignment: WrapAlignment.end,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: actions,
+          child: actions.isEmpty
+              ? const SizedBox.shrink()
+              : Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: PlayerMattePill(
+                    child: scrollingActions
+                        ? PlayerActionStrip(actions: actions)
+                        // A television has no pointer to drag a strip with, so overflow
+                        // is laid out rather than scrolled: extra runs go above the
+                        // first and the bar grows upwards.
+                        : Wrap(
+                            alignment: WrapAlignment.end,
+                            runAlignment: WrapAlignment.end,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: actions,
+                          ),
+                  ),
                 ),
         ),
       ],
@@ -379,34 +388,18 @@ class _PlayerActionStripState extends State<PlayerActionStrip> {
         child: Stack(
           children: [
             ScrollConfiguration(
-              behavior: ScrollConfiguration.of(
-                context,
-              ).copyWith(dragDevices: _dragDevices, scrollbars: false),
-              // The [LayoutBuilder] reads the viewport's width to give the
-              // row a floor, and nothing else. It is not the width *threshold*
-              // this class's header warns about - there is still one layout at
-              // every width, and no branch for it to pick.
-              child: LayoutBuilder(
-                builder: (context, constraints) => SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  reverse: true,
-                  // `reverse` alone right-anchors the row only while it
-                  // overflows; the moment the buttons fit, the viewport lays
-                  // them out from its leading edge and the whole group floats
-                  // off the right margin - 500 dp adrift of the scrubber's end
-                  // on a wide window. Holding the row to the viewport's width
-                  // and packing it to the end fixes both cases with one rule:
-                  // narrower than the viewport it is stretched and the buttons
-                  // sit against the right edge, wider and the floor does
-                  // nothing and `reverse` shows the end of the row.
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: widget.actions,
-                    ),
-                  ),
+              behavior: ScrollConfiguration.of(context)
+                  .copyWith(dragDevices: _dragDevices, scrollbars: false),
+              // Shrink to the button row when it fits; use the available
+              // width when it overflows. The enclosing Align anchors the
+              // whole pill at the trailing edge in either case.
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: widget.actions,
                 ),
               ),
             ),
@@ -491,11 +484,32 @@ class PlayerIconButton extends StatefulWidget {
 
 class _PlayerIconButtonState extends State<PlayerIconButton> {
   bool _hovered = false;
+  bool _focused = false;
+  FocusNode? _ownedFocusNode;
+
+  @override
+  void dispose() {
+    _ownedFocusNode?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final double glyph = widget.iconSize ?? (widget.isTv ? 28 : 26);
     final double box = glyph + (widget.isTv ? 20 : 18);
+    final matte = PlayerMattePill.contains(context);
+    final showFocus = showFocusIndicator(context, true);
+    final matteForeground = WidgetStateProperty.resolveWith<Color>((states) {
+      if (states.contains(WidgetState.disabled)) {
+        return const Color(0x61FFFFFF);
+      }
+      if ((showFocus && states.contains(WidgetState.focused)) ||
+          states.contains(WidgetState.hovered) ||
+          widget.highlight) {
+        return PlayerMattePill.focusInk;
+      }
+      return Colors.white;
+    });
 
     Color iconColor;
     if (_hovered) {
@@ -528,18 +542,60 @@ class _PlayerIconButtonState extends State<PlayerIconButton> {
             child: MouseRegion(
               onEnter: (_) => setState(() => _hovered = true),
               onExit: (_) => setState(() => _hovered = false),
-              child: CustomButton(
-                onPressed: widget.onPressed,
-                showFocusHighlight: widget.isTv,
-                focusNode: widget.focusNode,
-                autofocus: widget.autofocus,
-                shape: const CircleBorder(),
-                child: SizedBox(
-                  width: box,
-                  height: box,
-                  child: Icon(widget.icon, color: iconColor, size: glyph),
-                ),
-              ),
+              child: matte
+                  ? TextButton(
+                      focusNode:
+                          widget.focusNode ?? (_ownedFocusNode ??= FocusNode()),
+                      autofocus: widget.autofocus,
+                      onPressed: widget.onPressed,
+                      onFocusChange: (focused) =>
+                          setState(() => _focused = focused),
+                      style: ButtonStyle(
+                        padding: const WidgetStatePropertyAll(EdgeInsets.zero),
+                        minimumSize: const WidgetStatePropertyAll(Size.zero),
+                        shape: const WidgetStatePropertyAll(StadiumBorder()),
+                        overlayColor: const WidgetStatePropertyAll(
+                          Colors.transparent,
+                        ),
+                        backgroundColor: const WidgetStatePropertyAll(
+                          Colors.transparent,
+                        ),
+                        shadowColor: const WidgetStatePropertyAll(
+                          Colors.transparent,
+                        ),
+                        foregroundColor: matteForeground,
+                        iconColor: matteForeground,
+                        side: const WidgetStatePropertyAll(BorderSide.none),
+                      ),
+                      child: SizedBox(
+                        width: box,
+                        height: box,
+                        child: Icon(
+                          widget.icon,
+                          size: glyph,
+                          // Update the glyph immediately when focus moves.
+                          color: widget.onPressed == null
+                              ? const Color(0x61FFFFFF)
+                              : (showFocus && _focused) ||
+                                    _hovered ||
+                                    widget.highlight
+                              ? PlayerMattePill.focusInk
+                              : Colors.white,
+                        ),
+                      ),
+                    )
+                  : CustomButton(
+                      onPressed: widget.onPressed,
+                      showFocusHighlight: widget.isTv,
+                      focusNode: widget.focusNode,
+                      autofocus: widget.autofocus,
+                      shape: const CircleBorder(),
+                      child: SizedBox(
+                        width: box,
+                        height: box,
+                        child: Icon(widget.icon, color: iconColor, size: glyph),
+                      ),
+                    ),
             ),
           ),
         ),

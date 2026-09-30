@@ -12,7 +12,7 @@ import '../../../../shared/focus/app_focus.dart';
 
 /// Season / episode picker for "Search in Nuvio plugins" on a series.
 ///
-/// Redesigned as a floating Hyprland glass dialog matching [PluginSourcesSheet].
+/// A floating frosted glass dialog matching [PluginSourcesSheet].
 class EpisodePickerSheet extends ConsumerWidget {
   final int movieId;
   final String? source;

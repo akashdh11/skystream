@@ -134,7 +134,7 @@ class HotstarPlayerStyle {
   static const LinearGradient bottomGradient = LinearGradient(
     begin: Alignment.bottomCenter,
     end: Alignment.topCenter,
-    colors: [Color(0xE6000000), Color(0x99000000), Color(0x00000000)],
+    colors: [Color(0x66000000), Color(0x33000000), Color(0x00000000)],
     stops: [0.0, 0.5, 1.0],
   );
 }

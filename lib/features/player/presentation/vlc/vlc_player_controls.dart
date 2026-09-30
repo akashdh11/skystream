@@ -18,6 +18,7 @@ import '../system_volume.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../widgets/hotstar_player_style.dart';
 import '../widgets/player_control_components.dart';
+import '../widgets/player_matte_pill.dart';
 import '../widgets/player_stream_widgets.dart'
     show PlayerBufferingIndicator, PlayerTimeLabel;
 
@@ -1411,50 +1412,75 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       // size there in the first place. Two buttons in the bar for something
       // every other device already does better was chrome for its own sake.
       if (!_showCenterGlyph)
-        PlayerValueSelector<bool>(
-          controller: widget.controller,
-          // A rebuffer is still playback: the film resumes on its own, so the
-          // button keeps offering pause. A play glyph here would say stopped.
-          selector: (v) => v.isPlaying || v.isBuffering,
-          builder: (context, playing) {
-            return PlayerIconButton(
-              icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              tooltip: playing ? l10n.pause : l10n.play,
-              isTv: isTv,
-              iconSize: 40,
-              focusNode: _playPause,
-              // Only on TV: a keyboard user wants arrows seeking from the
-              // start, which they do while the sink holds focus, not a button.
-              autofocus: isTv,
-              onPressed: () {
-                _chrome.poke();
-                playing ? widget.controller.pause() : widget.controller.play();
+        Padding(
+          padding: EdgeInsets.only(
+            right:
+                settings.showEpisodes &&
+                    (widget.onPreviousEpisode != null ||
+                        widget.onNextEpisode != null)
+                ? 8
+                : 0,
+          ),
+          child: PlayerMattePill(
+            child: PlayerValueSelector<bool>(
+              controller: widget.controller,
+              // A rebuffer is still playback: the film resumes on its own, so the
+              // button keeps offering pause. A play glyph here would say stopped.
+              selector: (v) => v.isPlaying || v.isBuffering,
+              builder: (context, playing) {
+                return PlayerIconButton(
+                  icon: playing
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  tooltip: playing ? l10n.pause : l10n.play,
+                  isTv: isTv,
+                  iconSize: 40,
+                  focusNode: _playPause,
+                  // Only on TV: a keyboard user wants arrows seeking from the
+                  // start, which they do while the sink holds focus, not a button.
+                  autofocus: isTv,
+                  onPressed: () {
+                    _chrome.poke();
+                    playing
+                        ? widget.controller.pause()
+                        : widget.controller.play();
+                  },
+                );
               },
-            );
-          },
+            ),
+          ),
         ),
       // Episode navigation, both directions, behind the one setting that hides
       // episode controls. Each is absent unless the episode it would play
       // exists, so neither is ever a dead press.
-      if (widget.onPreviousEpisode != null && settings.showEpisodes)
-        PlayerIconButton(
-          icon: Icons.skip_previous_rounded,
-          tooltip: l10n.previous,
-          isTv: isTv,
-          onPressed: () {
-            _chrome.poke();
-            widget.onPreviousEpisode!.call();
-          },
-        ),
-      if (widget.onNextEpisode != null && settings.showEpisodes)
-        PlayerIconButton(
-          icon: Icons.skip_next_rounded,
-          tooltip: l10n.next,
-          isTv: isTv,
-          onPressed: () {
-            _chrome.poke();
-            widget.onNextEpisode!.call();
-          },
+      if (settings.showEpisodes &&
+          (widget.onPreviousEpisode != null || widget.onNextEpisode != null))
+        PlayerMattePill(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.onPreviousEpisode != null)
+                PlayerIconButton(
+                  icon: Icons.skip_previous_rounded,
+                  tooltip: l10n.previous,
+                  isTv: isTv,
+                  onPressed: () {
+                    _chrome.poke();
+                    widget.onPreviousEpisode!.call();
+                  },
+                ),
+              if (widget.onNextEpisode != null)
+                PlayerIconButton(
+                  icon: Icons.skip_next_rounded,
+                  tooltip: l10n.next,
+                  isTv: isTv,
+                  onPressed: () {
+                    _chrome.poke();
+                    widget.onNextEpisode!.call();
+                  },
+                ),
+            ],
+          ),
         ),
     ];
 

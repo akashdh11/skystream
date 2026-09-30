@@ -3145,8 +3145,8 @@ void main() {
       );
       expect(
         bar.leading.length,
-        4,
-        reason: 'play/pause, previous, next, clock',
+        3,
+        reason: 'play/pause pill, episode pair pill, clock',
       );
 
       await _tapControl(tester, find.byTooltip(l10n.previous));
@@ -3354,13 +3354,13 @@ void main() {
 
         expect(
           left,
-          seek.left,
-          reason: 'the first control starts where the track starts',
+          seek.left + 3,
+          reason: 'the first pill starts at the track edge with a 3 dp inset',
         );
         expect(
           right,
-          seek.right,
-          reason: 'and the last one ends where the track ends',
+          seek.right - 3,
+          reason: 'the last pill has the same 3 dp inset',
         );
         expect(
           bar.height,
@@ -3612,8 +3612,8 @@ void main() {
       final Rect last = tester.getRect(find.byTooltip('Fullscreen'));
       expect(
         strip.width,
-        greaterThan(last.width * 10),
-        reason: 'this only measures anything while the row has room to spare',
+        last.width * tester.widget<PlayerBottomBar>(find.byType(PlayerBottomBar)).actions.length,
+        reason: 'the pill hugs its buttons when there is room to spare',
       );
       expect(last.right, strip.right);
 
@@ -3768,7 +3768,7 @@ void main() {
       // The pinned group whose width is what squeezes the strip. On a handset
       // that is the episode pair and the clock: the transport moved to the
       // middle of the frame, which is most of why a 360 dp line fits at all.
-      expect(built.leading.length, 3);
+      expect(built.leading.length, 2);
       expect(
         find.byType(PlayerCenterControls),
         findsOneWidget,
@@ -3908,10 +3908,8 @@ void main() {
       final Rect wideStrip = tester.getRect(find.byType(PlayerActionStrip));
       expect(
         wideStrip.width,
-        greaterThan(400),
-        reason:
-            'at 844 dp the strip keeps the whole remainder of the flat row, '
-            'not a run of its own',
+        actions.length * 48,
+        reason: 'at 844 dp the pill shrinks to its buttons on the same run',
       );
     });
 
