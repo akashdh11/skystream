@@ -866,7 +866,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   /// when it goes.
   void _setVolume(
     int volume, {
-    Duration? hideAfter = const Duration(milliseconds: 900),
+    Duration? hideAfter = const Duration(milliseconds: 1500),
   }) {
     final routing = _volumeRouting;
     final clamped = volume.clamp(routing.minimum, _maxVolume);
@@ -889,19 +889,21 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     _showVolumeRail(clamped, hideAfter: hideAfter);
   }
 
+  static IconData _volumeIcon(int level) {
+    if (level <= 0) return Icons.volume_off_rounded;
+    if (level < 67) return Icons.volume_down_rounded;
+    return Icons.volume_up_rounded;
+  }
+
   /// The rail, for every route that changes the level - this widget's own and
   /// the hardware rocker's.
   void _showVolumeRail(
     int level, {
-    Duration? hideAfter = const Duration(milliseconds: 900),
+    Duration? hideAfter = const Duration(milliseconds: 1500),
   }) {
     _rail.show(
       PlayerRail(
-        icon: level == 0
-            ? Icons.volume_off_rounded
-            : (level > 100
-                  ? Icons.volume_up_rounded
-                  : Icons.volume_down_rounded),
+        icon: _volumeIcon(level),
         value: level / 100,
         maxValue: _maxVolume / 100,
         semanticLabel: AppLocalizations.of(context)!.volume,
@@ -1062,7 +1064,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       );
       _rail.show(
         PlayerRail(
-          icon: Icons.brightness_6_rounded,
+          icon: _brightnessIcon(_brightness),
           value: _brightness,
           semanticLabel: AppLocalizations.of(context)!.brightness,
           onLeft: false,
@@ -1071,9 +1073,16 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     }
   }
 
+  static IconData _brightnessIcon(double value) {
+    final clamped = value.clamp(0.0, 1.0);
+    if (clamped < 0.33) return Icons.brightness_7_rounded;
+    if (clamped < 0.67) return Icons.brightness_6_rounded;
+    return Icons.brightness_5_rounded;
+  }
+
   void _railDragEnd() {
     _dragIsVolume = null;
-    _rail.clearAfter(const Duration(milliseconds: 500));
+    _rail.clearAfter(const Duration(milliseconds: 1500));
   }
 
   /// Keyboard and remote shortcuts.

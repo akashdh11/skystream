@@ -69,6 +69,7 @@ void main() {
       final icon = tester.getRect(find.byIcon(Icons.brightness_6_rounded));
       expect(icon.bottom, lessThan(track.top));
       expect(track.width, 5);
+      expect(track.height, 150);
       expect(
         tester.getSize(fill(HotstarPlayerStyle.primaryText)).height,
         closeTo(track.height * 0.75, 0.01),
@@ -82,5 +83,19 @@ void main() {
     } finally {
       semantics.dispose();
     }
+  });
+
+  testWidgets('slider track dimensions and 40dp edge padding', (tester) async {
+    await pumpRail(tester, value: 0.5, maxValue: 1, brightness: false);
+    final track = tester.getRect(find.byType(ClipRRect));
+    expect(track.width, 5);
+    expect(track.height, 150);
+
+    final paddingFinder = find.ancestor(
+      of: find.byType(ClipRRect),
+      matching: find.byType(Padding),
+    );
+    final padding = tester.widget<Padding>(paddingFinder.first);
+    expect(padding.padding, const EdgeInsets.only(left: 40, right: 0));
   });
 }

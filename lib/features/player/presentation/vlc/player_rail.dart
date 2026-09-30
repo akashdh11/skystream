@@ -49,8 +49,8 @@ class PlayerRail extends StatelessWidget {
             alignment: onLeft ? Alignment.centerLeft : Alignment.centerRight,
             child: Padding(
               padding: EdgeInsets.only(
-                left: onLeft ? 28 : 0,
-                right: onLeft ? 0 : 28,
+                left: onLeft ? 40 : 0,
+                right: onLeft ? 0 : 40,
               ),
               child: SizedBox(
                 width: 24,
@@ -65,7 +65,7 @@ class PlayerRail extends StatelessWidget {
                     const SizedBox(height: 12),
                     SizedBox(
                       width: 5,
-                      height: 120,
+                      height: 150,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(2.5),
                         child: Stack(
