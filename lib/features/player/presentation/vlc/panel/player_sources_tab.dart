@@ -198,6 +198,7 @@ class _PlayerSourcesTabState extends State<PlayerSourcesTab> {
   Widget _list(AppLocalizations l10n) {
     final visible = _visible;
     if (visible.isEmpty) return PanelEmpty(text: l10n.playerNoStreamsFound);
+    final metrics = PlayerPanelMetrics.of(context);
 
     // Where the list opens and focus lands. The row playing now, or the first
     // one when nothing is playing yet - which is the failed stage, and the one
@@ -261,7 +262,18 @@ class _PlayerSourcesTabState extends State<PlayerSourcesTab> {
           outcomeIcon: Icons.error_outline_rounded,
           outcomeColor: const Color(0xFFCF9292),
           autofocus: widget.autofocus && position == anchorPosition,
-          icon: Icons.dns_outlined,
+          // PanelRow adds 10 dp after a custom leading. Another 10 here
+          // matches the 20 dp from the panel edge to the icon (8 + 10 + 2).
+          leading: Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: Icon(
+              selected ? Icons.check_rounded : Icons.dns_outlined,
+              size: metrics.iconSize,
+              color: selected
+                  ? HotstarPlayerStyle.accent
+                  : metrics.secondaryText,
+            ),
+          ),
           onTap: () => widget.onPick(index),
         );
       },

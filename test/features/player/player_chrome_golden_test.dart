@@ -52,6 +52,7 @@ void main() {
     required Size size,
     bool resumeHint = false,
     String? focusedTooltip,
+    String? visibleTooltip,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -163,6 +164,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 160));
     }
 
+    if (visibleTooltip != null) {
+      tester
+          .state<TooltipState>(
+            find.byWidgetPredicate(
+              (widget) => widget is Tooltip && widget.message == visibleTooltip,
+            ),
+          )
+          .ensureTooltipVisible();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/$name.png'),
@@ -224,6 +237,19 @@ void main() {
       desktop: false,
       size: const Size(390, 844),
       resumeHint: true,
+    );
+  });
+
+  testWidgets('a quiet tooltip above the desktop Options button', (
+    tester,
+  ) async {
+    await draw(
+      tester,
+      'chrome_desktop_tooltip',
+      isTv: false,
+      desktop: true,
+      size: const Size(1280, 720),
+      visibleTooltip: 'Options',
     );
   });
 

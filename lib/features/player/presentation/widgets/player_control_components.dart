@@ -526,6 +526,14 @@ class _PlayerIconButtonState extends State<PlayerIconButton> {
         label: widget.tooltip,
         child: Tooltip(
           message: widget.tooltip,
+          decoration: HotstarPlayerStyle.tooltipDecoration,
+          textStyle: Theme.of(context).textTheme.bodySmall?.merge(
+            HotstarPlayerStyle.tooltipTextStyle,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+          constraints: const BoxConstraints(minHeight: 28),
+          preferBelow: false,
+          verticalOffset: box / 2 + 8,
           // The button's declared box is its footprint. [CustomButton]
           // renders a Material 3 [TextButton], which brings
           // `minimumSize: Size(64, 40)` and 12 dp of padding a side; at 960 dp

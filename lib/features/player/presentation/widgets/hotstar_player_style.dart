@@ -14,6 +14,19 @@ class HotstarPlayerStyle {
   static const Color primaryText = Color(0xF2FFFFFF);
   static const Color secondaryText = Color(0xA6FFFFFF);
 
+  /// Quiet labels over the video, using the control surface's charcoal tone.
+  static const BoxDecoration tooltipDecoration = BoxDecoration(
+    color: Color(0xE620252B),
+    borderRadius: BorderRadius.all(Radius.circular(6)),
+  );
+  static const TextStyle tooltipTextStyle = TextStyle(
+    color: Color(0xDEFFFFFF),
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    height: 1.25,
+    letterSpacing: 0.1,
+  );
+
   /// The smallest type in the chrome: panel secondary lines, torrent stats,
   /// the countdown's caption. Alpha 0x75 is the first step that clears WCAG AA
   /// against the black under the scrim (4.56:1); 0x73 measured 4.43:1.
