@@ -1416,6 +1416,12 @@ class AppLocalizationsTr extends AppLocalizations {
   String get showEpisodes => 'Episodes button';
 
   @override
+  String get showVolume => 'Volume button';
+
+  @override
+  String get showEpisodeNavigation => 'Previous / next episode buttons';
+
+  @override
   String get playerNoProviderSelected => 'No provider selected.';
 
   @override

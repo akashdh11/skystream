@@ -116,7 +116,8 @@ void main() {
       const String pip = 'Picture-in-Picture button';
       const String resize = 'Resize button';
       const String speed = 'Playback speed button';
-      const String episodes = 'Episodes button';
+      const String episodes = 'Previous / next episode buttons';
+      const String volume = 'Volume button';
 
       /// The label the retired rotate switch carried. No device may offer it:
       /// the player draws no rotate button for it to hide.
@@ -128,49 +129,49 @@ void main() {
           'Android phone — the only device that gets the PiP row',
           TargetPlatform.android,
           const DeviceProfile(),
-          [pip, resize, speed, episodes],
+          [volume, pip, resize, speed, episodes],
         ),
         (
           'Android tablet',
           TargetPlatform.android,
           const DeviceProfile(isTablet: true),
-          [pip, resize, speed, episodes],
+          [volume, pip, resize, speed, episodes],
         ),
         (
           'Android TV — nothing to shrink into',
           TargetPlatform.android,
           const DeviceProfile(isTv: true),
-          [resize, speed, episodes],
+          [volume, resize, speed, episodes],
         ),
         (
           'iPhone — no OS-level PiP for us',
           TargetPlatform.iOS,
           const DeviceProfile(),
-          [resize, speed, episodes],
+          [volume, resize, speed, episodes],
         ),
         (
           'iPad',
           TargetPlatform.iOS,
           const DeviceProfile(isTablet: true),
-          [resize, speed, episodes],
+          [volume, resize, speed, episodes],
         ),
         (
           'macOS',
           TargetPlatform.macOS,
           const DeviceProfile(isDesktopOS: true),
-          [resize, speed, episodes],
+          [volume, resize, speed, episodes],
         ),
         (
           'Windows',
           TargetPlatform.windows,
           const DeviceProfile(isDesktopOS: true),
-          [resize, speed, episodes],
+          [volume, resize, speed, episodes],
         ),
         (
           'Linux',
           TargetPlatform.linux,
           const DeviceProfile(isDesktopOS: true),
-          [resize, speed, episodes],
+          [volume, resize, speed, episodes],
         ),
       ];
 
@@ -185,6 +186,7 @@ void main() {
 
           expect(find.text('Player Controls'), findsOneWidget);
           for (final String label in <String>[
+            volume,
             pip,
             resize,
             rotate,
@@ -266,7 +268,7 @@ void main() {
           );
           expect(find.text(rotate), findsNothing);
           expect(find.byIcon(Icons.screen_rotation_rounded), findsNothing);
-          expect(find.byType(SwitchListTile), findsNWidgets(4));
+          expect(find.byType(SwitchListTile), findsNWidgets(5));
           await tester.tap(find.text('Close'));
           await tester.pumpAndSettle();
         }

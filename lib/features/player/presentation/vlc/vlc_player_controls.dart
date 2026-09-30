@@ -1528,7 +1528,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       PlayerPanelTab.sources,
       PlayerPanelTab.audio,
       PlayerPanelTab.subtitles,
-      if (settings.showEpisodes) PlayerPanelTab.episodes,
+      PlayerPanelTab.episodes,
     ].where(_hasPanelTab).firstOrNull;
 
     return <Widget>[
@@ -1540,18 +1540,15 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
           isTv: isTv,
           onPressed: () => _open(optionsTab),
         ),
-      // On every platform, not just TV. The vertical rail only carries volume
-      // when the edge-gesture setting says so, so anyone who set both edges to
-      // brightness had no volume path at all, and the 100-200 % software boost
-      // was reachable on a phone only by dragging past the top of an invisible
-      // rail. Not gated on `!isLive` the way speed is: a live edge still has a
-      // volume.
-      PlayerIconButton(
-        icon: Icons.volume_up_rounded,
-        tooltip: l10n.volume,
-        isTv: isTv,
-        onPressed: () => unawaited(_chrome.whileHeld(_pickVolume)),
-      ),
+      // Visible by default on every platform; the viewer can hide this
+      // shortcut without changing volume gestures or keyboard controls.
+      if (settings.showVolume)
+        PlayerIconButton(
+          icon: Icons.volume_up_rounded,
+          tooltip: l10n.volume,
+          isTv: isTv,
+          onPressed: () => unawaited(_chrome.whileHeld(_pickVolume)),
+        ),
 
       // Band two: the rest.
       if (_hasPanelTab(PlayerPanelTab.files))

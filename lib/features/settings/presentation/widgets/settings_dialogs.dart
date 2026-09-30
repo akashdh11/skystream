@@ -1882,6 +1882,12 @@ void showPlayerControlsDialog(BuildContext context, WidgetRef ref) {
   );
 
   final rows = <_ControlToggle>[
+    (
+      icon: Icons.volume_up_rounded,
+      label: l10n.showVolume,
+      setter: notifier.setShowVolume,
+      initial: settings.showVolume,
+    ),
     if (playerCanShowPip(platform, form))
       (
         icon: Icons.picture_in_picture_alt_rounded,
@@ -1902,8 +1908,8 @@ void showPlayerControlsDialog(BuildContext context, WidgetRef ref) {
       initial: settings.showPlaybackSpeed,
     ),
     (
-      icon: Icons.playlist_play_rounded,
-      label: l10n.showEpisodes,
+      icon: Icons.skip_next_rounded,
+      label: l10n.showEpisodeNavigation,
       setter: notifier.setShowEpisodes,
       initial: settings.showEpisodes,
     ),

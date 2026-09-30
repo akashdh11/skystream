@@ -1423,7 +1423,7 @@ void main() {
       expect(opened, <PlayerPanelTab>[PlayerPanelTab.audio]);
     });
 
-    testWidgets('Episodes follows the same setting as Next', (tester) async {
+    testWidgets('hiding episode navigation keeps Options available', (tester) async {
       final l10n = await AppLocalizations.delegate.load(const Locale('en'));
       await _pumpControls(
         tester,
@@ -1433,6 +1433,41 @@ void main() {
       expect(find.byTooltip(l10n.episodes), findsNothing);
       expect(find.byTooltip(l10n.next), findsNothing);
       expect(find.byTooltip(l10n.options), findsOneWidget);
+    });
+
+    testWidgets('hiding Volume keeps Options and keyboard volume available', (
+      tester,
+    ) async {
+      final engine = FakeVlcEngine();
+      await _pumpControls(
+        tester,
+        engine: engine,
+        isTv: false,
+        desktopProfile: true,
+        settings: const PlayerSettings(showVolume: false),
+      );
+      expect(find.byTooltip('Volume'), findsNothing);
+      expect(find.byTooltip('Options'), findsOneWidget);
+      engine.calls.clear();
+      await tester.sendKeyEvent(LogicalKeyboardKey.keyM);
+      await tester.pump();
+      expect(_volumes(engine), [0]);
+      await _snapshot(tester, state: 'paused');
+    });
+
+    testWidgets('episode navigation visibility does not gate the panel', (
+      tester,
+    ) async {
+      final opened = <PlayerPanelTab>[];
+      await _pumpControls(
+        tester,
+        settings: const PlayerSettings(showEpisodes: false),
+        panelTabs: const {PlayerPanelTab.episodes},
+        onOpenPanel: (tab) async => opened.add(tab),
+      );
+      await tester.tap(find.byTooltip('Options'));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
+      expect(opened, [PlayerPanelTab.episodes]);
     });
 
     testWidgets('with no panel to open there is no list button at all', (

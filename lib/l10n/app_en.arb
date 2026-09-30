@@ -733,6 +733,14 @@
   "showResize": "Resize button",
   "showPlaybackSpeed": "Playback speed button",
   "showEpisodes": "Episodes button",
+  "showVolume": "Volume button",
+  "@showVolume": {
+    "description": "Player Controls toggle for the volume button. Does not disable volume gestures or keyboard shortcuts."
+  },
+  "showEpisodeNavigation": "Previous / next episode buttons",
+  "@showEpisodeNavigation": {
+    "description": "Player Controls toggle for previous and next episode transport buttons. The Episodes tab in Options remains available."
+  },
   "playerNoProviderSelected": "No provider selected.",
   "@playerNoProviderSelected": {
     "description": "Playback cannot start because no extension is selected to resolve the link."
