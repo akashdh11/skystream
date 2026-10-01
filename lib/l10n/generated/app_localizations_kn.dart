@@ -1849,6 +1849,9 @@ class AppLocalizationsKn extends AppLocalizations {
   String get addonManageSearchHint => 'Search installed add-ons…';
 
   @override
+  String get uiScale => 'ಇಂಟರ್‌ಫೇಸ್ ಗಾತ್ರ';
+
+  @override
   String addonManageNoMatch(String query) {
     return 'No installed add-on matches \"$query\".';
   }

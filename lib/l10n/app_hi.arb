@@ -499,6 +499,7 @@
   "addonSourcesSearchHint": "Add-on, provider, quality…",
   "addonSourcesNoMatchFilter": "No links match. Clear search or try \"All\".",
   "addonManageSearchHint": "Search installed add-ons…",
+  "uiScale": "इंटरफ़ेस का आकार",
   "addonManageNoMatch": "No installed add-on matches \"{query}\"."
 }
 

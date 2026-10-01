@@ -3345,6 +3345,12 @@ abstract class AppLocalizations {
   /// **'Search installed add-ons…'**
   String get addonManageSearchHint;
 
+  /// Settings row and dialog title for the app's interface size multiplier.
+  ///
+  /// In en, this message translates to:
+  /// **'UI Scale'**
+  String get uiScale;
+
   /// Installed add-ons list empty state when the search box filters everything out.
   ///
   /// In en, this message translates to:

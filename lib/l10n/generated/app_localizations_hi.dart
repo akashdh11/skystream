@@ -1838,6 +1838,9 @@ class AppLocalizationsHi extends AppLocalizations {
   String get addonManageSearchHint => 'Search installed add-ons…';
 
   @override
+  String get uiScale => 'इंटरफ़ेस का आकार';
+
+  @override
   String addonManageNoMatch(String query) {
     return 'No installed add-on matches \"$query\".';
   }

@@ -39,6 +39,9 @@ class _QuietSettings extends SettingsRepository {
   _QuietSettings() : super(StorageService());
 
   @override
+  double? getUiScale() => null;
+
+  @override
   bool isWatchHistoryEnabled() => true;
 
   @override

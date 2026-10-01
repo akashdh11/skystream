@@ -1831,6 +1831,9 @@ class AppLocalizationsSv extends AppLocalizations {
   String get addonManageSearchHint => 'Search installed add-ons…';
 
   @override
+  String get uiScale => 'UI Scale';
+
+  @override
   String addonManageNoMatch(String query) {
     return 'No installed add-on matches \"$query\".';
   }

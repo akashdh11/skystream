@@ -1280,6 +1280,10 @@
   "@addonManageSearchHint": {
     "description": "Installed add-ons list on the Manage tab: placeholder for filtering by name, id, or resource."
   },
+  "uiScale": "UI Scale",
+  "@uiScale": {
+    "description": "Settings row and dialog title for the app's interface size multiplier."
+  },
   "addonManageNoMatch": "No installed add-on matches \"{query}\".",
   "@addonManageNoMatch": {
     "description": "Installed add-ons list empty state when the search box filters everything out.",

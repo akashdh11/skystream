@@ -274,7 +274,7 @@ void main() {
     variant: texturePlatform,
     (tester) async {
       final downloads = await pumpShow(tester);
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       final l10n = await english();
 
       await openFromBar(tester, l10n.sources);
@@ -364,7 +364,7 @@ void main() {
           episodeOne: probedStreams,
           episodeTwo: probedNextStreams,
         );
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         final l10n = await english();
         // The panel's own chips. The startup view behind it lists the same
         // sources while the next episode opens, with its own wording for the
@@ -434,7 +434,7 @@ void main() {
 
       await http.runWithClient(() async {
         final downloads = await pumpShow(tester, episodeTwo: probedNextStreams);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         final l10n = await english();
 
         await openFromBar(tester, l10n.sources);
@@ -508,7 +508,7 @@ void main() {
         settings: const PlayerSettings(networkBufferMb: 256),
         overrides: [torrentServiceProvider.overrideWithValue(torrents)],
       );
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
 
       expect(torrents.cacheMb, 256, reason: 'the chosen size, not a constant');
       expect(
@@ -558,7 +558,7 @@ void main() {
           ),
         ],
       );
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       final l10n = await english();
 
       // Opened first and left up: the file list arrives from the three-second
@@ -624,7 +624,7 @@ void main() {
           StreamResult(url: '/sources/beta.mkv', source: 'Beta'),
         ],
       );
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       final l10n = await english();
       await openFromBar(tester, l10n.sources);
 
@@ -646,7 +646,7 @@ void main() {
 
   testWidgets('Audio opens on Audio', variant: texturePlatform, (tester) async {
     await pumpPlayer(tester, preloadedStreams: streams);
-    await sendFirstFrame(tester);
+    await sendFirstFrame(tester, showControls: true);
     final l10n = await english();
 
     await openFromBar(tester, l10n.audioTracks);
@@ -683,7 +683,7 @@ void main() {
       episode: episodes[1],
       videoUrl: episodes[1].url,
     );
-    await sendFirstFrame(tester);
+    await sendFirstFrame(tester, showControls: true);
     final l10n = await english();
 
     await openFromBar(tester, l10n.episodes);
@@ -745,7 +745,7 @@ void main() {
           ),
         ],
       );
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       final l10n = await english();
 
       await openFromBar(tester, l10n.episodes);
@@ -778,7 +778,7 @@ void main() {
     variant: texturePlatform,
     (tester) async {
       await pumpPlayer(tester, preloadedStreams: streams);
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       final l10n = await english();
 
       await openFromBar(tester, l10n.sources);
@@ -806,7 +806,7 @@ void main() {
     variant: texturePlatform,
     (tester) async {
       await pumpPlayer(tester, preloadedStreams: streams);
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       final l10n = await english();
 
       await openFromBar(tester, l10n.sources);
@@ -833,7 +833,7 @@ void main() {
     variant: texturePlatform,
     (tester) async {
       await pumpPlayer(tester, preloadedStreams: streams);
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       final l10n = await english();
 
       // Opened while the first source is playing, and left up: the panel is a

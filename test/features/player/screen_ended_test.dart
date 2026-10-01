@@ -114,7 +114,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, item: film, videoUrl: film.url);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         final l10n = await english();
         expect(find.byKey(endedCardKey), findsNothing);
 
@@ -152,7 +152,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, item: film, videoUrl: film.url);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         final l10n = await english();
         await playToTheEnd(tester);
         expect(find.byKey(endedCardKey), findsOneWidget);
@@ -188,7 +188,7 @@ void main() {
       tester,
     ) async {
       await pumpPlayer(tester, item: film, videoUrl: film.url, pushed: true);
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       final l10n = await english();
       await playToTheEnd(tester);
 
@@ -204,7 +204,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, item: film, videoUrl: film.url, pushed: true);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await playToTheEnd(tester);
         expect(find.byKey(endedCardKey), findsOneWidget);
 
@@ -229,7 +229,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, item: film, videoUrl: film.url);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         final l10n = await english();
 
         await tester.tap(find.byTooltip(l10n.options));
@@ -282,7 +282,7 @@ void main() {
     variant: texturePlatform,
     (tester) async {
       await pumpPlayer(tester, item: film, videoUrl: film.url);
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       await playToTheEnd(tester);
       expect(find.byKey(endedCardKey), findsOneWidget);
 
@@ -294,7 +294,7 @@ void main() {
       await settle(tester);
       expect(find.byKey(endedCardKey), findsNothing);
 
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
 
       expect(
         find.byKey(endedCardKey),
@@ -332,7 +332,7 @@ void main() {
           ),
         ],
       );
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       return () => downloads;
     }
 
@@ -408,7 +408,7 @@ void main() {
           ),
         ],
       );
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       await sendEvent(tester, snapshot(position: 1190000, duration: 1200000));
       await tester.pump();
 
@@ -505,7 +505,7 @@ void main() {
             ),
           ],
         );
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         final l10n = await english();
 
         await sendEvent(tester, snapshot(position: 1190000, duration: 1200000));
@@ -554,7 +554,7 @@ void main() {
         expect(find.textContaining(l10n.sourceAttempt(1, 1)), findsOneWidget);
 
         // The re-watch reaches its own last fifteen seconds.
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await sendEvent(tester, snapshot(position: 1190000, duration: 1200000));
         await tester.pump();
 
@@ -640,7 +640,7 @@ void main() {
             ),
           ],
         );
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         final l10n = await english();
         await lock(tester);
 
@@ -691,7 +691,7 @@ void main() {
             historyRepositoryProvider.overrideWithValue(_ResumeAtHalfway()),
           ],
         );
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         expect(
           find.byType(ResumeHint),
           findsOneWidget,
@@ -715,7 +715,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, item: film, videoUrl: film.url);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         final l10n = await english();
 
         // Half a two-hour film, then end of media: a truncated download, not
@@ -746,7 +746,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, item: film, videoUrl: film.url);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         final l10n = await english();
 
         // Ten minutes of a container libVLC never learned the length of - an

@@ -1258,6 +1258,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     // that summons the controls.
     if (!_chrome.value &&
         (key == LogicalKeyboardKey.select ||
+            key == LogicalKeyboardKey.gameButtonA ||
             key == LogicalKeyboardKey.enter ||
             key == LogicalKeyboardKey.numpadEnter ||
             key == LogicalKeyboardKey.gameButtonSelect)) {

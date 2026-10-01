@@ -113,7 +113,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         SettingsTile(
           icon: Icons.zoom_in_rounded,
-          title: 'UI Scale',
+          title: l10n.uiScale,
           subtitle: getUiScaleLabel(uiScale),
           onTap: () => showUiScaleDialog(context, ref, uiScale),
         ),
