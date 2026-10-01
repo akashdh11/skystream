@@ -140,6 +140,10 @@ Future<VlcPlayerController> _pump(
   await tester.pump();
   // The hide clock refuses to fire until the engine reports playing.
   await _snapshot(tester);
+  // The player starts hidden; reveal the controls before pressing the lock.
+  await tester.sendKeyEvent(LogicalKeyboardKey.select);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 1));
   return controller;
 }
 

@@ -69,6 +69,34 @@ void main() {
 
   group('Back on a television', () {
     testWidgets(
+      'starts hidden until controller A summons the controls',
+      variant: texturePlatform,
+      (tester) async {
+        await pumpPlayer(tester, pushed: true);
+        await sendFirstFrame(tester);
+        expectBarsHidden(tester, reason: 'playback starts without controls');
+        expect(
+          FocusManager.instance.primaryFocus?.debugLabel,
+          'player-key-sink',
+        );
+
+        await tester.sendKeyEvent(
+          LogicalKeyboardKey.gameButtonA,
+          platform: 'android',
+          physicalKey: PhysicalKeyboardKey.gameButtonA,
+        );
+        await tester.pump();
+        expectBarsShown(tester);
+        expect(
+          FocusManager.instance.primaryFocus?.debugLabel,
+          'player-play-pause',
+        );
+
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+
+    testWidgets(
       'with the bars down, a Back key then popRoute leaves the player',
       variant: texturePlatform,
       (tester) async {
@@ -77,7 +105,7 @@ void main() {
         // bars - and the pop then being swallowed as "hide the bars" - went
         // unseen.
         await pumpPlayer(tester, pushed: true);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await tester.pump(const Duration(seconds: 4));
         expectBarsHidden(tester, reason: 'the hide timer has run out');
 
@@ -110,7 +138,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, pushed: true);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         expectBarsShown(tester);
 
         await sendBack(tester);
@@ -131,7 +159,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, pushed: true);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
 
         await sendBack(tester);
         // Past the window in which a second delivery is taken for an echo.
@@ -149,7 +177,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, pushed: true);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
 
         await sendBack(tester);
         await sendBack(tester);
@@ -176,7 +204,7 @@ void main() {
         // clock will not auto-hide over a still picture, but toggle() - the
         // viewer asking - hides while paused all the same.
         await pumpPlayer(tester, pushed: true);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await sendEvent(tester, snapshot(state: 'paused'));
         expectBarsShown(tester);
 
@@ -214,7 +242,7 @@ void main() {
         // it: before this rule changed, the second delivery could not reach
         // the pop because the first never claimed the press.
         await pumpPlayer(tester, pushed: true);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await sendEvent(tester, snapshot(state: 'paused'));
         expectBarsShown(tester);
 
@@ -251,7 +279,7 @@ void main() {
         // The panel is a route on top of the player, so the Navigator pops
         // it and the player is never consulted: one press, one thing closed.
         await pumpPlayer(tester, pushed: true);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await openPanel(tester);
 
         await sendBack(tester);
@@ -279,7 +307,7 @@ void main() {
         // player, finds the bars up and puts them away - it does not pop the
         // player out from under the closing panel.
         await pumpPlayer(tester, pushed: true);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await openPanel(tester);
 
         await sendBack(tester);
@@ -338,7 +366,7 @@ void main() {
       variant: texturePlatform,
       (tester) async {
         await pumpPlayer(tester, pushed: true, isTv: false);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await lock(tester);
 
         // Long enough for the chrome's own three-second clock to have taken
@@ -399,7 +427,7 @@ void main() {
         // second press and take the viewer straight out of a screen they had
         // just locked.
         await pumpPlayer(tester, pushed: true, isTv: false);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await lock(tester);
 
         await sendBack(tester);
@@ -430,7 +458,7 @@ void main() {
         // thing the lock promises cannot happen, so it is checked on the path
         // that used to skip the reset rather than only on the one that did it.
         await pumpPlayer(tester, pushed: true, isTv: false);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await lock(tester);
 
         // Locked and left alone, which is the state a real one is found in:
@@ -496,7 +524,7 @@ void main() {
         // Nothing is pumped between the unlock and the press, which is what
         // puts it inside that window.
         await pumpPlayer(tester, pushed: true, isTv: false);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await lock(tester);
         await tester.pump(const Duration(seconds: 4));
 
@@ -525,7 +553,7 @@ void main() {
         // The lock is a lock, not a two-press countdown left running. A press
         // now and another one a minute later are two first presses.
         await pumpPlayer(tester, pushed: true, isTv: false);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await lock(tester);
 
         await sendBack(tester);
@@ -594,7 +622,7 @@ void main() {
             downloadServiceProvider.overrideWith(GatedDownloads.new),
           ],
         );
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await lock(tester);
 
         // Inside the fifteen-second lead-in, where the up-next card would be
@@ -639,7 +667,7 @@ void main() {
         // on screen to undo it - the trap the two-press escape would then be
         // the only way out of.
         await pumpPlayer(tester, pushed: true, isTv: false);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await lock(tester);
 
         // A real ending, numbers and all: an end of media with no duration
@@ -683,7 +711,7 @@ void main() {
         // fresh frame: that is the state a viewer's screen is really in when
         // the third failure lands, and only the third goes to _fail.
         for (var round = 0; round < 3; round++) {
-          await sendFirstFrame(tester);
+          await sendFirstFrame(tester, showControls: true);
           await lock(tester);
           await sendEvent(tester, snapshot(state: 'error'));
           await settle(tester);
@@ -722,7 +750,7 @@ void main() {
         // Back is the only thing that can tell the two states apart from
         // outside.
         await pumpPlayer(tester, pushed: true, isTv: false);
-        await sendFirstFrame(tester);
+        await sendFirstFrame(tester, showControls: true);
         await lock(tester);
 
         await setPipMode(tester, true);
@@ -755,7 +783,7 @@ void main() {
       // meant leave, and a swipe that only cleared the chrome would read as
       // the gesture failing.
       await pumpPlayer(tester, pushed: true, isTv: false);
-      await sendFirstFrame(tester);
+      await sendFirstFrame(tester, showControls: true);
       expectBarsShown(tester);
 
       await sendBack(tester);

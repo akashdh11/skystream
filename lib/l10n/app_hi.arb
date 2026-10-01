@@ -418,6 +418,8 @@
   "showResize": "Resize button",
   "showPlaybackSpeed": "Playback speed button",
   "showEpisodes": "Episodes button",
+  "showVolume": "आवाज़ का बटन",
+  "showEpisodeNavigation": "पिछले / अगले एपिसोड के बटन",
   "playerControlsSubtitle": "Show or hide player control buttons",
   "exploreAnime": "एनिमे खोजें",
   "exploreMovies": "फ़िल्में खोजें",
@@ -497,6 +499,7 @@
   "addonSourcesSearchHint": "Add-on, provider, quality…",
   "addonSourcesNoMatchFilter": "No links match. Clear search or try \"All\".",
   "addonManageSearchHint": "Search installed add-ons…",
+  "uiScale": "इंटरफ़ेस का आकार",
   "addonManageNoMatch": "No installed add-on matches \"{query}\"."
 }
 

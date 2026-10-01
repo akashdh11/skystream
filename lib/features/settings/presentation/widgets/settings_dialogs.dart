@@ -269,7 +269,7 @@ void showUiScaleDialog(
     context: context,
     builder: (context) => AlertDialog(
       surfaceTintColor: Colors.transparent,
-      title: const Text('UI Scale'),
+      title: Text(AppLocalizations.of(context)!.uiScale),
       content: RadioGroup<double>(
         groupValue: current,
         onChanged: (val) {

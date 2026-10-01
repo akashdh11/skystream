@@ -1414,10 +1414,10 @@ class AppLocalizationsHi extends AppLocalizations {
   String get showEpisodes => 'Episodes button';
 
   @override
-  String get showVolume => 'Volume button';
+  String get showVolume => 'आवाज़ का बटन';
 
   @override
-  String get showEpisodeNavigation => 'Previous / next episode buttons';
+  String get showEpisodeNavigation => 'पिछले / अगले एपिसोड के बटन';
 
   @override
   String get playerNoProviderSelected => 'No provider selected.';
@@ -1836,6 +1836,9 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get addonManageSearchHint => 'Search installed add-ons…';
+
+  @override
+  String get uiScale => 'इंटरफ़ेस का आकार';
 
   @override
   String addonManageNoMatch(String query) {
