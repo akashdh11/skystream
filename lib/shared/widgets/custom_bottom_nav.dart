@@ -1,10 +1,11 @@
 import 'dart:math' as math;
-import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
 
 import '../focus/app_focus.dart';
+import 'matte_glass_pill.dart';
 
 class CustomBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -54,30 +55,7 @@ class CustomBottomNavBar extends StatelessWidget {
     ];
 
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
-    final count = destinations.length;
-
-    // Sliding highlight indicator
-    final highlight = AnimatedAlign(
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-      alignment: count <= 1
-          ? Alignment.center
-          : Alignment(-1 + 2 * (currentIndex / (count - 1)), 0),
-      child: FractionallySizedBox(
-        widthFactor: count == 0 ? 1 : 1 / count,
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular((height - 12) / 2),
-              color: colorScheme.primary.withValues(alpha: 0.15),
-            ),
-          ),
-        ),
-      ),
-    );
 
     final tabs = <Widget>[
       for (final (i, d) in destinations.indexed)
@@ -99,39 +77,16 @@ class CustomBottomNavBar extends StatelessWidget {
         return Align(
           alignment: Alignment.bottomCenter,
           heightFactor: 1,
-          child: Container(
+          child: SizedBox(
             width: fullWidth,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(height / 2),
-              border: Border.all(
-                color: isDark
-                    ? theme.dividerColor.withValues(alpha: 0.3)
-                    : colorScheme.outline.withValues(alpha: 0.15),
-                width: 1,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(height / 2),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-                child: Container(
-                  height: height,
-                  color: colorScheme.surface.withValues(alpha: 0.8),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      highlight,
-                      Row(children: tabs),
-                    ],
-                  ),
-                ),
+            height: height,
+            child: MatteGlassPill(
+              surfaceColor: isDark
+                  ? MatteGlassPill.surface
+                  : MatteGlassPill.lightSurface,
+              child: Material(
+                type: MaterialType.transparency,
+                child: Row(children: tabs),
               ),
             ),
           ),
@@ -158,6 +113,7 @@ class _NavTabCell extends StatefulWidget {
 
 class _NavTabCellState extends State<_NavTabCell> {
   bool _isFocused = false;
+  bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -169,36 +125,25 @@ class _NavTabCellState extends State<_NavTabCell> {
       label: widget.destination.label,
       child: Tooltip(
         message: widget.destination.label,
-        child: Focus(
+        child: InkWell(
+          borderRadius: BorderRadius.circular(26),
+          overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+          splashFactory: NoSplash.splashFactory,
           onFocusChange: (focused) => setState(() => _isFocused = focused),
-          child: AnimatedContainer(
-            duration: AppFocus.duration,
-            // A neutral ring, and none of it on a phone being tapped - which
-            // is the only place this bar exists, so the accent glow that used
-            // to be here was a television cue on a device with no remote.
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(26),
-              border: AppFocus.border(
-                context,
-                focused: showFocusIndicator(context, _isFocused),
-              ),
-            ),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(26),
-              focusColor: Colors.transparent,
-              hoverColor: colorScheme.primary.withValues(alpha: 0.08),
-              onTap: widget.onTap,
-              child: Center(
-                child: Icon(
-                  widget.isSelected
-                      ? widget.destination.selectedIcon
-                      : widget.destination.icon,
-                  color: widget.isSelected
-                      ? colorScheme.primary
-                      : colorScheme.onSurfaceVariant,
-                  size: 24,
-                ),
-              ),
+          onHover: (hovered) => setState(() => _isHovered = hovered),
+          onTap: widget.onTap,
+          child: Center(
+            child: Icon(
+              widget.isSelected
+                  ? widget.destination.selectedIcon
+                  : widget.destination.icon,
+              color:
+                  widget.isSelected ||
+                      _isHovered ||
+                      showFocusIndicator(context, _isFocused)
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
+              size: 24,
             ),
           ),
         ),
