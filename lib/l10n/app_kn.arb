@@ -418,6 +418,8 @@
   "showResize": "Resize button",
   "showPlaybackSpeed": "Playback speed button",
   "showEpisodes": "Episodes button",
+  "showVolume": "ಧ್ವನಿಮಟ್ಟದ ಬಟನ್",
+  "showEpisodeNavigation": "ಹಿಂದಿನ / ಮುಂದಿನ ಸಂಚಿಕೆಯ ಬಟನ್‌ಗಳು",
   "playerControlsSubtitle": "Show or hide player control buttons",
   "exploreAnime": "ಅನಿಮೆ ಅನ್ವೇಷಿಸಿ",
   "exploreMovies": "ಚಲನಚಿತ್ರಗಳನ್ನು ಅನ್ವೇಷಿಸಿ",
