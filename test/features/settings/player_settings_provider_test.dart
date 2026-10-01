@@ -370,6 +370,30 @@ void main() {
       expect(first.requireValue.defaultResizeMode, 'Cover');
     });
 
+    test('volume visibility defaults on and survives a new provider', () async {
+      final container = boot(storage);
+      expect(
+        container.read(playerSettingsProvider).requireValue.showVolume,
+        isTrue,
+      );
+      await container
+          .read(playerSettingsProvider.notifier)
+          .setShowVolume(false);
+      expect(
+        container.read(playerSettingsProvider).requireValue.showVolume,
+        isFalse,
+      );
+      expect(storage.getPlayerSetting<bool>('player_show_volume'), isFalse);
+      final restored = boot(storage).read(playerSettingsProvider).requireValue;
+      expect(restored.showVolume, isFalse);
+      expect(restored.copyWith(showResize: false).showVolume, isFalse);
+      await container.read(playerSettingsProvider.notifier).setShowVolume(true);
+      expect(
+        boot(storage).read(playerSettingsProvider).requireValue.showVolume,
+        isTrue,
+      );
+    });
+
     test('a setter after a failed load writes and does not throw', () async {
       final _FailsFirstRead broken = _FailsFirstRead();
       await broken.init();

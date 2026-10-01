@@ -18,6 +18,7 @@ import '../system_volume.dart';
 import '../../../../l10n/generated/app_localizations.dart';
 import '../widgets/hotstar_player_style.dart';
 import '../widgets/player_control_components.dart';
+import '../widgets/player_matte_pill.dart';
 import '../widgets/player_stream_widgets.dart'
     show PlayerBufferingIndicator, PlayerTimeLabel;
 
@@ -124,11 +125,11 @@ class VlcPlayerControls extends ConsumerStatefulWidget {
   /// Opens the panel on [tab] and completes when it closes, so the chrome can
   /// be held for the panel's life and the button that opened it is still there
   /// to take focus back. Null when there is no panel to open, and then none of
-  /// the five list buttons is rendered.
+  /// the panel buttons are rendered.
   final Future<void> Function(PlayerPanelTab tab)? onOpenPanel;
 
-  /// The tabs the panel would show right now; a button is rendered only for a
-  /// tab that exists. Audio and Subtitles are always present.
+  /// The tabs the panel would show right now. Panel buttons open only tabs
+  /// that exist. Audio and Subtitles are always present.
   final Set<PlayerPanelTab> panelTabs;
 
   /// Non-null only where picture-in-picture is actually available.
@@ -647,7 +648,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     // A television always lands on play/pause, whatever was focused when the
     // bars went down. The remote's D-pad is the transport while they are
     // hidden, so OK is the one press that opens them and the viewer should be
-    // able to predict where it puts them - waking up on Subtitles because
+    // able to predict where it puts them - waking up on Options because
     // that is where they happened to be four minutes ago is a guess they have
     // to read the screen to resolve.
     final target = _isTv
@@ -656,16 +657,24 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     target?.requestFocus();
   }
 
-  /// A scope above the sink holding primary focus means nothing beneath it
-  /// does. That is what hiding leaves behind when a control was focused, and
-  /// what a sheet leaves behind when it closes over chrome that hid under it;
-  /// either way the next arrow would be spent re-focusing the scope. The sink
-  /// takes it instead, so every key still reaches [_handleKey].
+  /// Recovers a parked scope or focus that escaped the active player route.
+  /// Hiding controls and closing sheets can park the scope; desktop fullscreen
+  /// transitions can instead restore a button on the covered Details route.
+  /// The sink keeps those keys in playback without taking focus from player
+  /// controls, sibling prompts, or a dialog above this route.
   void _claimLooseFocus() {
+    if (!mounted) return;
+    final route = ModalRoute.of(context);
+    // A panel or dialog above the player owns its own keyboard focus.
+    if (route != null && !route.isCurrent) return;
     final primary = FocusManager.instance.primaryFocus;
-    if (primary is FocusScopeNode &&
-        _sink.ancestors.contains(primary) &&
-        _sink.canRequestFocus) {
+    final parkedScope =
+        primary is FocusScopeNode && _sink.ancestors.contains(primary);
+    // Desktop window transitions can restore a real button on the Details
+    // route, rather than parking focus on a scope. Recover that escaped focus
+    // while preserving controls and sibling overlays inside the player route.
+    final escapedFocus = primary != null && !FocusScope.of(context).hasFocus;
+    if ((parkedScope || escapedFocus) && _sink.canRequestFocus) {
       _sink.requestFocus();
     }
   }
@@ -711,8 +720,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
         : (text.endsWith('0') ? text.substring(0, text.length - 1) : text);
   }
 
-  /// Whether a button for [tab] is rendered: there is a panel to open and the
-  /// panel would show that tab.
+  /// Whether the panel can open [tab].
   bool _hasPanelTab(PlayerPanelTab tab) =>
       widget.onOpenPanel != null && widget.panelTabs.contains(tab);
 
@@ -867,7 +875,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   /// when it goes.
   void _setVolume(
     int volume, {
-    Duration? hideAfter = const Duration(milliseconds: 900),
+    Duration? hideAfter = const Duration(milliseconds: 1500),
   }) {
     final routing = _volumeRouting;
     final clamped = volume.clamp(routing.minimum, _maxVolume);
@@ -890,21 +898,24 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     _showVolumeRail(clamped, hideAfter: hideAfter);
   }
 
+  static IconData _volumeIcon(int level) {
+    if (level <= 0) return Icons.volume_off_rounded;
+    if (level < 67) return Icons.volume_down_rounded;
+    return Icons.volume_up_rounded;
+  }
+
   /// The rail, for every route that changes the level - this widget's own and
   /// the hardware rocker's.
   void _showVolumeRail(
     int level, {
-    Duration? hideAfter = const Duration(milliseconds: 900),
+    Duration? hideAfter = const Duration(milliseconds: 1500),
   }) {
     _rail.show(
       PlayerRail(
-        icon: level == 0
-            ? Icons.volume_off_rounded
-            : (level > 100
-                  ? Icons.volume_up_rounded
-                  : Icons.volume_down_rounded),
-        value: level / _maxVolume,
-        label: '$level%',
+        icon: _volumeIcon(level),
+        value: level / 100,
+        maxValue: _maxVolume / 100,
+        semanticLabel: AppLocalizations.of(context)!.volume,
       ),
       hideAfter: hideAfter,
     );
@@ -1062,18 +1073,25 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       );
       _rail.show(
         PlayerRail(
-          icon: Icons.brightness_6_rounded,
+          icon: _brightnessIcon(_brightness),
           value: _brightness,
-          label: '${(_brightness * 100).round()}%',
+          semanticLabel: AppLocalizations.of(context)!.brightness,
           onLeft: false,
         ),
       );
     }
   }
 
+  static IconData _brightnessIcon(double value) {
+    final clamped = value.clamp(0.0, 1.0);
+    if (clamped < 0.33) return Icons.brightness_5_rounded;
+    if (clamped < 0.67) return Icons.brightness_6_rounded;
+    return Icons.brightness_7_rounded;
+  }
+
   void _railDragEnd() {
     _dragIsVolume = null;
-    _rail.clearAfter(const Duration(milliseconds: 500));
+    _rail.clearAfter(const Duration(milliseconds: 1500));
   }
 
   /// Keyboard and remote shortcuts.
@@ -1088,20 +1106,22 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       key == LogicalKeyboardKey.arrowRight;
 
   KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
-    // Hold-to-2x needs the whole press rather than its leading edge, so the
-    // repeat and the release are read before the down-only fast path. Both are
-    // gated on [_spaceHeld], which is set only by a Space this file already
-    // claimed, so every other key is seen once, on the way down.
-    if (event is KeyRepeatEvent) {
-      if (!_spaceHeld || event.logicalKey != LogicalKeyboardKey.space) {
-        return KeyEventResult.ignored;
-      }
-      // A key still down is still interaction, so the bars stay up for the
-      // life of the boost. [_startSpeedBoost] is idempotent, so every further
-      // repeat is a poke and nothing else.
-      _chrome.poke();
+    // Space has its own hold-to-2x behavior. Incremental shortcuts also
+    // accept platform repeat events; toggles must remain one action per press.
+    final key = event.logicalKey;
+    if (event is KeyRepeatEvent && _spaceHeld && key == LogicalKeyboardKey.space) {
       _startSpeedBoost();
       return KeyEventResult.handled;
+    }
+    if (event is KeyRepeatEvent &&
+        !_isDirectional(key) &&
+        key != LogicalKeyboardKey.keyJ &&
+        key != LogicalKeyboardKey.keyL &&
+        key != LogicalKeyboardKey.gameButtonLeft1 &&
+        key != LogicalKeyboardKey.gameButtonRight1 &&
+        key != LogicalKeyboardKey.audioVolumeUp &&
+        key != LogicalKeyboardKey.audioVolumeDown) {
+      return KeyEventResult.ignored;
     }
     if (event is KeyUpEvent) {
       if (!_spaceHeld || event.logicalKey != LogicalKeyboardKey.space) {
@@ -1117,7 +1137,9 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       }
       return KeyEventResult.handled;
     }
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
 
     // Back is not ours, and must not poke. Android delivers it as this key
     // first and as popRoute second; the screen's _handleBack decides between
@@ -1128,118 +1150,95 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       return KeyEventResult.ignored;
     }
 
-    // Arrows are shortcuts only while the sink itself holds focus, which is to
-    // say nothing else in the player does. With a control focused they are
-    // traversal and belong to the focus system.
+    // Arrows and shortcuts belong to playback while the sink holds focus
+    // (no control on screen is focused). With a control focused they belong
+    // to focus traversal and the focus system.
     final bare = node.hasPrimaryFocus;
 
-    final key = event.logicalKey;
-
-    // The remote's transport: a D-pad with the bars down is the transport
-    // itself, not a way of summoning the bars.
-    //
-    // It used to be the other way round - the press was spent revealing the
-    // chrome - and the cost of that was that a remote could not step through
-    // a film at all. The press woke the bars, focus landed on a control, and
-    // every arrow after it was traversal; seeking meant waiting for the bars
-    // to time out and then spending another press waking them again. OK is
-    // the key that opens the chrome, and it is the only one that needs to.
-    final tvTransport = bare && _isTv && _isDirectional(key);
-
-    // Any other key keeps the chrome alive, and summons it when hidden - on a
-    // remote there is no tap to reveal it with. Focus is restored after the
-    // frame, so the key doing the summoning is judged against where focus was.
-    //
-    // Skipped for the transport keys above: poking would raise the bars, and
-    // raising the bars is what takes the next arrow away from seeking.
-    if (!tvTransport) _chrome.poke();
-
-    if (tvTransport) {
+    if (bare) {
       if (key == LogicalKeyboardKey.arrowLeft) {
         _seekBy(-_seekStep);
-      } else if (key == LogicalKeyboardKey.arrowRight) {
-        _seekBy(_seekStep);
-      } else if (key == LogicalKeyboardKey.arrowUp) {
-        _nudgeVolume(_tvVolumeStep);
-      } else {
-        _nudgeVolume(-_tvVolumeStep);
+        _chrome.keepAlive();
+        return KeyEventResult.handled;
       }
-      return KeyEventResult.handled;
+      if (key == LogicalKeyboardKey.arrowRight) {
+        _seekBy(_seekStep);
+        _chrome.keepAlive();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.arrowUp) {
+        _nudgeVolume(_isTv ? _tvVolumeStep : _volumeStep);
+        _chrome.keepAlive();
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.arrowDown) {
+        _nudgeVolume(_isTv ? -_tvVolumeStep : -_volumeStep);
+        _chrome.keepAlive();
+        return KeyEventResult.handled;
+      }
+      // Space is a shortcut only while nothing is focused: claimed with a button
+      // focused it would toggle playback instead of pressing the button.
+      if (key == LogicalKeyboardKey.space) {
+        _spaceHeld = true;
+        return KeyEventResult.handled;
+      }
     }
-    // K and the media keys have no activation meaning, so they stay global.
-    if (key == LogicalKeyboardKey.mediaPlayPause ||
-        key == LogicalKeyboardKey.keyK) {
-      _togglePlayback();
-      return KeyEventResult.handled;
-    }
-    // Space is the activation key for whatever is focused, so it is a shortcut
-    // only while nothing is: claimed with a button focused it would toggle
-    // playback instead of pressing the button.
-    //
-    // A bare Space is two shortcuts on one key - tap toggles, hold runs at 2x -
-    // and only the release tells them apart, so the down press claims the key
-    // and does nothing else. Toggling on the leading edge instead would pause
-    // the film under a viewer who meant to skim.
-    if (bare && key == LogicalKeyboardKey.space) {
-      _spaceHeld = true;
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.mediaPlay) {
-      widget.controller.play();
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.mediaPause) {
-      widget.controller.pause();
-      return KeyEventResult.handled;
-    }
-    // LB/RB, alongside J/L and through the same [_seekBy], so a pad inherits
-    // the chain window and the toast rather than growing a second seek path.
-    //
-    // A shoulder button has no traversal meaning and no activation meaning, so
-    // unlike the arrows and unlike Space it needs no `bare` guard and is not
-    // spent revealing the chrome on television: the press that wakes the bars
-    // also seeks, exactly as J and L do.
+
+    // Dedicated seek keys (J/L and shoulder buttons). These do not require
+    // bare focus and do not summon the chrome.
     if (key == LogicalKeyboardKey.keyJ ||
         key == LogicalKeyboardKey.gameButtonLeft1) {
       _seekBy(-_seekStep);
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.keyL ||
         key == LogicalKeyboardKey.gameButtonRight1) {
       _seekBy(_seekStep);
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
+
+    // Media transport keys have no activation meaning, so they stay global.
+    if (key == LogicalKeyboardKey.mediaPlayPause ||
+        key == LogicalKeyboardKey.keyK) {
+      _togglePlayback();
+      _chrome.keepAlive();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.mediaPlay) {
+      widget.controller.play();
+      _chrome.keepAlive();
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.mediaPause) {
+      widget.controller.pause();
+      _chrome.keepAlive();
+      return KeyEventResult.handled;
+    }
+
+    // Fullscreen toggles
     if (key == LogicalKeyboardKey.keyF && widget.onToggleFullscreen != null) {
       widget.onToggleFullscreen!.call();
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.escape &&
         widget.isFullscreen &&
         widget.onToggleFullscreen != null) {
       widget.onToggleFullscreen!.call();
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
 
-    // The rocker is the phone's, not ours: off desktop this must fall through
-    // as ignored or the handset's own volume never moves and its HUD never
-    // appears, while the app walks its private libVLC gain. See
-    // [_ownsVolumeKeys] for the embedder path behind that.
+    // Hardware volume keys
     if (key == LogicalKeyboardKey.audioVolumeUp ||
         key == LogicalKeyboardKey.audioVolumeDown) {
       if (!_ownsVolumeKeys) return KeyEventResult.ignored;
       _nudgeVolume(
         key == LogicalKeyboardKey.audioVolumeUp ? _volumeStep : -_volumeStep,
       );
-      return KeyEventResult.handled;
-    }
-    // A bare arrow is the keyboard idiom, not a hardware key, and on TV it
-    // never reaches here - the directional guard above already spent it.
-    if (bare &&
-        (key == LogicalKeyboardKey.arrowUp ||
-            key == LogicalKeyboardKey.arrowDown)) {
-      _nudgeVolume(
-        key == LogicalKeyboardKey.arrowUp ? _volumeStep : -_volumeStep,
-      );
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.keyM) {
@@ -1247,24 +1246,31 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       if (current == 0) {
         _setVolume(_volumeBeforeMute ?? 100);
       } else {
-        // Also covers a level this widget never applied - the engine's own
-        // starting volume - which _setVolume has had no chance to record.
         _volumeBeforeMute = current;
         _setVolume(0);
       }
+      _chrome.keepAlive();
       return KeyEventResult.handled;
     }
 
-    if (bare) {
-      if (key == LogicalKeyboardKey.arrowLeft) {
-        _seekBy(-_seekStep);
-        return KeyEventResult.handled;
-      }
-      if (key == LogicalKeyboardKey.arrowRight) {
-        _seekBy(_seekStep);
-        return KeyEventResult.handled;
-      }
+    // Explicit keys that reveal the chrome when bars are hidden.
+    // On a remote, OK (Select / Enter / D-pad center) is the designated key
+    // that summons the controls.
+    if (!_chrome.value &&
+        (key == LogicalKeyboardKey.select ||
+            key == LogicalKeyboardKey.gameButtonA ||
+            key == LogicalKeyboardKey.enter ||
+            key == LogicalKeyboardKey.numpadEnter ||
+            key == LogicalKeyboardKey.gameButtonSelect)) {
+      _chrome.poke();
+      return KeyEventResult.handled;
     }
+
+    // If chrome is already visible, non-traversal keys keep it alive.
+    if (_chrome.value) {
+      _chrome.keepAlive();
+    }
+
     return KeyEventResult.ignored;
   }
 
@@ -1407,50 +1413,75 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       // size there in the first place. Two buttons in the bar for something
       // every other device already does better was chrome for its own sake.
       if (!_showCenterGlyph)
-        PlayerValueSelector<bool>(
-          controller: widget.controller,
-          // A rebuffer is still playback: the film resumes on its own, so the
-          // button keeps offering pause. A play glyph here would say stopped.
-          selector: (v) => v.isPlaying || v.isBuffering,
-          builder: (context, playing) {
-            return PlayerIconButton(
-              icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              tooltip: playing ? l10n.pause : l10n.play,
-              isTv: isTv,
-              iconSize: 40,
-              focusNode: _playPause,
-              // Only on TV: a keyboard user wants arrows seeking from the
-              // start, which they do while the sink holds focus, not a button.
-              autofocus: isTv,
-              onPressed: () {
-                _chrome.poke();
-                playing ? widget.controller.pause() : widget.controller.play();
+        Padding(
+          padding: EdgeInsets.only(
+            right:
+                settings.showEpisodes &&
+                    (widget.onPreviousEpisode != null ||
+                        widget.onNextEpisode != null)
+                ? 8
+                : 0,
+          ),
+          child: PlayerMattePill(
+            child: PlayerValueSelector<bool>(
+              controller: widget.controller,
+              // A rebuffer is still playback: the film resumes on its own, so the
+              // button keeps offering pause. A play glyph here would say stopped.
+              selector: (v) => v.isPlaying || v.isBuffering,
+              builder: (context, playing) {
+                return PlayerIconButton(
+                  icon: playing
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  tooltip: playing ? l10n.pause : l10n.play,
+                  isTv: isTv,
+                  iconSize: 40,
+                  focusNode: _playPause,
+                  // Only on TV: a keyboard user wants arrows seeking from the
+                  // start, which they do while the sink holds focus, not a button.
+                  autofocus: isTv,
+                  onPressed: () {
+                    _chrome.poke();
+                    playing
+                        ? widget.controller.pause()
+                        : widget.controller.play();
+                  },
+                );
               },
-            );
-          },
+            ),
+          ),
         ),
       // Episode navigation, both directions, behind the one setting that hides
       // episode controls. Each is absent unless the episode it would play
       // exists, so neither is ever a dead press.
-      if (widget.onPreviousEpisode != null && settings.showEpisodes)
-        PlayerIconButton(
-          icon: Icons.skip_previous_rounded,
-          tooltip: l10n.previous,
-          isTv: isTv,
-          onPressed: () {
-            _chrome.poke();
-            widget.onPreviousEpisode!.call();
-          },
-        ),
-      if (widget.onNextEpisode != null && settings.showEpisodes)
-        PlayerIconButton(
-          icon: Icons.skip_next_rounded,
-          tooltip: l10n.next,
-          isTv: isTv,
-          onPressed: () {
-            _chrome.poke();
-            widget.onNextEpisode!.call();
-          },
+      if (settings.showEpisodes &&
+          (widget.onPreviousEpisode != null || widget.onNextEpisode != null))
+        PlayerMattePill(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (widget.onPreviousEpisode != null)
+                PlayerIconButton(
+                  icon: Icons.skip_previous_rounded,
+                  tooltip: l10n.previous,
+                  isTv: isTv,
+                  onPressed: () {
+                    _chrome.poke();
+                    widget.onPreviousEpisode!.call();
+                  },
+                ),
+              if (widget.onNextEpisode != null)
+                PlayerIconButton(
+                  icon: Icons.skip_next_rounded,
+                  tooltip: l10n.next,
+                  isTv: isTv,
+                  onPressed: () {
+                    _chrome.poke();
+                    widget.onNextEpisode!.call();
+                  },
+                ),
+            ],
+          ),
         ),
     ];
 
@@ -1510,7 +1541,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   /// The utility group, right-anchored.
   ///
   /// Three bands, in this order: the controls a viewer reaches for while
-  /// watching (sources, audio, subtitles, episodes, volume), then the rest,
+  /// watching (options and volume), then the rest,
   /// then the two that change the shape of the picture rather than the
   /// playback (resize and fullscreen), hard against the right edge.
   ///
@@ -1525,53 +1556,31 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     PlayerSettings settings, {
     required bool isTv,
   }) {
+    final optionsTab = <PlayerPanelTab>[
+      PlayerPanelTab.sources,
+      PlayerPanelTab.audio,
+      PlayerPanelTab.subtitles,
+      PlayerPanelTab.episodes,
+    ].where(_hasPanelTab).firstOrNull;
+
     return <Widget>[
-      // Band one: what a viewer reaches for without leaving the film, in the
-      // order they reach for it. The three list buttons each open the one
-      // panel on their own tab, and are present exactly when that tab is -
-      // see [VlcPlayerControls.panelTabs].
-      if (_hasPanelTab(PlayerPanelTab.sources))
+      // One entry point for sources, tracks, and available episodes.
+      if (optionsTab != null)
         PlayerIconButton(
-          icon: Icons.source,
-          tooltip: l10n.sources,
+          icon: Icons.tune_rounded,
+          tooltip: l10n.options,
           isTv: isTv,
-          onPressed: () => _open(PlayerPanelTab.sources),
+          onPressed: () => _open(optionsTab),
         ),
-      if (_hasPanelTab(PlayerPanelTab.audio))
+      // Visible by default on every platform; the viewer can hide this
+      // shortcut without changing volume gestures or keyboard controls.
+      if (settings.showVolume)
         PlayerIconButton(
-          icon: Icons.audiotrack_rounded,
-          tooltip: l10n.audioTracks,
+          icon: Icons.volume_up_rounded,
+          tooltip: l10n.volume,
           isTv: isTv,
-          onPressed: () => _open(PlayerPanelTab.audio),
+          onPressed: () => unawaited(_chrome.whileHeld(_pickVolume)),
         ),
-      if (_hasPanelTab(PlayerPanelTab.subtitles))
-        PlayerIconButton(
-          icon: Icons.subtitles_rounded,
-          tooltip: l10n.subtitles,
-          isTv: isTv,
-          onPressed: () => _open(PlayerPanelTab.subtitles),
-        ),
-      // Behind the same setting as the episode buttons in the transport group:
-      // a viewer who hid the episode controls hid all of them.
-      if (_hasPanelTab(PlayerPanelTab.episodes) && settings.showEpisodes)
-        PlayerIconButton(
-          icon: Icons.playlist_play_rounded,
-          tooltip: l10n.episodes,
-          isTv: isTv,
-          onPressed: () => _open(PlayerPanelTab.episodes),
-        ),
-      // On every platform, not just TV. The vertical rail only carries volume
-      // when the edge-gesture setting says so, so anyone who set both edges to
-      // brightness had no volume path at all, and the 100-200 % software boost
-      // was reachable on a phone only by dragging past the top of an invisible
-      // rail. Not gated on `!isLive` the way speed is: a live edge still has a
-      // volume.
-      PlayerIconButton(
-        icon: Icons.volume_up_rounded,
-        tooltip: l10n.volume,
-        isTv: isTv,
-        onPressed: () => unawaited(_chrome.whileHeld(_pickVolume)),
-      ),
 
       // Band two: the rest.
       if (_hasPanelTab(PlayerPanelTab.files))
@@ -2006,9 +2015,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
       // Away from the viewer is up and is also forward: scrolling up raises
       // the volume, and a horizontal scroll to the right moves forward.
       final bool forward = horizontal ? primary > 0 : primary < 0;
-      // Any wheel is interaction, and reveals hidden chrome the way a key
-      // press does - there is no tap on the way to a wheel.
-      _chrome.poke();
+      _chrome.keepAlive();
       if (horizontal || HardwareKeyboard.instance.isShiftPressed) {
         _seekBy(forward ? _seekStep : -_seekStep);
       } else {

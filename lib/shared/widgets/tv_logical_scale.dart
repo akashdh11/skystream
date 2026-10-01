@@ -58,12 +58,16 @@ class TvLogicalScale extends StatelessWidget {
   const TvLogicalScale({
     required this.enabled,
     required this.child,
+    this.userScale = 1.0,
     this.logicalWidth = kTvLogicalWidth,
     this.router,
     super.key,
   });
 
   final bool enabled;
+
+  /// The user-configured global UI scale multiplier (e.g. 0.85, 1.0, 1.15, 1.30).
+  final double userScale;
 
   /// The width to lay out in. Overridable so a test can state one.
   final double logicalWidth;
@@ -76,8 +80,6 @@ class TvLogicalScale extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!enabled) return child;
-
     final media = MediaQuery.of(context);
     final size = media.size;
     // A width of zero happens for one frame on some embedders, and dividing by
@@ -89,19 +91,15 @@ class TvLogicalScale extends StatelessWidget {
     final router = this.router;
     if (router != null && playerRouteIsOnTop(router)) return child;
 
-    // The factor the finished tree is *painted* at. A 960 dp panel laying out
-    // in 1280 dp draws at 0.75, which is the whole point: three quarters of
-    // the size means a third more of everything on screen.
-    final scale = size.width / logicalWidth;
+    // The base scale from the television layout rule if enabled, otherwise 1.0.
+    final baseScale = (enabled && size.width < logicalWidth)
+        ? size.width / logicalWidth
+        : 1.0;
 
-    // Leave a screen that already has the room alone. A window wider than the
-    // target would have to be scaled *up* to reach it, which would magnify a
-    // large display to satisfy a rule written for televisions.
-    //
-    // This comparison was the wrong way round when this widget was written -
-    // it returned early for exactly the 960 dp panel it exists for, so on a
-    // real set the whole thing was a no-op and everything stayed oversized.
-    if (scale >= 1) return child;
+    final scale = baseScale * userScale;
+
+    // Leave a screen that is at 1:1 scale alone.
+    if ((scale - 1.0).abs() < 0.001) return child;
 
     final logical = size / scale;
     return MediaQuery(
@@ -117,7 +115,7 @@ class TvLogicalScale extends StatelessWidget {
         // A television's font scale is the set's, and the ten-foot ramp in
         // this app is already sized for the distance. Honouring both would
         // apply the room twice.
-        textScaler: TextScaler.noScaling,
+        textScaler: enabled ? TextScaler.noScaling : media.textScaler,
       ),
       // [FittedBox] rather than a bare [Transform]: the transform does not
       // constrain, and a [SizedBox] under one cannot shrink below the tight

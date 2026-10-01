@@ -23,6 +23,7 @@ import '../../../../core/utils/stream_quality_sorter.dart';
 import '../general_settings_provider.dart';
 import '../../../../core/providers/device_info_provider.dart';
 import '../../../../core/providers/locale_provider.dart';
+import '../../../../core/providers/ui_scale_provider.dart';
 import '../../../player/presentation/player_platform_service.dart';
 
 import 'package:skystream/l10n/generated/app_localizations.dart';
@@ -230,6 +231,66 @@ void showTitlePositionDialog(
                     ref
                         .read(generalSettingsProvider.notifier)
                         .setTitlePosition(opt['value']!);
+                    Navigator.pop<void>(context);
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Returns a label for a UI scale multiplier.
+String getUiScaleLabel(double scale) {
+  if ((scale - 0.85).abs() < 0.01) return 'Compact (85%)';
+  if ((scale - 1.0).abs() < 0.01) return 'Default (100%)';
+  if ((scale - 1.15).abs() < 0.01) return 'Comfortable (115%)';
+  if ((scale - 1.30).abs() < 0.01) return 'Large (130%)';
+  return '${(scale * 100).round()}%';
+}
+
+/// Shows a dialog to pick the global UI scale.
+void showUiScaleDialog(
+  BuildContext context,
+  WidgetRef ref,
+  double current,
+) {
+  final options = <Map<String, dynamic>>[
+    {'label': 'Compact (85%)', 'value': 0.85},
+    {'label': 'Default (100%)', 'value': 1.0},
+    {'label': 'Comfortable (115%)', 'value': 1.15},
+    {'label': 'Large (130%)', 'value': 1.30},
+  ];
+
+  showDialog<void>(
+    context: context,
+    builder: (context) => AlertDialog(
+      surfaceTintColor: Colors.transparent,
+      title: Text(AppLocalizations.of(context)!.uiScale),
+      content: RadioGroup<double>(
+        groupValue: current,
+        onChanged: (val) {
+          if (val == null) return;
+          ref.read(uiScaleProvider.notifier).setScale(val);
+          Navigator.pop<void>(context);
+        },
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: options.map((opt) {
+              final val = opt['value'] as double;
+              final bool isCurrent = (val - current).abs() < 0.01;
+              return _currentOption(
+                isCurrent: isCurrent,
+                child: ListTile(
+                  autofocus: isCurrent,
+                  title: Text(opt['label'] as String),
+                  leading: Radio<double>(value: val),
+                  onTap: () {
+                    ref.read(uiScaleProvider.notifier).setScale(val);
                     Navigator.pop<void>(context);
                   },
                 ),
@@ -1882,6 +1943,12 @@ void showPlayerControlsDialog(BuildContext context, WidgetRef ref) {
   );
 
   final rows = <_ControlToggle>[
+    (
+      icon: Icons.volume_up_rounded,
+      label: l10n.showVolume,
+      setter: notifier.setShowVolume,
+      initial: settings.showVolume,
+    ),
     if (playerCanShowPip(platform, form))
       (
         icon: Icons.picture_in_picture_alt_rounded,
@@ -1902,8 +1969,8 @@ void showPlayerControlsDialog(BuildContext context, WidgetRef ref) {
       initial: settings.showPlaybackSpeed,
     ),
     (
-      icon: Icons.playlist_play_rounded,
-      label: l10n.showEpisodes,
+      icon: Icons.skip_next_rounded,
+      label: l10n.showEpisodeNavigation,
       setter: notifier.setShowEpisodes,
       initial: settings.showEpisodes,
     ),

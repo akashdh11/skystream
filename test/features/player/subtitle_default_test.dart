@@ -103,9 +103,12 @@ void main() {
   /// to a subtitle.
   Future<void> openSubtitles(WidgetTester tester) async {
     final l10n = await english();
-    await tester.tap(find.byTooltip(l10n.subtitles));
+    await revealPlayerControls(tester);
+    await tester.tap(find.byTooltip(l10n.options));
     await settle(tester);
     expect(find.byType(PlayerPanel), findsOneWidget);
+    await tester.tap(find.text(l10n.subtitles));
+    await settle(tester);
   }
 
   group('Off', () {

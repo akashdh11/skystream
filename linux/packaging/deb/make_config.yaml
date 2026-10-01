@@ -19,3 +19,10 @@ categories:
   - AudioVideo
   - Player
 generic_name: Media Player
+postinstall_scripts:
+  - if [ -f /opt/skystream/skystream ]; then ln -sf /opt/skystream/skystream /usr/bin/skystream; elif [ -f /usr/share/skystream/skystream ]; then ln -sf /usr/share/skystream/skystream /usr/bin/skystream; fi
+  - chmod +x /usr/bin/skystream
+  - if command -v update-desktop-database > /dev/null 2>&1; then update-desktop-database -q /usr/share/applications || true; fi
+postuninstall_scripts:
+  - rm -f /usr/bin/skystream
+  - if command -v update-desktop-database > /dev/null 2>&1; then update-desktop-database -q /usr/share/applications || true; fi

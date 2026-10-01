@@ -14,15 +14,21 @@ import 'package:flutter/semantics.dart';
 /// handlers, sheet lifetimes and hover can all drive it without any of them
 /// owning a setState; the chrome listens once.
 class ChromeVisibilityController extends ValueNotifier<bool> {
-  /// Born visible and armed. Nothing hides until [isPlaying] reports true, so
-  /// the bars stay up through resolution and buffering.
+  /// When [initiallyVisible] is false (default), the chrome starts hidden
+  /// for an immersive viewing experience until summoned by explicit interaction.
   ChromeVisibilityController({
     required bool Function() isPlaying,
-    this.hideAfter = const Duration(seconds: 3),
+    this.hideAfter = const Duration(seconds: 2),
+    bool initiallyVisible = false,
   }) : _isPlaying = isPlaying,
-       super(true) {
-    _restart();
+       super(initiallyVisible) {
+    if (initiallyVisible) {
+      _restart();
+    }
   }
+
+  /// Explicitly hides the chrome and clears the timer.
+  void hide() => _hide();
 
   final Duration hideAfter;
   final bool Function() _isPlaying;

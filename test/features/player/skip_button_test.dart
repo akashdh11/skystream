@@ -201,6 +201,10 @@ Future<VlcPlayerController> _pumpControls(
   // the clock has moved, and a test ending in healthy playback with that timer
   // pending fails flutter_test's pending-timer check.
   await _snapshot(tester);
+  // Focus assertions start with visible controls, summoned by the viewer.
+  await tester.sendKeyEvent(LogicalKeyboardKey.select);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 1));
   return controller;
 }
 

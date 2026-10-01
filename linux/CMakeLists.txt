@@ -112,6 +112,28 @@ install(DIRECTORY "${NATIVE_ASSETS_DIR}"
    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
    COMPONENT Runtime)
 
+# Bundle ICU shared libraries so the application is self-contained across
+# Linux distributions with differing system ICU versions.
+file(GLOB ICU_LIBRARIES
+  "/usr/lib/*-linux-gnu/libicudata.so*"
+  "/usr/lib/*-linux-gnu/libicui18n.so*"
+  "/usr/lib/*-linux-gnu/libicuio.so*"
+  "/usr/lib/*-linux-gnu/libicuuc.so*"
+  "/usr/lib64/libicudata.so*"
+  "/usr/lib64/libicui18n.so*"
+  "/usr/lib64/libicuio.so*"
+  "/usr/lib64/libicuuc.so*"
+  "/usr/lib/libicudata.so*"
+  "/usr/lib/libicui18n.so*"
+  "/usr/lib/libicuio.so*"
+  "/usr/lib/libicuuc.so*"
+)
+if(ICU_LIBRARIES)
+  install(FILES ${ICU_LIBRARIES}
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+endif()
+
 # Fully re-copy the assets directory on each build to avoid having stale files
 # from a previous install.
 set(FLUTTER_ASSET_DIR_NAME "flutter_assets")

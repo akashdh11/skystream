@@ -418,6 +418,8 @@
   "showResize": "Resize button",
   "showPlaybackSpeed": "Playback speed button",
   "showEpisodes": "Episodes button",
+  "showVolume": "ಧ್ವನಿಮಟ್ಟದ ಬಟನ್",
+  "showEpisodeNavigation": "ಹಿಂದಿನ / ಮುಂದಿನ ಸಂಚಿಕೆಯ ಬಟನ್‌ಗಳು",
   "playerControlsSubtitle": "Show or hide player control buttons",
   "exploreAnime": "ಅನಿಮೆ ಅನ್ವೇಷಿಸಿ",
   "exploreMovies": "ಚಲನಚಿತ್ರಗಳನ್ನು ಅನ್ವೇಷಿಸಿ",
@@ -497,6 +499,7 @@
   "addonSourcesSearchHint": "Add-on, provider, quality…",
   "addonSourcesNoMatchFilter": "No links match. Clear search or try \"All\".",
   "addonManageSearchHint": "Search installed add-ons…",
+  "uiScale": "ಇಂಟರ್‌ಫೇಸ್ ಗಾತ್ರ",
   "addonManageNoMatch": "No installed add-on matches \"{query}\"."
 }
 

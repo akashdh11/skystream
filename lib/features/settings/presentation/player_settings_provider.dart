@@ -132,8 +132,8 @@ class PlayerSettings {
   final bool showRemainingTime;
 
   /// Toggles for individual player control-bar buttons. All default to
-  /// visible. Sources, Audio Tracks and Subtitles are intentionally not
-  /// toggleable because they are essential.
+  /// visible. Options stays available for sources, tracks, and episodes.
+  /// The episode toggle controls only the previous/next transport buttons.
   ///
   /// There is no rotate toggle: the manual rotate button went away when
   /// orientation started following the video's own shape, and a stored
@@ -145,6 +145,7 @@ class PlayerSettings {
   /// `player_inverse_tone_map` keys: libVLC 3 has neither a read-ahead-in-
   /// seconds control nor mpv's tone mapping, so the settings that wrote them
   /// went away with the engine that could have honoured them.
+  final bool showVolume;
   final bool showPip;
   final bool showResize;
   final bool showPlaybackSpeed;
@@ -179,6 +180,7 @@ class PlayerSettings {
     this.networkBufferMb,
     this.maxVolumePercent = 200,
     this.showRemainingTime = false,
+    this.showVolume = true,
     this.showPip = true,
     this.showResize = true,
     this.showPlaybackSpeed = true,
@@ -213,6 +215,7 @@ class PlayerSettings {
     int? networkBufferMb,
     int? maxVolumePercent,
     bool? showRemainingTime,
+    bool? showVolume,
     bool? showPip,
     bool? showResize,
     bool? showPlaybackSpeed,
@@ -249,6 +252,7 @@ class PlayerSettings {
       networkBufferMb: networkBufferMb ?? this.networkBufferMb,
       maxVolumePercent: maxVolumePercent ?? this.maxVolumePercent,
       showRemainingTime: showRemainingTime ?? this.showRemainingTime,
+      showVolume: showVolume ?? this.showVolume,
       showPip: showPip ?? this.showPip,
       showResize: showResize ?? this.showResize,
       showPlaybackSpeed: showPlaybackSpeed ?? this.showPlaybackSpeed,
@@ -386,6 +390,12 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
       storage.getPlayerSetting<String>('player_quality_filter_mode'),
     );
 
+    final showVolume =
+        storage.getPlayerSetting<bool>(
+          'player_show_volume',
+          defaultValue: true,
+        ) ??
+        true;
     final showPip =
         storage.getPlayerSetting<bool>('player_show_pip', defaultValue: true) ??
         true;
@@ -439,6 +449,7 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
       networkBufferMb: networkBufferMb,
       maxVolumePercent: maxVolumePercent,
       showRemainingTime: showRemaining,
+      showVolume: showVolume,
       showPip: showPip,
       showResize: showResize,
       showPlaybackSpeed: showPlaybackSpeed,
@@ -562,6 +573,11 @@ class PlayerSettingsNotifier extends _$PlayerSettingsNotifier {
     final clamped = percent.clamp(100, 200);
     await _repository.setPlayerSetting('player_max_volume', clamped);
     _update((PlayerSettings c) => c.copyWith(maxVolumePercent: clamped));
+  }
+
+  Future<void> setShowVolume(bool val) async {
+    await _repository.setPlayerSetting('player_show_volume', val);
+    _update((PlayerSettings c) => c.copyWith(showVolume: val));
   }
 
   Future<void> setShowPip(bool val) async {

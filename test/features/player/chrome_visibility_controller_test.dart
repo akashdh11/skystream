@@ -13,10 +13,11 @@ void main() {
 
   /// Built inside each test body, not in setUp: the controller arms its first
   /// timer in its constructor, and the fake clock exists only inside the body.
-  ChromeVisibilityController armed() {
+  ChromeVisibilityController armed({bool initiallyVisible = true}) {
     final chrome = ChromeVisibilityController(
       isPlaying: () => playing,
       hideAfter: _hideAfter,
+      initiallyVisible: initiallyVisible,
     )..addListener(() => notifications++);
     addTearDown(chrome.dispose);
     return chrome;
@@ -25,6 +26,14 @@ void main() {
   setUp(() {
     playing = true;
     notifications = 0;
+  });
+
+  testWidgets('default controller starts hidden for immersion', (
+    tester,
+  ) async {
+    final chrome = armed(initiallyVisible: false);
+    expect(chrome.value, isFalse);
+    expect(notifications, 0);
   });
 
   testWidgets('born visible and armed: hides once the delay runs out', (

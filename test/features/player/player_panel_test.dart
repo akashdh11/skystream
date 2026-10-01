@@ -1630,13 +1630,9 @@ void main() {
     });
 
     testWidgets(
-      'the Trying chip follows the ramp, like every badge beside it',
+      'source statuses share the neutral badge text ramp',
       (tester) async {
-        // The probe chips are the one place the panel uses colour to mean
-        // something, and "in flight" is not one of the things it means. Pinning
-        // the ramp token rather than "not muted": a literal that happened to be
-        // brighter would still be a literal, and this is exactly how the one
-        // chip got left behind.
+        // Status stays explicit in the label, with consistent contrast on TV.
         final l10n = await AppLocalizations.delegate.load(const Locale('en'));
         await pumpPanel(
           tester,
@@ -1662,15 +1658,13 @@ void main() {
         );
         expect(
           _badgeColour(tester, l10n.playerSourceReachable),
-          const Color(0xFF4CAF50),
-          reason: 'green still means the probe answered',
+          PlayerPanelMetrics.tv.secondaryText,
+          reason: 'reachable uses the same neutral treatment',
         );
         expect(
           _badgeColour(tester, l10n.unknown),
-          const Color(0xFFFFB74D),
-          reason:
-              'amber means the probe got no answer - "unknown", not the red of '
-              'a source that was played and would not play',
+          PlayerPanelMetrics.tv.secondaryText,
+          reason: 'unknown stays readable without a separate warning colour',
         );
       },
     );

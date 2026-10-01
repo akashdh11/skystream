@@ -44,6 +44,7 @@ import 'core/providers/device_info_provider.dart';
 import 'shared/focus/app_focus.dart';
 import 'shared/widgets/loading_indicator.dart';
 import 'shared/widgets/tv_logical_scale.dart';
+import 'core/providers/ui_scale_provider.dart';
 import 'core/widgets/m3_toast_overlay.dart';
 import 'features/settings/presentation/general_settings_provider.dart';
 import 'features/settings/presentation/full_screen_mode_provider.dart';
@@ -493,6 +494,7 @@ class _MyAppState extends ConsumerState<MyApp> {
             final profile = profileAsync.asData?.value;
             result = TvLogicalScale(
               enabled: profile?.isTv == true,
+              userScale: ref.watch(uiScaleProvider),
               router: appRouter,
               child: result,
             );

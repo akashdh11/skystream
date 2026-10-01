@@ -91,6 +91,9 @@ void main() {
       ],
     );
     await sendFirstFrame(tester);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
     await sendEvent(tester, snapshot(position: 1190000, duration: 1200000));
     await tester.pump();
     return () => downloads;
@@ -245,7 +248,13 @@ void main() {
         final l10n = await english();
         expect(find.byType(NextEpisodeCountdown), findsNothing);
 
-        await tester.tap(find.byTooltip(l10n.episodes));
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        await tester.tap(find.byTooltip(l10n.options));
+        await settle(tester);
+        Focus.of(tester.element(find.text(l10n.episodes))).requestFocus();
+        await tester.pump();
+        await tester.sendKeyEvent(LogicalKeyboardKey.enter);
         await settle(tester);
         expect(find.byType(PlayerPanel), findsOneWidget);
         expect(focusInPanel(), isTrue);

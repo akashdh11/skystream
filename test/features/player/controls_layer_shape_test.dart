@@ -5,6 +5,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skystream/core/providers/device_info_provider.dart';
@@ -15,6 +16,7 @@ import 'package:skystream/features/skip/data/skip_service.dart'
     show SkipSegment, SkipType;
 import 'package:skystream/features/player/presentation/widgets/player_control_components.dart'
     show PlayerActionButton, PlayerCenterPlayButton;
+import 'package:skystream/features/player/presentation/widgets/player_matte_pill.dart';
 import 'package:skystream/features/settings/presentation/player_settings_provider.dart';
 import 'package:skystream/l10n/generated/app_localizations.dart';
 import 'package:vlc_player/vlc_player.dart';
@@ -109,6 +111,9 @@ Future<VlcPlayerController> _pumpControls(
     ),
   );
   await tester.pump();
+  await tester.sendKeyEvent(LogicalKeyboardKey.select);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 220));
   return controller;
 }
 
@@ -256,20 +261,39 @@ void main() {
 
       // Rooted at the controls, not at the chip: the container is an
       // ANCESTOR of the chip, so a walk starting there would step straight
-      // past the very thing this is about. The rule is that the whole chrome
-      // has exactly one kind of effect layer - the two bar fades - and
-      // nothing that reads the surface back.
+      // past the very thing this is about. Only the bottom control pills may
+      // read the backdrop; the skip chip remains a painted surface.
       final layers = _effectLayers(
         tester.renderObject(find.byType(VlcPlayerControls)),
       );
       expect(
-        layers.whereType<RenderAnimatedOpacity>().length,
+        layers
+            .where(
+              (l) => l is RenderAnimatedOpacity || l is RenderBackdropFilter,
+            )
+            .length,
         layers.length,
         reason:
-            'the only effect layers in the player chrome are its fades; a '
-            'filter or a bare opacity has appeared: '
+            'only bar fades and bounded matte backdrops are allowed: '
             '${layers.map((l) => '${l.runtimeType} ${l.paintBounds.size}').join(', ')}',
       );
+      final filters = layers.whereType<RenderBackdropFilter>().toList();
+      final pills = find.byType(PlayerMattePill);
+      expect(filters.length, pills.evaluate().length);
+      for (final element in pills.evaluate()) {
+        final filter = find.descendant(
+          of: find.byWidget(element.widget),
+          matching: find.byType(BackdropFilter),
+        );
+        expect(
+          tester.getSize(filter),
+          tester.getSize(find.byWidget(element.widget)),
+        );
+        expect(
+          find.ancestor(of: filter, matching: find.byType(ClipRRect)),
+          findsWidgets,
+        );
+      }
       _expectNoLargeEffectLayer(tester, _phone);
     });
 

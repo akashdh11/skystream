@@ -422,10 +422,12 @@ const String kPlayerRoutePath = '/player';
 /// location has to be read off the top match's state rather than off the
 /// match list.
 bool playerRouteIsOnTop(GoRouter router) {
-  // `state` reads `currentConfiguration.last`, which throws on the empty match
-  // list the delegate starts life with.
-  if (router.routerDelegate.currentConfiguration.isEmpty) return false;
-  return router.state.uri.path == kPlayerRoutePath;
+  try {
+    if (router.routerDelegate.currentConfiguration.isEmpty) return false;
+    return router.state.uri.path == kPlayerRoutePath;
+  } catch (_) {
+    return false;
+  }
 }
 
 @TypedGoRoute<PlayerRoute>(path: '/player')

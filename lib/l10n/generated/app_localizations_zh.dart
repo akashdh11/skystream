@@ -1368,6 +1368,12 @@ class AppLocalizationsZh extends AppLocalizations {
   String get showEpisodes => 'Episodes button';
 
   @override
+  String get showVolume => 'Volume button';
+
+  @override
+  String get showEpisodeNavigation => 'Previous / next episode buttons';
+
+  @override
   String get playerNoProviderSelected => 'No provider selected.';
 
   @override
@@ -1780,6 +1786,9 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get addonManageSearchHint => 'Search installed add-ons…';
+
+  @override
+  String get uiScale => 'UI Scale';
 
   @override
   String addonManageNoMatch(String query) {

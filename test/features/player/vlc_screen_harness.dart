@@ -39,6 +39,7 @@ import 'package:skystream/core/providers/device_info_provider.dart';
 import 'package:skystream/features/library/presentation/history_provider.dart';
 import 'package:skystream/features/player/presentation/vlc/side_car_fetch.dart';
 import 'package:skystream/features/player/presentation/vlc/vlc_player_screen.dart';
+import 'package:skystream/features/player/presentation/vlc/vlc_player_controls.dart';
 import 'package:skystream/features/settings/presentation/player_settings_provider.dart';
 import 'package:skystream/features/tracking/data/sync_manager.dart';
 import 'package:skystream/features/tracking/data/tracking_service.dart';
@@ -306,8 +307,30 @@ Future<void> sendEvent(WidgetTester tester, Map<String, Object?> event) async {
 
 /// The engine reports a position that has moved, which is the only thing the
 /// screen accepts as proof that a frame exists.
-Future<void> sendFirstFrame(WidgetTester tester) =>
-    sendEvent(tester, snapshot());
+/// [showControls] summons the initially hidden controls for tests that need
+/// to interact with the bars. A native frame alone never reveals them.
+Future<void> sendFirstFrame(
+  WidgetTester tester, {
+  bool showControls = false,
+}) async {
+  await sendEvent(tester, snapshot());
+  if (showControls) await revealPlayerControls(tester);
+}
+
+/// Reveals controls as a viewer would and advances their fade off zero.
+Future<void> revealPlayerControls(WidgetTester tester) async {
+  final controls = tester.widget<VlcPlayerControls>(
+    find.byType(VlcPlayerControls),
+  );
+  if (controls.chrome!.value) return;
+  await tester.sendKeyEvent(
+    LogicalKeyboardKey.select,
+    platform: 'android',
+    physicalKey: PhysicalKeyboardKey.enter,
+  );
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 1));
+}
 
 /// Back as the system delivers it, which the framework turns into a `popRoute`
 /// on the navigation channel for PopScope to catch.

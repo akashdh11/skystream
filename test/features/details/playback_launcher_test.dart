@@ -30,6 +30,33 @@ void main() {
   );
 
   group('playResolved honours the Default Player setting', () {
+    testWidgets('a details action cannot launch a second player', (
+      tester,
+    ) async {
+      final harness = await _pump(tester);
+      unawaited(
+        harness.launcher.playResolved(
+          harness.context,
+          item: item,
+          videoUrl: 'tmdb:603',
+        ),
+      );
+      await tester.pumpAndSettle();
+      final firstPush = harness.pushed;
+
+      // The covered Details context stays mounted. Neither entry point should
+      // resolve another stream or push another player if its button fires.
+      await harness.launcher.play(harness.context, 'tmdb:604', baseItem: item);
+      await harness.launcher.playResolved(
+        harness.context,
+        item: item,
+        videoUrl: 'tmdb:604',
+      );
+      await tester.pumpAndSettle();
+      expect(harness.pushed, same(firstPush));
+      expect(harness.playerBuilds, 1);
+    });
+
     testWidgets('no preference opens the built-in player, list intact', (
       tester,
     ) async {
@@ -221,6 +248,7 @@ class _Harness {
 
   late BuildContext context;
   PlayerRouteExtra? pushed;
+  int playerBuilds = 0;
 }
 
 /// A two-route app: a home to launch from and a stand-in for the player, so
@@ -253,6 +281,7 @@ Future<_Harness> _pump(WidgetTester tester, {String? preferredPlayer}) async {
       GoRoute(
         path: '/player',
         builder: (BuildContext context, GoRouterState state) {
+          harness.playerBuilds++;
           harness.pushed = state.extra! as PlayerRouteExtra;
           return const Scaffold(body: Text('player'));
         },

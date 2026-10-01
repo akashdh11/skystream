@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:skystream/core/router/app_router.dart';
 import 'package:skystream/core/services/notification_service.dart';
 
@@ -30,6 +31,32 @@ class M3ToastOverlay extends ConsumerStatefulWidget {
 }
 
 class _M3ToastOverlayState extends ConsumerState<M3ToastOverlay> {
+  GoRouter? _router;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final router = ref.read(appRouterProvider);
+    if (_router != router) {
+      _router?.routerDelegate.removeListener(_onRouteChanged);
+      _router = router;
+      _router?.routerDelegate.addListener(_onRouteChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _router?.routerDelegate.removeListener(_onRouteChanged);
+    super.dispose();
+  }
+
+  void _onRouteChanged() {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final notificationService = ref.watch(notificationServiceProvider);
@@ -46,33 +73,11 @@ class _M3ToastOverlayState extends ConsumerState<M3ToastOverlay> {
       fit: StackFit.expand,
       children: [
         widget.child,
-        Positioned.fill(
-          // Outside the toast list on purpose: navigating has to re-evaluate
-          // the layer even when no toast came or went.
-          child: ListenableBuilder(
-            listenable: router.routerDelegate,
-            builder: (context, _) {
-              // The player is full-screen video with its own bottom bar, and
-              // it carries its own transient layer (TransientOverlay) for its
-              // own messages. A card from a background job - a finished
-              // download, a repo refresh - would land on top of that bar, and
-              // because the card is a live InkWell inside a MouseRegion the
-              // `IgnorePointer(ignoring: false)` below does not save it: the
-              // toast would swallow the tap aimed at the control underneath.
-              // So the global layer stands down for the duration; queued
-              // toasts still expire on their own timers.
-              //
-              // The player route is top-level, so it is built *under* this
-              // overlay - `MaterialApp.router`'s builder wraps the router's
-              // Navigator. `playerRouteIsOnTop` lives beside
-              // `kPlayerRoutePath` in app_router.dart because the update
-              // prompt has to ask the same question and two copies of the
-              // answer would drift.
-              if (playerRouteIsOnTop(router)) return const SizedBox.shrink();
-
-              return ListenableBuilder(
-                listenable: notificationService,
-                builder: (context, _) {
+        if (!playerRouteIsOnTop(router))
+          Positioned.fill(
+            child: ListenableBuilder(
+              listenable: notificationService,
+              builder: (context, _) {
                   final toasts = notificationService.toasts;
                   if (toasts.isEmpty) {
                     return const SizedBox.shrink();
@@ -123,12 +128,10 @@ class _M3ToastOverlayState extends ConsumerState<M3ToastOverlay> {
                     ),
                   );
                 },
-              );
-            },
-          ),
-        ),
-      ],
-    );
+              ),
+            ),
+        ],
+      );
   }
 }
 
