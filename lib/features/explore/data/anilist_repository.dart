@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/domain/entity/multimedia_item.dart';
 import '../../../core/models/tmdb_details.dart';
+import '../../../core/services/ani_zip_service.dart';
 import '../../../core/services/anilist_explore_service.dart';
 import '../../../core/network/dio_client_provider.dart';
 import '../../../core/logger/app_logger.dart';
@@ -689,18 +690,14 @@ class AnilistRepository {
       final voteAverage = averageScore / 10.0;
 
       // Fetch episodes from AniZip mapping API (providing titles, summaries, ratings, and stills)
-      Map<String, dynamic>? aniZipEpisodes;
+      Map<int, AniZipEpisode>? aniZipEpisodes;
       try {
         final aniZipResponse = await _dio.get<Map<String, dynamic>>(
           'https://api.ani.zip/mappings',
           queryParameters: {'anilist_id': id},
         );
         if (aniZipResponse.statusCode == 200 && aniZipResponse.data != null) {
-          final aniZipData = aniZipResponse.data!;
-          final epsMap = aniZipData['episodes'] as Map<String, dynamic>?;
-          if (epsMap != null) {
-            aniZipEpisodes = epsMap;
-          }
+          aniZipEpisodes = parseAniZipEpisodes(aniZipResponse.data!);
         }
       } catch (e) {
         talker.error('AnilistRepository: Failed to fetch AniZip episodes: $e');
@@ -717,16 +714,9 @@ class AnilistRepository {
 
       // If count is null or 0, or we can check if there are more episode entries in AniZip
       if (aniZipEpisodes != null && aniZipEpisodes.isNotEmpty) {
-        final numericKeys = aniZipEpisodes.keys
-            .map((k) => int.tryParse(k))
-            .where((k) => k != null)
-            .cast<int>()
-            .toList();
-        if (numericKeys.isNotEmpty) {
-          final maxKey = numericKeys.reduce((a, b) => a > b ? a : b);
-          if (maxKey > count) {
-            count = maxKey;
-          }
+        final maxKey = aniZipEpisodes.keys.reduce((a, b) => a > b ? a : b);
+        if (maxKey > count) {
+          count = maxKey;
         }
       }
 
@@ -736,46 +726,18 @@ class AnilistRepository {
 
       final episodes = List.generate(count, (index) {
         final epNum = index + 1;
-        final epKey = epNum.toString();
 
         String epName = 'Episode $epNum';
         String? stillPath;
         double epVoteAverage = voteAverage;
         String epOverview = 'Watch episode $epNum of $title.';
 
-        if (aniZipEpisodes != null && aniZipEpisodes.containsKey(epKey)) {
-          final epData = aniZipEpisodes[epKey] as Map<String, dynamic>?;
-          if (epData != null) {
-            final epTitleObj = epData['title'] as Map<String, dynamic>?;
-            if (epTitleObj != null) {
-              final titleEn = epTitleObj['en'] as String?;
-              final titleRomaji = epTitleObj['x-jat'] as String?;
-              final titleNative = epTitleObj['ja'] as String?;
-              final resolvedTitle = titleEn ?? titleRomaji ?? titleNative;
-              if (resolvedTitle != null && resolvedTitle.isNotEmpty) {
-                epName = resolvedTitle;
-              }
-            }
-
-            final imageVal = epData['image'] as String?;
-            if (imageVal != null && imageVal.isNotEmpty) {
-              stillPath = imageVal;
-            }
-
-            final ratingVal = epData['rating'] as String?;
-            if (ratingVal != null) {
-              final parsedRating = double.tryParse(ratingVal);
-              if (parsedRating != null) {
-                epVoteAverage = parsedRating;
-              }
-            }
-
-            final overviewVal =
-                (epData['overview'] ?? epData['summary']) as String?;
-            if (overviewVal != null && overviewVal.isNotEmpty) {
-              epOverview = overviewVal;
-            }
-          }
+        final epData = aniZipEpisodes?[epNum];
+        if (epData != null) {
+          epName = epData.title ?? epData.nativeTitle ?? epName;
+          stillPath = epData.image;
+          epVoteAverage = epData.rating ?? epVoteAverage;
+          epOverview = epData.overview ?? epOverview;
         }
 
         // Fallback to streaming list if name is generic or still is missing

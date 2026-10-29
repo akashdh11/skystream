@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import '../domain/entity/multimedia_item.dart';
 import '../extensions/base_provider.dart';
 import '../logger/app_logger.dart';
+import '../services/ani_zip_service.dart';
 import '../services/local_proxy_service.dart';
 import '../utils/stream_quality_sorter.dart' show labelStatesQuality;
 import 'cloudstream_engine.dart';
@@ -25,8 +26,10 @@ class CloudStreamProvider extends SkyStreamProvider {
     required this.info,
     required CloudStreamEngineHost host,
     Future<void> Function()? prepareLinks,
+    AniZipService? aniZip,
   }) : _host = host,
-       _prepareLinks = prepareLinks;
+       _prepareLinks = prepareLinks,
+       _aniZip = aniZip;
 
   /// Every CloudStream provider id starts with this, which is how the UI tells them apart.
   static const String idPrefix = 'cs3:';
@@ -44,6 +47,9 @@ class CloudStreamProvider extends SkyStreamProvider {
 
   /// Run before links are fetched: loads the plugins whose link extractors they may need.
   final Future<void> Function()? _prepareLinks;
+
+  /// Fills in episode titles and stills the extension left out, by the AniList or MAL id it gives.
+  final AniZipService? _aniZip;
 
   /// Home page sections fetched at once; each is a network call in the plugin.
   static const int _homeConcurrency = 4;
@@ -138,7 +144,49 @@ class CloudStreamProvider extends SkyStreamProvider {
   @override
   Future<MultimediaItem> getDetails(String url) async {
     final result = await _call((e) => e.load(name, url, plugin: _pluginPath), kind: 'load');
-    return details(result, url: url, packageName: packageName, providerName: name);
+    final item = details(result, url: url, packageName: packageName, providerName: name);
+    final aniZip = _aniZip;
+    final episodes = item.episodes;
+    if (aniZip == null || item.contentType == MultimediaContentType.movie || episodes == null || episodes.isEmpty) {
+      return item;
+    }
+    final anilistId = int.tryParse(item.syncData?['anilist'] ?? '');
+    final malId = int.tryParse(item.syncData?['mal'] ?? '');
+    if (anilistId == null && malId == null) return item;
+    final found = await aniZip.episodes(anilistId: anilistId, malId: malId);
+    return found.isEmpty ? item : item.copyWith(episodes: withAniZip(episodes, found));
+  }
+
+  /// [episodes] with what the extension left empty filled in from ani.zip: never what it gave. Only season 1, as an
+  /// AniList entry is one season, and by episode number, which for long shows is absolute on both sides.
+  @visibleForTesting
+  static List<Episode> withAniZip(List<Episode> episodes, Map<int, AniZipEpisode> aniZip) => [
+    for (final ep in episodes)
+      if (ep.season != 1 || aniZip[ep.episode] == null)
+        ep
+      else
+        _withAniZip(ep, aniZip[ep.episode]!),
+  ];
+
+  static Episode _withAniZip(Episode ep, AniZipEpisode z) {
+    String? blank(String? value) => value == null || value.isEmpty ? null : value;
+    return Episode(
+      // 'Episode N' is what [_episode] names an episode the extension sent no name for.
+      name: ep.name == 'Episode ${ep.episode}' ? z.title ?? ep.name : ep.name,
+      url: ep.url,
+      season: ep.season,
+      episode: ep.episode,
+      description: blank(ep.description) ?? z.overview,
+      posterUrl: blank(ep.posterUrl) ?? z.image,
+      headers: ep.headers,
+      rating: ep.rating ?? z.rating,
+      runtime: ep.runtime ?? z.runtime,
+      airDate: ep.airDate ?? z.airDate,
+      airedAt: ep.airedAt ?? z.airedAt,
+      dubStatus: ep.dubStatus,
+      playbackPolicy: ep.playbackPolicy,
+      streams: ep.streams,
+    );
   }
 
   static final _unescape = HtmlUnescape();

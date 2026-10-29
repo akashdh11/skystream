@@ -2,13 +2,19 @@
 /// labelled, how CloudStream's types map to SkyStream's, and the provider ids.
 library;
 
+import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:cs3_engine/cs3_engine.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skystream/core/cloudstream/cloudstream_engine.dart';
 import 'package:skystream/core/cloudstream/cloudstream_models.dart';
 import 'package:skystream/core/cloudstream/cloudstream_provider.dart';
 import 'package:skystream/core/domain/entity/multimedia_item.dart';
 import 'package:skystream/core/extensions/base_provider.dart';
+import 'package:skystream/core/services/ani_zip_service.dart';
 import 'package:skystream/core/utils/stream_quality_sorter.dart';
 import 'package:skystream/features/settings/presentation/player_settings_provider.dart';
 
@@ -302,6 +308,163 @@ void main() {
       expect(map({...anime(), 'syncIds': {'imdb': '22248376'}}).imdbId, isNull);
     });
   });
+
+  group('ani.zip fills in what an extension left out', () {
+    // Shaped like https://api.ani.zip/mappings?anilist_id=21, keyed by absolute episode number.
+    final mapping = {
+      'titles': {'en': 'One Piece'},
+      'episodeCount': 1100,
+      'episodes': {
+        '1033': {
+          'seasonNumber': 21,
+          'episodeNumber': 142,
+          'absoluteEpisodeNumber': 1033,
+          'title': {
+            'ja': '決着! ルフィ加速する覇王の拳[こぶし]',
+            'en': 'The Conclusion! Luffy, Accelerating Fist of the Supreme King',
+            'x-jat': 'Kecchaku! Luffy Kasoku Suru Haou no Kobushi',
+          },
+          'airDate': '2022-09-18',
+          'airDateUtc': '2022-09-18T14:15:00Z',
+          'runtime': 24,
+          'overview': 'Sanji is forced to run with Zoro on his shoulder.',
+          'image': 'https://artworks.thetvdb.com/banners/v4/episode/9234602/screencap/632795bf7d464.jpg',
+          'episode': '1033',
+          'length': 25,
+          'rating': '8.67',
+          'summary': 'A summary.',
+        },
+        '1034': {
+          'title': {'en': 'Ani.zip title'},
+          'image': 'https://artworks.thetvdb.com/1034.jpg',
+          'overview': 'Ani.zip overview.',
+        },
+        'S1': {
+          'title': {'en': 'A special'},
+        },
+      },
+    };
+
+    Map<String, dynamic> load(Map<String, dynamic> syncIds) => {
+      'name': 'One Piece',
+      'type': 'Anime',
+      'syncIds': syncIds,
+      'episodes': [
+        {'data': '/ep/1033', 'episode': 1033},
+        {'data': '/ep/1034', 'episode': 1034, 'name': 'Site title', 'posterUrl': 'https://site.test/1034.jpg'},
+        {'data': '/ep/1099', 'episode': 1099},
+      ],
+    };
+
+    Future<(List<Episode>, List<Uri>)> details(
+      Map<String, dynamic> syncIds, {
+      Future<ResponseBody> Function()? respond,
+      Duration timeout = const Duration(seconds: 8),
+    }) async {
+      final adapter = _AniZipAdapter(
+        respond ??
+            () async => ResponseBody.fromString(
+              jsonEncode(mapping),
+              200,
+              headers: {
+                Headers.contentTypeHeader: [Headers.jsonContentType],
+              },
+            ),
+      );
+      final provider = CloudStreamProvider(
+        plugin: const CsInstalledPlugin(
+          info: CsPluginInfo(internalName: 'AniKoto', name: 'AniKoto', url: '', repositoryUrl: ''),
+          filePath: '/plugins/AniKoto.cs3',
+        ),
+        pluginKey: 'cncverse/AniKoto',
+        info: const CsProviderInfo(name: 'AniKoto'),
+        host: _AnsweringHost(load(syncIds)),
+        aniZip: AniZipService(Dio()..httpClientAdapter = adapter, timeout: timeout),
+      );
+      final item = await provider.getDetails('https://anikototv.to/one-piece');
+      return (item.episodes!, adapter.requests);
+    }
+
+    void expectUnchanged(List<Episode> episodes) {
+      expect([for (final ep in episodes) ep.name], ['Episode 1033', 'Site title', 'Episode 1099']);
+      expect([for (final ep in episodes) ep.posterUrl], [null, 'https://site.test/1034.jpg', null]);
+      expect(episodes.first.description, isNull);
+    }
+
+    test('a missing name and thumbnail, and the rest of what the extension left empty', () async {
+      final (episodes, requests) = await details({'anilist': '21', 'mal': '21'});
+      expect(requests.single.queryParameters, {'anilist_id': '21'});
+      final ep = episodes.firstWhere((ep) => ep.episode == 1033);
+      expect(ep.name, 'The Conclusion! Luffy, Accelerating Fist of the Supreme King');
+      expect(ep.posterUrl, 'https://artworks.thetvdb.com/banners/v4/episode/9234602/screencap/632795bf7d464.jpg');
+      expect(ep.description, 'Sanji is forced to run with Zoro on his shoulder.');
+      expect((ep.rating, ep.runtime), (8.67, 24));
+      expect(ep.airDate, '2022-09-18');
+      expect(ep.airedAt, DateTime.utc(2022, 9, 18, 14, 15));
+      expect(ep.url, CloudStreamProvider.token('/ep/1033'));
+    });
+
+    test('never what the extension gave: its names and thumbnails stay', () async {
+      final (episodes, _) = await details({'anilist': '21'});
+      final ep = episodes.firstWhere((ep) => ep.episode == 1034);
+      expect(ep.name, 'Site title');
+      expect(ep.posterUrl, 'https://site.test/1034.jpg');
+      expect(ep.description, 'Ani.zip overview.');
+    });
+
+    test('an episode ani.zip does not list stays as it is', () async {
+      final (episodes, _) = await details({'anilist': '21'});
+      final ep = episodes.firstWhere((ep) => ep.episode == 1099);
+      expect((ep.name, ep.posterUrl, ep.description), ('Episode 1099', null, null));
+    });
+
+    test('is asked by MAL id when there is no AniList id, and not at all with neither', () async {
+      expect((await details({'mal': '58567'})).$2.single.queryParameters, {'mal_id': '58567'});
+      final (episodes, requests) = await details({'tmdb': '37854', 'imdb': 'tt0388629'});
+      expect(requests, isEmpty);
+      expectUnchanged(episodes);
+    });
+
+    test('an HTTP error or a timeout leaves the episodes as they were', () async {
+      final (failed, _) = await details(
+        {'anilist': '21'},
+        respond: () async => ResponseBody.fromString('oops', 500),
+      );
+      expectUnchanged(failed);
+      final (timedOut, _) = await details(
+        {'anilist': '21'},
+        respond: () => Completer<ResponseBody>().future,
+        timeout: const Duration(milliseconds: 50),
+      );
+      expectUnchanged(timedOut);
+    });
+
+    test('only season 1, and no specials', () {
+      final aniZip = parseAniZipEpisodes(mapping);
+      expect(aniZip.keys, [1033, 1034]);
+      final episodes = CloudStreamProvider.withAniZip([
+        Episode(name: 'Episode 1033', url: 'a', season: 2, episode: 1033),
+      ], aniZip);
+      expect((episodes.single.name, episodes.single.posterUrl), ('Episode 1033', null));
+    });
+  });
+}
+
+/// Answers every request with [respond], and keeps what was asked.
+class _AniZipAdapter implements HttpClientAdapter {
+  _AniZipAdapter(this.respond);
+
+  final Future<ResponseBody> Function() respond;
+  final requests = <Uri>[];
+
+  @override
+  Future<ResponseBody> fetch(RequestOptions options, Stream<Uint8List>? requestStream, Future<void>? cancelFuture) {
+    requests.add(options.uri);
+    return respond();
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
 
 /// An engine host whose every call answers [answer].

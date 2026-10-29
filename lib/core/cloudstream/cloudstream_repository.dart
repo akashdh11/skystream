@@ -13,6 +13,7 @@ import '../extensions/providers.dart';
 import '../logger/app_logger.dart';
 import '../models/extension_update_report.dart';
 import '../network/dio_client_provider.dart';
+import '../services/ani_zip_service.dart';
 import '../../features/settings/presentation/app_version_provider.dart';
 import 'cloudstream_engine.dart';
 import 'cloudstream_models.dart';
@@ -204,6 +205,9 @@ class CloudStreamRepository extends _$CloudStreamRepository {
   Dio get _dio => ref.read(dioClientProvider);
   CloudStreamEngineHost get _host => ref.read(cloudStreamEngineHostProvider);
 
+  /// Shared by every CloudStream provider, so its cache is too.
+  late final AniZipService _aniZip = AniZipService(_dio);
+
   Future<void> load() async {
     var next = const CloudStreamState(isLoading: false);
     try {
@@ -285,6 +289,7 @@ class CloudStreamRepository extends _$CloudStreamRepository {
                 info: info,
                 host: _host,
                 prepareLinks: _loadExtractorPlugins,
+                aniZip: _aniZip,
               );
         }
       }
