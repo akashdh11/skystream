@@ -1,3 +1,4 @@
+import CoreMedia
 import Flutter
 import MobileVLCKit
 import UIKit
@@ -144,6 +145,7 @@ public class VlcPlayerPlugin: NSObject, FlutterPlugin {
         startPosition: startPosition,
         keepPicture: arguments["keepPicture"] as? Bool ?? false,
         autoPlay: autoPlay,
+        isLive: arguments["isLive"] as? Bool ?? false,
         result: result
       )
     case "play":
@@ -168,6 +170,13 @@ public class VlcPlayerPlugin: NSObject, FlutterPlugin {
         return
       }
       player.seekToFraction(fraction)
+      result(nil)
+    case "setDurationCap":
+      // The host's measured length, in milliseconds; null (or absent)
+      // clears it. The PiP window's time range and skip clamp read it,
+      // so a VOD whose length libVLC misreports still draws a timeline.
+      player.setPipDurationCap(
+        milliseconds: Self.intValue(arguments["milliseconds"]))
       result(nil)
     case "setVolume":
       guard let volume = Self.intValue(arguments["volume"]) else {
@@ -272,6 +281,11 @@ public class VlcPlayerPlugin: NSObject, FlutterPlugin {
       result(player.getMediaInfo())
     case "getMediaStats":
       result(player.getMediaStats())
+    case "startPictureInPicture":
+      result(player.startPictureInPicture(sourceRect: Self.pictureInPictureSourceRect(arguments)))
+    case "stopPictureInPicture":
+      player.stopPictureInPicture()
+      result(nil)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -357,6 +371,24 @@ public class VlcPlayerPlugin: NSObject, FlutterPlugin {
     }
     return value as? Double
   }
+
+  /// The PiP source rect Dart sends (the video picture's on-screen frame),
+  /// or nil when it sends none or a degenerate one. The PiP controller
+  /// falls back to the window's bounds for nil, so a bad rect can never
+  /// strand the window on the 1x1 host that never opened it.
+  private static func pictureInPictureSourceRect(
+    _ arguments: [String: Any]
+  ) -> CGRect? {
+    guard let x = doubleValue(arguments["x"]),
+          let y = doubleValue(arguments["y"]),
+          let width = doubleValue(arguments["width"]),
+          let height = doubleValue(arguments["height"]),
+          x.isFinite, y.isFinite, width.isFinite, height.isFinite,
+          width > 0, height > 0 else {
+      return nil
+    }
+    return CGRect(x: x, y: y, width: width, height: height)
+  }
 }
 
 final class VlcPlayerViewFactory: NSObject, FlutterPlatformViewFactory {
@@ -440,6 +472,10 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
   private var trackRevision = 0
   private var lastTrackFingerprint: UInt64?
   private var interruption = "none"
+  /// The iOS picture-in-picture window, when one is up or starting. Nil
+  /// otherwise, and on a view-backed player, which has no texture to feed
+  /// from. Owned here so dispose() can close it with the player.
+  private var pictureInPicture: VlcPictureInPictureController?
   private var holdsAudioSession = false
   private(set) var isDisposed = false
   /// Whether this player has been given a source: the next one gets a fresh
@@ -536,6 +572,7 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     startPosition: Int,
     keepPicture: Bool,
     autoPlay: Bool,
+    isLive: Bool = false,
     result: @escaping FlutterResult
   ) {
     guard let url = URL(string: uri) else {
@@ -561,10 +598,19 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     events?.arm(withKeepPicture: keepPicture)
     mediaPlayer.media = media
     interruption = "none"
+    pipPlaying = false
+    pipMeasuredDurationMs = nil
+    pipSourceIsLive = isLive
     sendSnapshot(force: true, stateOverride: "opening")
     if autoPlay {
       acquireAudioSession()
       mediaPlayer.play()
+      pipPlaying = true
+      // The PiP controller is built now, not on tap: the window can only
+      // open once the layer has presented content, and the Home-swipe
+      // auto-start needs a controller that already exists and is possible
+      // before the app goes away.
+      preparePictureInPicture()
     }
     result(nil)
   }
@@ -575,6 +621,9 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     // explains what the player is doing.
     interruption = "none"
     mediaPlayer.play()
+    pipPlaying = true
+    preparePictureInPicture()
+    pictureInPicture?.syncMediaClock()
     sendSnapshot()
   }
 
@@ -584,15 +633,245 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     // filled the gap.
     interruption = "none"
     mediaPlayer.pause()
+    pipPlaying = false
+    pictureInPicture?.syncMediaClock()
     sendSnapshot()
   }
 
   func stop() {
     interruption = "none"
+    pipPlaying = false
     events?.stop()
     mediaPlayer.stop()
     relinquishAudioSession()
     sendSnapshot(stateOverride: "stopped")
+  }
+
+  /// Opens the iOS picture-in-picture window, fed from this player's texture.
+  ///
+  /// False when the device cannot do PiP (no support, below iOS 15, or a
+  /// view-backed player, which has no texture to feed from), or when there is
+  /// no picture yet. True means the request went out; the result — started,
+  /// or failed to start — arrives on the event channel as a
+  /// `pictureInPicture` event (see [sendPictureInPictureEvent]).
+  ///
+  /// [sourceRect] is the video picture's on-screen frame, which the window
+  /// opens from. Nil falls back to the window's bounds inside the PiP
+  /// controller, so a caller that sends none still gets a real frame.
+  ///
+  /// The controller is normally the eager one [preparePictureInPicture]
+  /// built when playback started; this builds one on tap when that never
+  /// ran. Either way the start itself is gated on
+  /// `isPictureInPicturePossible` inside the controller, so a fresh
+  /// controller is never asked to start before the system will accept it.
+  func startPictureInPicture(sourceRect: CGRect? = nil) -> Bool {
+    guard !isDisposed else {
+      return false
+    }
+    if let pictureInPicture, pictureInPicture.isActive {
+      return true
+    }
+    if pictureInPicture == nil {
+      pictureInPicture = makePictureInPictureController()
+    }
+    guard let pip = pictureInPicture, pip.start(sourceRect: sourceRect) else {
+      return false
+    }
+    return true
+  }
+
+  /// Builds the PiP controller, layer and host view now, so a controller
+  /// already exists — and is already possible — by the time the viewer taps
+  /// PiP or leaves the app. Called when playback starts (see [play] and the
+  /// autoplay branch of [setSource]); idempotent, and a no-op when the device
+  /// cannot do PiP. The `canStartPictureInPictureAutomaticallyFromInline`
+  /// auto-start only works when the controller exists and is possible BEFORE
+  /// the app goes away, and a controller built on tap has neither.
+  func preparePictureInPicture() {
+    guard !isDisposed else {
+      return
+    }
+    if pictureInPicture == nil {
+      pictureInPicture = makePictureInPictureController()
+    }
+    if #available(iOS 15.0, *) {
+      _ = pictureInPicture?.prepare()
+    }
+  }
+
+  private func makePictureInPictureController() -> VlcPictureInPictureController {
+    VlcPictureInPictureController(player: self) { [weak self] inPip, error in
+      self?.sendPictureInPictureEvent(inPip, error: error)
+    }
+  }
+
+  /// Closes the iOS picture-in-picture window, if one is up. The
+  /// `pictureInPicture` event still arrives, from the stop completing.
+  func stopPictureInPicture() {
+    pictureInPicture?.stop()
+  }
+
+  /// Sends the iOS picture-in-picture state to Dart, through the event channel
+  /// the snapshots already use.
+  ///
+  /// A minimal event, not a snapshot: Dart reads the `pictureInPicture` key
+  /// off it directly, so a PiP-only event never disturbs the published value.
+  /// A failed start also carries `pipError` (the failure in the system's
+  /// words) and `pipPossible` (whether a start would be accepted right now) —
+  /// the debug line Dart shows when a start fails.
+  func sendPictureInPictureEvent(_ inPip: Bool, error: String? = nil) {
+    guard !isDisposed else {
+      return
+    }
+    var event: [String: Any] = ["pictureInPicture": inPip]
+    if let error {
+      event["pipError"] = error
+    }
+    if #available(iOS 15.0, *), let pip = pictureInPicture {
+      event["pipPossible"] = pip.isPictureInPicturePossible
+    }
+    eventHandler.send(event)
+  }
+
+  /// The transport's playing state, for the PiP window's play/pause button
+  /// and for the auto-PiP gate.
+  ///
+  /// Set by the explicit transport calls (`play`/`pause`/`stop`, a new source,
+  /// the media ending or erroring, an audio interruption) — NOT read off
+  /// `mediaPlayer.isPlaying`. libVLC's own flag flickers during HLS playback
+  /// and across a seek (the input restarts, and `.buffering` is reported
+  /// throughout healthy playback), so the PiP window's button flipped between
+  /// play and pause while the film kept playing. The transport state is the
+  /// one the viewer asked for — like AVPlayer's rate, which stays 1.0 while
+  /// rebuffering — and it is also what the auto-PiP gate ("only a playing
+  /// film floats") means.
+  private var pipPlaying = false
+
+  /// The host's measured length for the current media, in milliseconds —
+  /// the duration the app measured off the video's own HLS playlist (see
+  /// `VlcPlayerController.setDurationCap`). libVLC reports an HLS master's
+  /// length as that of the longest playlist it has loaded, alternative
+  /// renditions included, so for the streams this app plays it is often
+  /// 0 / unknown (or wildly long, e.g. a subtitle track claiming 99,999 s).
+  /// The PiP window's time range and skip clamp use this first: it is the
+  /// truth the in-app timeline already shows. Nil when nothing has been
+  /// measured — a true live stream, or a local file whose length libVLC
+  /// knows — and cleared on a new source, like the Dart cap.
+  private var pipMeasuredDurationMs: Int?
+
+  /// Whether the current media is a live stream, as the source said when
+  /// it was set. A live stream never gets a duration derived from its
+  /// position (see [pipKnownDurationMs]): its window slides, so a derived
+  /// length would dress it up as a VOD.
+  private var pipSourceIsLive = false
+
+  /// Whether the transport is playing, for the PiP window's play/pause.
+  var pipIsPlaying: Bool {
+    return pipPlaying
+  }
+
+  /// The media's known length, in milliseconds, for the PiP window: the
+  /// host's measured length first, libVLC's own second, and — for a VOD
+  /// whose length neither knows yet — a length derived from the place
+  /// libVLC has reached over the fraction it reports (`time / position`).
+  /// The derivation only runs once the film is past 5%, where the
+  /// fraction is steady enough to mean something, and never for a live
+  /// stream. 0 when nothing can be said: the range is then unbounded,
+  /// which is how the system shows LIVE, and that is right for a true
+  /// live stream.
+  private var pipKnownDurationMs: Int {
+    if let measured = pipMeasuredDurationMs, measured > 0 {
+      return measured
+    }
+    if let length = mediaPlayer.media?.length, length.intValue > 0 {
+      // VLCTime's intValue is Int32; the known length is an Int.
+      return Int(length.intValue)
+    }
+    if !pipSourceIsLive {
+      let seconds = Double(mediaPlayer.time.intValue) / 1000.0
+      let fraction = Double(mediaPlayer.position)
+      if seconds > 0, fraction > 0.05, fraction <= 1.0 {
+        let derived = seconds / fraction
+        if derived.isFinite, derived > 0 {
+          return Int(derived * 1000.0)
+        }
+      }
+    }
+    return 0
+  }
+
+  /// Stores the host's measured length for PiP, or clears it (nil). Called
+  /// from the `setDurationCap` channel method.
+  func setPipDurationCap(milliseconds: Int?) {
+    pipMeasuredDurationMs = milliseconds.flatMap { $0 > 0 ? $0 : nil }
+  }
+
+  /// The current media time in milliseconds, for the PiP layer's clock.
+  var mediaTimeMilliseconds: Int {
+    // VLCTime's intValue is Int32; the media time is an Int.
+    return Int(mediaPlayer.time.intValue)
+  }
+
+  /// Seeks by [seconds], clamped to the media's known length, for the PiP
+  /// window's step.
+  ///
+  /// The current place is libVLC's absolute time when it has one; the
+  /// position fraction over the known length when it does not (HLS time
+  /// can read 0 while the fraction still tracks the window). The clamp
+  /// uses the same known length the time range does — the host's measured
+  /// length first — so the step never lands past a length libVLC
+  /// over-reports.
+  ///
+  /// A seek restarts the input, and on some streams libVLC leaves the
+  /// transport paused afterwards, so a playing film came back paused from a
+  /// skip. The state it had before the seek is restored — playing stays
+  /// playing, paused stays paused — so a skip never flips it.
+  func pipSkip(by seconds: Double) {
+    let wasPlaying = pipPlaying
+    let known = Double(pipKnownDurationMs) / 1000.0
+    let timeSeconds = Double(mediaPlayer.time.intValue) / 1000.0
+    let now: Double
+    if timeSeconds > 0 {
+      now = timeSeconds
+    } else if known > 0 {
+      now = Double(mediaPlayer.position) * known
+    } else {
+      now = 0
+    }
+    let target = now + seconds
+    let clamped = known > 0
+      ? min(max(target, 0), known)
+      : max(target, 0)
+    seekTo(milliseconds: Int(clamped * 1000))
+    // Re-anchor the PiP layer's clock at once, so the window's playhead
+    // follows the jump instead of waiting for the feed's drift check.
+    pictureInPicture?.syncMediaClock()
+    if wasPlaying {
+      // A no-op when the seek left playback running; the resume when it did
+      // not. `play()` is idempotent, so this cannot start a film the viewer
+      // had paused.
+      play()
+    }
+  }
+
+  /// The scrub range the PiP window draws, from the media's known length.
+  ///
+  /// The host's measured length first, libVLC's own second, a length
+  /// derived from the place over the fraction third (see
+  /// [pipKnownDurationMs]). An unbounded range when nothing can be said
+  /// is what the system shows as LIVE: right for a true live stream, and
+  /// the reason a VOD whose length libVLC misreports used to read as one
+  /// — the measured length is what keeps a VOD out of it. The range is
+  /// read live on every query, so once a length is known the window's
+  /// next report is bounded.
+  func pipTimeRange() -> CMTimeRange {
+    let known = pipKnownDurationMs
+    guard known > 0 else {
+      return CMTimeRange(start: .negativeInfinity, duration: .positiveInfinity)
+    }
+    return CMTimeRange(
+      start: .zero,
+      duration: CMTime(value: Int64(known), timescale: 1000))
   }
 
   func seekTo(milliseconds: Int) {
@@ -907,6 +1186,10 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
       return
     }
     isDisposed = true
+    // First: a PiP window outlives its player unless it is told to close,
+    // and its feed reads the texture this dispose detaches below.
+    pictureInPicture?.dispose()
+    pictureInPicture = nil
     // libVLC stops calling in before anything else goes.
     events?.detach()
     events = nil
@@ -975,6 +1258,7 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     if mediaPlayer.isPlaying {
       interruption = reason
       mediaPlayer.pause()
+      pipPlaying = false
       sendSnapshot(stateOverride: "paused")
       return
     }
@@ -1018,9 +1302,11 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
       // Not .stopped as well: replacing the media on a running player passes
       // through it, and this callback lands after setSource has already
       // claimed the session for the next item.
+      pipPlaying = false
       relinquishAudioSession()
     }
     if mediaPlayer.state == .error {
+      pipPlaying = false
       sendSnapshot(
         errorCode: "playback_error",
         errorDescription: "VLC encountered an error while playing the media."

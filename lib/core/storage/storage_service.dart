@@ -634,6 +634,44 @@ class StorageService {
     return items;
   }
 
+  /// Every history entry, including the per-episode (`EP_`) entries that
+  /// [getWatchHistory] filters out, each with its box key.
+  ///
+  /// For backups: restoring through [saveProgress] would stamp every entry
+  /// with "now" and lose the order, so a backup carries the raw entries and
+  /// [restoreHistoryEntries] puts them back with their original keys and
+  /// timestamps. Entries are plain maps, so a backup file stays readable.
+  List<Map<String, dynamic>> getAllHistoryEntries() {
+    final entries = <Map<String, dynamic>>[];
+    for (var i = 0; i < _historyBox.length; i++) {
+      final key = _historyBox.keyAt(i) as String;
+      final raw = _historyBox.get(key);
+      if (raw is Map) {
+        entries.add({
+          'key': key,
+          'entry': Map<String, dynamic>.from(raw),
+        });
+      }
+    }
+    return entries;
+  }
+
+  /// Puts raw history entries back under their original keys, as read by
+  /// [getAllHistoryEntries]. The caller decides which entries win (newest
+  /// timestamp); this just writes what it is given and drops the cache.
+  Future<void> restoreHistoryEntries(
+    List<Map<String, dynamic>> entries,
+  ) async {
+    for (final raw in entries) {
+      final key = raw['key'];
+      final entry = raw['entry'];
+      if (key is String && entry is Map) {
+        await _historyBox.put(key, Map<String, dynamic>.from(entry));
+      }
+    }
+    _historyCacheDirty = true;
+  }
+
   int getPosition(String url) {
     // Check main entry first (movies use this)
     final key = _getKey(url);

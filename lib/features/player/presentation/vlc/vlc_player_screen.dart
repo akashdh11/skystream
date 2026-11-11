@@ -31,6 +31,7 @@ import '../../../../core/models/tmdb_details.dart';
 import '../../../../core/models/torrent_status.dart';
 import '../../../../core/services/download_service.dart';
 import '../../../../core/services/local_proxy_service.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/storage/episode_watch_repository.dart';
 import '../../../../core/storage/history_repository.dart';
 import '../../../../core/utils/app_utils.dart';
@@ -67,7 +68,6 @@ import '../../domain/track_language.dart';
 import '../player_debug_flags.dart';
 import '../player_platform_service.dart';
 import '../subtitle_search_provider.dart' show subtitleLanguageProvider;
-import '../widgets/hotstar_player_style.dart';
 import 'chrome_visibility_controller.dart';
 import 'ended_card.dart';
 import 'next_episode_countdown.dart';
@@ -648,6 +648,50 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// and nothing else.
   bool _inPip = false;
 
+  /// A PiP start held as imminent, without a window yet.
+  ///
+  /// Set on iOS `inactive` (see [didChangeAppLifecycleState]) so the
+  /// background pause holds off until the native side starts the window
+  /// from `didEnterBackground` — or the app comes back. Cleared when the
+  /// window opens or fails ([_onPictureInPicture]), when the button
+  /// takes over ([_enterPip]), and on `resumed` when no window opened
+  /// (Control Center). Without it a transient foreground interruption
+  /// that never backgrounds the app would hold the pause off forever.
+  bool _pipImminent = false;
+
+  /// The PiP attempt's watchdog: how long the window has to open.
+  ///
+  /// [_enterPip] sets [_inPip] before the native request goes out, and the
+  /// window unmounts the whole controls subtree while it is true. The native
+  /// start only says the request went out - the window opening, or failing
+  /// to, is reported through [_onPictureInPicture] - so a start the system
+  /// silently drops (no window, no event) would leave the player with no
+  /// touch handling at all until the app was backgrounded and foregrounded
+  /// again. The watchdog takes the chrome back after this long with no
+  /// confirmation, and closes the attempt.
+  ///
+  /// Five seconds, deliberately longer than the native side's own three:
+  /// the native gate gives up at three seconds and reports the failure
+  /// itself, so the watchdog only ever fires when no event arrived at all —
+  /// and the two must never race to restore the chrome.
+  Timer? _pipWatchdog;
+
+  /// Which PiP attempt the watchdog belongs to, so a stale timer cannot
+  /// undo a newer one.
+  int _pipAttempt = 0;
+
+  /// Whether the PiP attempt in flight came from the PiP button (true) or
+  /// from leaving the app (false). Only a button tap gets a "didn't open"
+  /// message: an auto-start that fails while the app is away is not something
+  /// the viewer is looking at, and a message for it would land on the Home
+  /// screen when they come back.
+  bool _pipAttemptFromButton = false;
+
+  /// Whether the window actually opened for the attempt in flight. A false
+  /// `pictureInPicture` event with this still false means the start failed,
+  /// not that the viewer closed a window — the two need different words.
+  bool _pipWindowOpened = false;
+
   /// Mirrors the engine's playing flag so the PiP window's middle button can be
   /// re-sent only when it actually flips.
   bool _wasPlaying = false;
@@ -827,6 +871,24 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// texture platforms this is the value that does the work.
   late VlcVideoFit _fit;
 
+  /// Pinch-to-zoom scale on the video: two fingers scale the picture on top
+  /// of [_fit], like MX Player / VLC, from 0.5x to 3.0x — so an inward pinch
+  /// can also make the picture smaller than the screen fit. Reset to 1.0
+  /// whenever a new media opens (see [_openAttempt] and [_park]).
+  ///
+  /// A notifier, not a plain double: the pinch is driven by the controls'
+  /// gesture layer (see `VlcPlayerControls.videoScale`), and a ValueNotifier
+  /// lets the `Transform` repaint on every update without rebuilding the
+  /// whole screen out from under the gesture.
+  final ValueNotifier<double> _videoScale = ValueNotifier<double>(1.0);
+
+  /// The video widget's key, so the PiP source rect can be read off the
+  /// picture itself: the system needs the video's real on-screen frame to
+  /// open the window, and a 1x1 host is treated as not-displaying (see
+  /// [_videoContentRect]). Attached to the [VlcPlayer] below through a
+  /// [KeyedSubtree], so the player's own remount key is untouched.
+  final GlobalKey _videoKey = GlobalKey();
+
   /// The source sheet's own context while it is open, so Back has something to
   /// close. Null whenever the video is the only thing on screen.
   BuildContext? _sheetContext;
@@ -909,6 +971,23 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// The look last handed to the controller - see [_restyleSubtitles].
   VlcSubtitleLook? _sentLook;
 
+  /// The video size the anchored subtitle look was last computed from, so
+  /// a new size — a new media, a rotation-aware size landing — re-anchors
+  /// it without resending the same look on every tick.
+  Size? _anchoredVideoSize;
+
+  /// The pinch zoom's re-anchor, held back while the gesture runs: the
+  /// scale reports at 60 fps, and a look per frame would cross the channel
+  /// sixty times a second. So the lines are re-anchored at most once every
+  /// 100 ms while the fingers move — enough for them to track the one
+  /// fixed place on screen instead of scaling with the video — and once
+  /// more when the picture settles.
+  Timer? _subtitleReanchorTimer;
+
+  /// When the embedded subtitles were last re-anchored, for the throttle
+  /// in [_onVideoScaleChanged].
+  DateTime? _lastSubtitleReanchor;
+
   ProviderContainer? _container;
 
   @override
@@ -918,6 +997,9 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     // Told again whenever the route comes back on top: a quiet end waits for
     // it (see [_leaveWhenOnTop]).
     if (_leaveOnTop) _leaveWhenOnTop();
+    // A rotation reaches here through the media query, and it moves the
+    // picture libVLC's subtitle lines are drawn into.
+    _reanchorSubtitles();
   }
 
   /// Set once the Play ended quietly with a screen over the player: an
@@ -1101,6 +1183,12 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     _chrome = ChromeVisibilityController(
       isPlaying: () => _controller.value.isPlaying,
     );
+    // The embedded subtitle lines sit at one fixed place on screen — the
+    // area's bottom margin, see [subtitleLookAnchored] — so a pinch must
+    // recompute the look, or the lines scale with the picture they are
+    // drawn into. The chrome is not in it: the lines never move when the
+    // controls show or hide, so the chrome needs no listener here.
+    _videoScale.addListener(_onVideoScaleChanged);
     _watchdog = Timer.periodic(_kWatchdogTick, (_) {
       _checkFirstFrame();
       _checkStall();
@@ -1146,14 +1234,92 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// look it was created with, and nothing about that is worth a word to the
   /// viewer; the controller keeps the look for a player created later.
   void _restyleSubtitles(PlayerSettings settings) {
-    final look = subtitleLookFrom(
-      settings,
-      createdRelativeSize: _createdRelativeSize,
-    );
+    final look = _anchoredSubtitleLook(settings);
     if (look == _sentLook) return;
+    // Hysteresis: the anchored raise is a double from on-screen
+    // geometry, and exact equality would re-send it for sub-pixel
+    // changes (a rotation settling, a size re-report) — a look whose
+    // lift moved by a pixel or two, which is the shake the viewer
+    // reported. Only send when the size changed or the lift moved by a
+    // real amount (a hundredth of the picture's height); everything
+    // else in the look comes from settings and is exact.
+    final sent = _sentLook;
+    if (sent != null &&
+        look.textScale == sent.textScale &&
+        look.color == sent.color &&
+        look.backgroundColor == sent.backgroundColor &&
+        look.backgroundOpacity == sent.backgroundOpacity &&
+        look.outlineThickness == sent.outlineThickness &&
+        (look.raise - sent.raise).abs() <= 0.01) {
+      return;
+    }
     _sentLook = look;
     unawaited(
       _controller.setSubtitleLook(look).catchError((Object _) => false),
+    );
+  }
+
+  /// Re-anchors libVLC's subtitle lines to the screen after the picture
+  /// moved under them: a fit change, a pinch, a rotation, a new video size.
+  /// Nothing is sent when the look has not changed.
+  void _reanchorSubtitles() {
+    if (_disposed) return;
+    _restyleSubtitles(_playerSettings.value);
+  }
+
+  /// A pinch reports at 60 fps while the fingers are down: the look is
+  /// recomputed as the picture moves, throttled to once every 100 ms, so
+  /// the embedded lines track the one fixed place on screen instead of
+  /// scaling with the video — and once more when the picture settles.
+  void _onVideoScaleChanged() {
+    final now = DateTime.now();
+    if (_lastSubtitleReanchor == null ||
+        now.difference(_lastSubtitleReanchor!) >=
+            const Duration(milliseconds: 100)) {
+      _lastSubtitleReanchor = now;
+      _reanchorSubtitles();
+    }
+    _subtitleReanchorTimer?.cancel();
+    _subtitleReanchorTimer = Timer(
+      const Duration(milliseconds: 150),
+      _reanchorSubtitles,
+    );
+  }
+
+  /// The look [settings] give libVLC's lines, anchored to one fixed place
+  /// on screen: see [subtitleLookAnchored]. The geometry is only
+  /// known once a picture is up — before that, and wherever it cannot be
+  /// measured, the unanchored look, which is what a player took before.
+  VlcSubtitleLook _anchoredSubtitleLook(PlayerSettings settings) {
+    final plain = subtitleLookFrom(
+      settings,
+      createdRelativeSize: _createdRelativeSize,
+    );
+    if (_stage != _Stage.playing) return plain;
+    final videoSize =
+        _controller.value.displayVideoSize ?? _controller.value.videoSize;
+    if (videoSize == null || videoSize.isEmpty) return plain;
+    Size screen;
+    try {
+      screen = MediaQuery.sizeOf(context);
+    } on Object {
+      return plain;
+    }
+    if (screen.isEmpty) return plain;
+    // Fixed target: the lines sit at one place — just above the area's
+    // bottom edge — whatever the picture does under them, which the
+    // viewer reported as the subtitle following the zoom. Anchoring to
+    // the picture's bottom edge followed it up on a pinch-out; letting
+    // the target follow the chrome made them jump every time the bars
+    // showed or hid, which was the shaking. The chrome height is not in
+    // the target at all, so the lines never move and never sit high.
+    return subtitleLookAnchored(
+      settings,
+      createdRelativeSize: _createdRelativeSize,
+      screen: screen,
+      video: videoSize,
+      fit: _fit,
+      pinchScale: _videoScale.value,
     );
   }
 
@@ -1166,6 +1332,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// Both callbacks arrive from the platform thread, hence the
   /// mounted/disposed guard before any setState.
   void _attachPip() {
+    // iOS reports its PiP window through the controller, not the activity:
+    // opened by the request in [_enterPip], closed by the window's own
+    // button, or never opened at all when the device refuses.
+    _controller.isPictureInPicture.addListener(_onPictureInPicture);
     _platform.attachPipListener(
       onAction: (action) => switch (action) {
         PipAction.play => unawaited(_controller.play()),
@@ -1739,6 +1909,8 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     // about this one's; a reopen of this one keeps it.
     if (stream.url != _lastStreamUrl) _liveSegment = null;
     _lastStreamUrl = stream.url;
+    // A new media starts un-zoomed (pinch-to-zoom).
+    _videoScale.value = 1.0;
     _isLive = isLiveSource(widget.item, stream.url);
     final languageOption = _audioLanguageOption();
     // How far ahead this media reads (spec 1.2): from its bitrate, the
@@ -2533,6 +2705,8 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     // the viewer's play of the parked media: none counts until the park has
     // handed the new media over, as an open's own setup does.
     _handedToEngine = false;
+    // A parked reopen starts un-zoomed too (pinch-to-zoom).
+    _videoScale.value = 1.0;
     try {
       await _controller.setMedia(
         VlcMediaSource(
@@ -3561,9 +3735,17 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     });
   }
 
-  /// Picture-in-picture is an Android activity mode; there is no equivalent on
-  /// the other platforms this ships to, and it is meaningless on a television.
-  bool get _pipAvailable => Platform.isAndroid && _form != PlayerFormFactor.tv;
+  /// Picture-in-picture is an Android activity mode and, on iOS, a
+  /// sample-buffer window fed from the VLC texture; it is meaningless on a
+  /// television either way.
+  ///
+  /// The gate reads [defaultTargetPlatform] rather than `Platform.isIOS` /
+  /// `isAndroid` because only the former can be overridden by a test (see
+  /// [PlayerPlatformService.enterPip]); in production the two agree.
+  bool get _pipAvailable =>
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS) &&
+      _form != PlayerFormFactor.tv;
 
   /// Only a desktop window can change size; mobile and TV are already full
   /// screen, so the affordance is absent rather than inert.
@@ -3611,7 +3793,110 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
         _ => VlcVideoFit.contain,
       };
 
-  Future<void> _enterPip() async {
+  /// The video picture's on-screen rect, for the PiP source view.
+  ///
+  /// The system needs the picture's real frame to open the window: a 1x1
+  /// host is treated as not-displaying and `startPictureInPicture` silently
+  /// does nothing — no window, no failure callback. The [VlcPlayer] widget
+  /// fills the screen, but the picture itself is letterboxed inside it
+  /// (fit: contain), so the rect is the picture's, not the widget's: sized
+  /// to the picture, the host never draws over the app UI below or above
+  /// it either.
+  ///
+  /// Returns null when the picture cannot be measured (not laid out yet, or
+  /// no size reported); [_pipSourceRect] falls back to the screen.
+  Rect? _videoContentRect() {
+    if (_stage != _Stage.playing) return null;
+    try {
+      final context = _videoKey.currentContext;
+      if (context == null) return null;
+      final box = context.findRenderObject();
+      if (box is! RenderBox || !box.hasSize || box.size.isEmpty) return null;
+      final transform = box.getTransformTo(null);
+      final widgetRect =
+          MatrixUtils.transformRect(transform, Offset.zero & box.size);
+      if (widgetRect.isEmpty) return null;
+      final videoSize =
+          _controller.value.displayVideoSize ?? _controller.value.videoSize;
+      if (videoSize == null || videoSize.isEmpty) return widgetRect;
+      return _contentRectFor(widgetRect, videoSize, _fit);
+    } catch (_) {
+      // A render object that is not attached yet, or any other measurement
+      // failure: the caller falls back to the screen rather than stranding
+      // the window on a bad rect.
+      return null;
+    }
+  }
+
+  /// The picture inside [widgetRect], for [fit] and [videoSize].
+  ///
+  /// Pure, so it is unit-testable: contain letterboxes the picture to the
+  /// widget's shape, centred; every other fit fills the widget bounds.
+  static Rect _contentRectFor(
+    Rect widgetRect,
+    Size videoSize,
+    VlcVideoFit fit,
+  ) {
+    if (fit != VlcVideoFit.contain || videoSize.isEmpty) {
+      return widgetRect;
+    }
+    final videoAspect = videoSize.width / videoSize.height;
+    final widgetAspect = widgetRect.width / widgetRect.height;
+    if (videoAspect <= 0 || widgetAspect <= 0) return widgetRect;
+    if (videoAspect > widgetAspect) {
+      // Wider than the view: full width, black bars above and below.
+      final height = widgetRect.width / videoAspect;
+      final dy = (widgetRect.height - height) / 2;
+      return Rect.fromLTWH(
+        widgetRect.left,
+        widgetRect.top + dy,
+        widgetRect.width,
+        height,
+      );
+    }
+    // Taller than the view: full height, black bars at the sides.
+    final width = widgetRect.height * videoAspect;
+    final dx = (widgetRect.width - width) / 2;
+    return Rect.fromLTWH(
+      widgetRect.left + dx,
+      widgetRect.top,
+      width,
+      widgetRect.height,
+    );
+  }
+
+  /// The rect to hand native as the PiP source: the picture's, or the whole
+  /// screen when the picture cannot be measured. The screen is always a
+  /// real, visible frame, so a measurement failure degrades to a full-screen
+  /// source rather than the 1x1 that never opened.
+  Rect _pipSourceRect() {
+    final content = _videoContentRect();
+    if (content != null &&
+        !content.isEmpty &&
+        content.width > 0 &&
+        content.height > 0) {
+      return content;
+    }
+    final size = MediaQuery.sizeOf(context);
+    return Rect.fromLTWH(0, 0, size.width, size.height);
+  }
+
+  Future<void> _enterPip({bool fromButton = false}) async {
+    // The picture's on-screen rect, read before the chrome comes off: the
+    // native window needs a real source frame to open from (see
+    // [_videoContentRect]), and the video widget is still laid out here.
+    final sourceRect = _pipSourceRect();
+    _pipAttemptFromButton = fromButton;
+    _pipWindowOpened = false;
+    // A button tap supersedes any start held as imminent (see
+    // [didChangeAppLifecycleState]): the request below sets the hold
+    // itself, so the flag must not stay up past it.
+    _pipImminent = false;
+    if (kDebugMode) {
+      debugPrint(
+        'VlcPlayerScreen: PiP requested (fromButton: $fromButton, sourceRect: $sourceRect)',
+      );
+    }
     // Set here as well as from onModeChanged, so the watchdog stands down and
     // the chrome comes off in the same frame the request is made rather than a
     // platform round trip later. A PiP surface the user has walked away from
@@ -3622,18 +3907,144 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     // reach one. Cleared on the way in rather than on the way out, because the
     // window is drawn from this frame.
     _clearLock();
-    final entered = await _platform.enterPip(
-      _controller.value.isPlaying,
-      // Shapes the window to the film. Read at the moment of the request
-      // rather than remembered, because a failover or a next-episode start
-      // can have changed it since the last size event.
-      videoSize: _controller.value.videoSize,
-    );
+    final bool entered;
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      // iOS has no activity to enter: the VLC plugin opens the PiP window
+      // itself, fed from the texture. False — not an error — when the device
+      // cannot do PiP, and then no `pictureInPicture` event ever arrives.
+      // The window opening and closing is reported back through
+      // [_onPictureInPicture]. The picture's on-screen rect goes with the
+      // request, so the system has a real source frame to open from.
+      entered = await _controller
+          .startPictureInPicture(sourceRect: sourceRect)
+          .catchError((Object _) => false);
+    } else {
+      entered = await _platform.enterPip(
+        _controller.value.isPlaying,
+        // Shapes the window to the film. Read at the moment of the request
+        // rather than remembered, because a failover or a next-episode start
+        // can have changed it since the last size event.
+        videoSize: _controller.value.videoSize,
+      );
+    }
     // Android answers false - not an error - when the user has PiP disabled
     // for the app, and then never sends onPictureInPictureModeChanged. Without
     // this the optimism above is permanent and the chrome never comes back.
-    if (entered || _disposed || !mounted || !_inPip) return;
-    setState(() => _inPip = false);
+    if (_disposed || !mounted || !_inPip) return;
+    if (!entered) {
+      if (kDebugMode) {
+        debugPrint('VlcPlayerScreen: PiP refused by the native side');
+      }
+      if (fromButton) {
+        // The native side refused outright (no PiP support, no picture):
+        // say so, instead of the button silently doing nothing.
+        ref
+            .read(notificationServiceProvider)
+            .showInfo(
+              'Picture-in-picture isn\'t available for this video right now.',
+              title: 'Picture-in-picture',
+            );
+      }
+      setState(() => _inPip = false);
+      return;
+    }
+    // The request went out; the window opening, or failing to, is reported
+    // through [_onPictureInPicture]. If neither arrives, the watchdog takes
+    // the chrome back (see [_armPipWatchdog]).
+    _armPipWatchdog();
+  }
+
+  /// Arms the PiP watchdog for the attempt that just went out.
+  ///
+  /// The native start only says the request went out; the window opening, or
+  /// failing to, is reported through [_onPictureInPicture]. If neither
+  /// arrives, the player is left with its controls unmounted and no touch
+  /// handling at all - the screen looks frozen until the app is
+  /// backgrounded and foregrounded again. Five seconds is the backstop
+  /// behind the native side's own three: the native gate gives up at three
+  /// seconds and reports the failure itself, so this only fires when no
+  /// event arrived at all - and the two must never race to restore the
+  /// chrome.
+  void _armPipWatchdog() {
+    _pipWatchdog?.cancel();
+    final attempt = ++_pipAttempt;
+    _pipWatchdog = Timer(const Duration(seconds: 5), () {
+      if (_disposed || !mounted || attempt != _pipAttempt) return;
+      // The window opened after all, or the event is already on its way.
+      if (_controller.isPictureInPicture.value || !_inPip) return;
+      // The window never opened: close the attempt and take the chrome
+      // back. The controller's stop also settles the pending flag, so a
+      // background pause the attempt held off lands if the app is away.
+      // No event arrived at all — the native side's own three-second
+      // timeout should have reported first — so say so, instead of the
+      // button silently doing nothing.
+      if (kDebugMode) {
+        debugPrint(
+          'VlcPlayerScreen: PiP watchdog fired — the window never opened '
+          '(possible: ${_controller.lastPipPossible}, error: ${_controller.lastPipError})',
+        );
+      }
+      final fromButton = _pipAttemptFromButton;
+      _pipAttemptFromButton = false;
+      if (fromButton) {
+        ref
+            .read(notificationServiceProvider)
+            .showInfo(
+              'Picture-in-picture didn\'t open for this video.',
+              title: 'Picture-in-picture',
+            );
+      }
+      unawaited(_controller.stopPictureInPicture());
+      if (mounted && !_disposed) setState(() => _inPip = false);
+    });
+  }
+
+  /// The iOS PiP window opened or closed, reported through the controller.
+  ///
+  /// The same guard as the Android callback: the window can open without
+  /// [_enterPip] — the viewer swiped home — or close itself, from its own
+  /// button or by tapping it to come back. Either way a locked PiP window
+  /// has no chip in it, so the lock clears on the way in.
+  void _onPictureInPicture() {
+    final inPip = _controller.isPictureInPicture.value;
+    // The attempt's answer, whatever it is: the watchdog stands down,
+    // and a start held as imminent (see [didChangeAppLifecycleState]) is
+    // resolved too — the hold is now the open window's own, or the
+    // attempt is over.
+    _pipWatchdog?.cancel();
+    _pipWatchdog = null;
+    _pipImminent = false;
+    if (!mounted || _disposed || inPip == _inPip) return;
+    if (inPip) {
+      _pipWindowOpened = true;
+      _pipAttemptFromButton = false;
+      _clearLock();
+    } else if (_pipAttemptFromButton && !_pipWindowOpened) {
+      // The window never opened: the attempt failed after the native side
+      // had accepted it. A closed window reports the same event, but then
+      // [_pipWindowOpened] is true and nothing is said. The native side's
+      // failure, in its words, rides the event (`lastPipError`) with whether
+      // a start would be accepted right now (`lastPipPossible`) — the debug
+      // line, shown here so a silent button has a reason the viewer can
+      // report.
+      final error = _controller.lastPipError;
+      if (kDebugMode) {
+        debugPrint(
+          'VlcPlayerScreen: PiP failed to open after the native side accepted it '
+          '(possible: ${_controller.lastPipPossible}, error: $error)',
+        );
+      }
+      _pipAttemptFromButton = false;
+      ref
+          .read(notificationServiceProvider)
+          .showInfo(
+            error == null || error.isEmpty
+                ? 'Picture-in-picture didn\'t open for this video.'
+                : 'Picture-in-picture didn\'t open: $error',
+            title: 'Picture-in-picture',
+          );
+    }
+    setState(() => _inPip = inPip);
   }
 
   /// Opens the side panel, on whichever of its tabs the caller asked for.
@@ -4183,6 +4594,14 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   void _onPlaybackValue() {
     if (_disposed) return;
     final value = _controller.value;
+    // A new video size moves the picture libVLC draws its lines into — a
+    // new media, a rotation-aware size landing — so the subtitle anchor
+    // follows it.
+    final videoSize = value.displayVideoSize ?? value.videoSize;
+    if (videoSize != _anchoredVideoSize) {
+      _anchoredVideoSize = videoSize;
+      _reanchorSubtitles();
+    }
     _syncPlayingState(value);
     _syncOrientation(value);
     _qoeObserve(value);
@@ -4719,8 +5138,61 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       _resetStallClock();
       // A backstop behind `pipModeChanged`: returning to the foreground is
       // what ending PiP looks like, and the chrome must come back with it
-      // whether or not the activity got round to telling us.
-      if (_inPip) setState(() => _inPip = false);
+      // whether or not the activity got round to telling us. The native
+      // attempt is stopped too, so a window that opened while the app was
+      // away does not keep floating over the film it came from, and an
+      // auto-start that never opened is cancelled rather than left to pop
+      // up after the viewer is back.
+      if (_inPip) {
+        unawaited(_controller.stopPictureInPicture());
+        setState(() => _inPip = false);
+      } else if (_pipImminent) {
+        // A start was held as imminent (see the `inactive` branch) but no
+        // window opened — a transient foreground interruption (Control
+        // Center, Notification Center, a call) that never left the app.
+        // Release the hold so the background pause is not held off
+        // forever, and cancel the native attempt if one is still pending.
+        // The native stop is a no-op when nothing is open or pending.
+        _pipImminent = false;
+        unawaited(_controller.stopPictureInPicture());
+      }
+    }
+    if (state == AppLifecycleState.inactive) {
+      // iOS: do NOT start PiP here. `inactive` fires for a transient
+      // overlay too — Control Center, Notification Center, a call — and
+      // starting PiP for one of those re-frames the video (the PiP host
+      // view comes to the front at the picture's rect, so the picture
+      // pulls in) and clears the lock, both for a window that never
+      // opens. Leaving the app for real (Home, the app switcher) is
+      // handled natively instead: the eager controller's
+      // `canStartPictureInPictureAutomaticallyFromInline` opens the
+      // window when the app backgrounds, and the plugin starts it from
+      // `didEnterBackground` as a backstop (see
+      // VlcPictureInPicture.swift). A transient inactive never
+      // backgrounds the app, so neither fires for Control Center and
+      // the video and the lock are left alone.
+      // What `inactive` does do on iOS is mark a start as imminent, so
+      // the background pause (which fires when the app actually goes
+      // away) holds off and the film keeps playing under the window
+      // that is about to open. Only while it is actually playing, and
+      // only where PiP exists; a paused film stays paused. The hold is
+      // released on `resumed` above when no window opened (Control
+      // Center), and by the `pictureInPicture` event when one did.
+      // Android keeps its own path: there `inactive` IS the moment to
+      // enter PiP (MainActivity.enterPictureInPictureMode is a
+      // synchronous Activity call, not a slow gate), and the watchdog
+      // test holds it shut.
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        if (!_inPip &&
+            !_pipImminent &&
+            _pipAvailable &&
+            _controller.value.isPlaying) {
+          _pipImminent = true;
+          _controller.notePictureInPictureImminent();
+        }
+      } else if (!_inPip && _pipAvailable && _controller.value.isPlaying) {
+        unawaited(_enterPip());
+      }
     }
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
@@ -5256,6 +5728,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     _lockEscape?.cancel();
     _watchdog?.cancel();
     _recoveryTimer?.cancel();
+    _subtitleReanchorTimer?.cancel();
     unawaited(_checkChanges?.cancel());
     _checkTick?.cancel();
     // After the controls, which unmount first and stop listening; its hide
@@ -5271,6 +5744,12 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     _panelData.dispose();
     _playerSettings.dispose();
     _bufferedFraction.dispose();
+    // The pinch zoom's notifier: the controls write it through the gesture
+    // layer, and the Transform reads it through a ValueListenableBuilder.
+    // Disposed after the controls are gone, like the other notifiers they
+    // listen to.
+    _videoScale.removeListener(_onVideoScaleChanged);
+    _videoScale.dispose();
     _sideCars.removeListener(_onSideCars);
     _sideCars.dispose();
     unawaited(_connectivity?.cancel());
@@ -5287,9 +5766,12 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
           : 'left',
     );
     _qoeMemory?.cancel();
+    _pipWatchdog?.cancel();
+    _pipWatchdog = null;
     _controller.pendingSeekTarget.removeListener(_qoeSeekChanged);
     _controller.pendingSeekTarget.removeListener(_onSeekSettled);
     _controller.pendingSeekTarget.removeListener(_followSeekTarget);
+    _controller.isPictureInPicture.removeListener(_onPictureInPicture);
     _controller.removeListener(_onPlaybackValue);
     _controller.dispose();
     // The torrent server seeds in the background; nothing else stops it.
@@ -5424,19 +5906,41 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
               offstage:
                   PlayerDiagnostics.suppressVideoSurface ||
                   _stage != _Stage.playing,
-              child: VlcPlayer(
-                key: ValueKey<int>(_playerMount),
-                controller: _controller,
-                fit: _fit,
-                darwinRenderer: playerDarwinRenderer,
-                androidRenderer: playerAndroidRenderer,
-                backgroundColor: playerBackdropColor,
+              // Pinch-to-zoom: the zoom itself is a Transform.scale over the
+              // picture, driven by [_videoScale] — but the gesture no longer
+              // lives here. A scale recognizer under the controls' screen-wide
+              // drag recognizers lost the gesture arena to them, so two
+              // fingers mostly scrubbed the video instead of zooming it. The
+              // pinch is handled by the controls' gesture layer now, which
+              // owns the one scale recognizer for both pan and pinch; this
+              // widget only reads the value. The ValueListenableBuilder keeps
+              // a pinch at 60 fps: only the Transform repaints, not the whole
+              // screen.
+              child: ValueListenableBuilder<double>(
+                valueListenable: _videoScale,
+                builder: (context, scale, child) => Transform.scale(
+                  scale: scale,
+                  alignment: Alignment.center,
+                  child: child,
+                ),
+                child: KeyedSubtree(
+                  key: _videoKey,
+                  child: VlcPlayer(
+                    key: ValueKey<int>(_playerMount),
+                    controller: _controller,
+                    fit: _fit,
+                    darwinRenderer: playerDarwinRenderer,
+                    androidRenderer: playerAndroidRenderer,
+                    backgroundColor: playerBackdropColor,
+                  ),
+                ),
               ),
             ),
             // Subtitle files, drawn over the picture rather than into it, so
             // the fit never reaches them - and in PiP as well, as libVLC's
-            // were. Lifted over the controls while those are up.
-            if (_stage == _Stage.playing) _sideCarSubtitles(isTv: isTv),
+            // were. They sit at the picture's bottom edge, like the embedded
+            // track's, and never move when the controls show or hide.
+            if (_stage == _Stage.playing) _sideCarSubtitles(),
             // Everything before a picture: getting links, checking them,
             // opening one - `setMedia` hands libVLC a URL and returns, so the
             // playing stage begins with the video widget an empty surface -
@@ -5471,8 +5975,16 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
                   // FittedBox, not through the native setFit, so the button
                   // has to reach this state to do anything there.
                   fit: _fit,
+                  // The pinch zoom's value: the controls' gesture layer
+                  // writes it (see `VlcPlayerControls.videoScale`), and the
+                  // Transform over the video reads it.
+                  videoScale: _videoScale,
                   onFitChanged: (fit) {
-                    if (mounted) setState(() => _fit = fit);
+                    if (!mounted) return;
+                    setState(() => _fit = fit);
+                    // The picture's place on screen changed with it, and
+                    // libVLC's lines are drawn into the picture.
+                    _reanchorSubtitles();
                   },
                   // Only where the OS turns the device when asked: a phone, or
                   // a tablet that has not stopped listening (see
@@ -5499,7 +6011,9 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
                   // a button can never open a tab that does not exist.
                   onOpenPanel: (tab) => _openPanel(tab),
                   panelTabs: _panelData.value.tabs,
-                  onEnterPip: _pipAvailable ? _enterPip : null,
+                  onEnterPip: _pipAvailable
+                      ? () => _enterPip(fromButton: true)
+                      : null,
                   onToggleFullscreen: _fullscreenAvailable
                       ? _toggleFullscreen
                       : null,
@@ -5571,23 +6085,20 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     );
   }
 
-  Widget _sideCarSubtitles({required bool isTv}) {
-    final controlsShown = !_inPip && _pictureUp && _ended == null;
+  Widget _sideCarSubtitles() {
     return Consumer(
       builder: (context, ref, _) {
         final settings =
             ref.watch(playerSettingsProvider).asData?.value ??
             const PlayerSettings();
-        return ValueListenableBuilder<bool>(
-          valueListenable: _chrome,
-          builder: (context, chromeUp, _) => SideCarSubtitleView(
-            controller: _controller,
-            subtitles: _sideCars,
-            settings: settings,
-            bottomInset: chromeUp && controlsShown
-                ? HotstarPlayerStyle.bottomChromeHeightFor(isTv: isTv)
-                : 0,
-          ),
+        // The lines sit at one fixed place — the area's bottom margin,
+        // see [subtitleTargetY] — so a pinch never moves them, and the
+        // chrome is not in it: the lines never move when the controls
+        // show or hide.
+        return SideCarSubtitleView(
+          controller: _controller,
+          subtitles: _sideCars,
+          settings: settings,
         );
       },
     );

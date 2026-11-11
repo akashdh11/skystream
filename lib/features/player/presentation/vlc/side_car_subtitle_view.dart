@@ -18,7 +18,6 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -30,10 +29,6 @@ import '../../domain/side_car_subtitles.dart';
 import '../../domain/subtitle_cues.dart';
 import '../../domain/subtitle_style.dart';
 
-/// Space between the lines and the edge of the player area, as a share of the
-/// frame height.
-const double _kEdgeMargin = 0.06;
-
 /// Space the text keeps from each side, as a share of the width.
 const double _kSideMargin = 0.05;
 
@@ -44,18 +39,12 @@ class SideCarSubtitleView extends StatefulWidget {
     required this.controller,
     required this.subtitles,
     required this.settings,
-    this.bottomInset = 0,
     super.key,
   });
 
   final VlcPlayerController controller;
   final SideCarSubtitles subtitles;
   final PlayerSettings settings;
-
-  /// Room to leave along the bottom - the controls, while they are up - so a
-  /// line is lifted over them rather than drawn under them. A change slides
-  /// the lines rather than jumping them.
-  final double bottomInset;
 
   @override
   State<SideCarSubtitleView> createState() => _SideCarSubtitleViewState();
@@ -148,16 +137,22 @@ class _SideCarSubtitleViewState extends State<SideCarSubtitleView> {
     final style = subtitleStyleFrom(widget.settings);
     final fontSize = subtitleFontSize(widget.settings, area);
     final frame = subtitleFrameHeight(area);
-    final margin = frame * _kEdgeMargin;
+    final margin = frame * kSubtitleEdgeMargin;
     final side = area.width * _kSideMargin;
-    // The viewer's lift, a share of the frame as libVLC's is of the picture.
-    // Bottom lines only: a line placed at the top or the middle stays there.
-    final rest = margin + widget.settings.subtitleRaise.clamp(0.0, 0.5) * frame;
 
     List<Widget> band(SubtitlePlacement placement) => [
       for (final cue in _shown)
         if (cue.placement == placement) _cue(cue, style, fontSize),
     ];
+
+    // The lines' bottom edge: the same fixed target the embedded track is
+    // anchored to — see [subtitleTargetY] — so a file and a track inside
+    // the video sit at the same place. One fixed place, from the area
+    // alone: a pinch never moves the lines, and never the bottom chrome,
+    // so they never move when the controls show or hide. Bottom lines
+    // only: a line placed at the top or the middle stays there.
+    final bottomOffset =
+        area.height - subtitleTargetY(area, widget.settings.subtitleRaise);
 
     // Where two lines are due together the earlier one keeps its place and
     // the later one stacks away from the edge, as libass lays them out.
@@ -179,9 +174,7 @@ class _SideCarSubtitleViewState extends State<SideCarSubtitleView> {
           AnimatedPositioned(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeOut,
-            // The higher of the two, never their sum: a lift already clear
-            // of the controls stays where it is when they come up.
-            bottom: math.max(rest, widget.bottomInset + margin / 2),
+            bottom: bottomOffset,
             left: side,
             right: side,
             child: _column(bottom),
