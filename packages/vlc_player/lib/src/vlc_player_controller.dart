@@ -223,6 +223,57 @@ abstract class VlcPlayerController extends ValueNotifier<VlcPlayerValue> {
   /// stopped when one attaches, instead of starting on its own.
   Future<void> stop();
 
+  /// Starts iOS picture-in-picture for this player, if the device supports
+  /// it.
+  ///
+  /// True means the request went out; the window opening — or failing to —
+  /// is reported through [isPictureInPicture]. False, not an error, when
+  /// the device cannot do PiP, when there is no picture yet, or when no
+  /// native player is attached. Android has no equivalent here: its PiP is
+  /// an activity mode the host screen enters itself, so this stays false
+  /// there.
+  ///
+  /// [sourceRect] is the video picture's on-screen rect, which the native
+  /// window opens from: a real frame, not a 1x1 host the system treats as
+  /// not-displaying. Null sends no rect and native falls back to the
+  /// window's bounds.
+  Future<bool> startPictureInPicture({Rect? sourceRect});
+
+  /// Marks a picture-in-picture start as imminent, holding off the
+  /// background pause, without asking the native side to start yet.
+  ///
+  /// The native side starts the window when the app actually backgrounds
+  /// (the `didEnterBackground` observer); this only keeps the film
+  /// playing until then. Cleared when the window opens or fails (the
+  /// `pictureInPicture` event), or by [stopPictureInPicture]. A transient
+  /// foreground interruption (Control Center) that never backgrounds the
+  /// app never pauses the film, so the hold is released by the caller's
+  /// `resumed` handler instead.
+  void notePictureInPictureImminent();
+
+  /// Stops iOS picture-in-picture, if one is running. The window closing is
+  /// reported through [isPictureInPicture].
+  Future<void> stopPictureInPicture();
+
+  /// Whether this player is currently showing in picture-in-picture.
+  ///
+  /// iOS only, reported by the native PiP window as it opens and closes —
+  /// by the request above, by the window's own close button, or by the
+  /// viewer tapping the window to come back. Android's PiP is an activity
+  /// mode the host screen tracks itself, so this stays false there.
+  ValueListenable<bool> get isPictureInPicture;
+
+  /// The last picture-in-picture failure, in the native side's words, and
+  /// whether a start would be accepted right now — the debug line the player
+  /// shows when a start fails, so a silent button has a reason on screen.
+  /// Null when no attempt has been made, or the last one succeeded.
+  String? get lastPipError;
+
+  /// Whether the native controller would accept a start right now
+  /// (`isPictureInPicturePossible`), as last reported with a PiP event.
+  /// Null before any PiP event has arrived.
+  bool? get lastPipPossible;
+
   /// Seeks to [position].
   ///
   /// [position] must be non-negative. [pendingSeekTarget] moves to it at once.
@@ -621,6 +672,36 @@ class _VlcPlayerController extends VlcPlayerController
     null,
   );
 
+  /// Whether a picture-in-picture start was requested and its result has not
+  /// arrived yet.
+  ///
+  /// The native start only says the request went out; the window opening —
+  /// or failing to — is reported through [isPictureInPicture]. While the
+  /// answer is outstanding the background pause must hold off (see
+  /// [_pauseForBackground]): pausing now would stop the playback the window
+  /// is about to show. Cleared by the event, by [stopPictureInPicture], and
+  /// by a native refusal in [startPictureInPicture].
+  bool _pictureInPicturePending = false;
+
+  /// Whether the iOS picture-in-picture window is up. See
+  /// [VlcPlayerController.isPictureInPicture].
+  final ValueNotifier<bool> _pictureInPicture = ValueNotifier<bool>(false);
+
+  @override
+  ValueListenable<bool> get isPictureInPicture => _pictureInPicture;
+
+  /// The last picture-in-picture failure the native side reported, and
+  /// whether a start would be accepted right now. See
+  /// [VlcPlayerController.lastPipError].
+  String? _lastPipError;
+  bool? _lastPipPossible;
+
+  @override
+  String? get lastPipError => _lastPipError;
+
+  @override
+  bool? get lastPipPossible => _lastPipPossible;
+
   /// The published position the pending seek set out from - in a chain of
   /// steps, the previous step's target - so an earlier step landing late is
   /// not taken for this one.
@@ -901,7 +982,13 @@ class _VlcPlayerController extends VlcPlayerController
     _backgrounded = true;
     if (backgroundPolicy != VlcBackgroundPolicy.pause ||
         _pausedForBackground ||
-        _viewId == null) {
+        _viewId == null ||
+        _pictureInPicturePending ||
+        _pictureInPicture.value) {
+      // The last two are the PiP hold: a window up, or a start in flight,
+      // is a viewer still watching, and the film must not stop underneath
+      // it. The pause is applied when the attempt ends instead (see
+      // [_applyDeferredBackgroundPause]).
       return;
     }
     if (!value.isPlaying) {
@@ -1431,6 +1518,77 @@ class _VlcPlayerController extends VlcPlayerController
       return Future<void>.value();
     }
     return _invoke('stop');
+  }
+
+  @override
+  void notePictureInPictureImminent() {
+    if (_isDisposed) return;
+    // The same flag [startPictureInPicture] sets, so the background pause
+    // (which can fire while the native start is still waiting on
+    // `isPictureInPicturePossible`) sees the attempt and holds off. The
+    // native side starts the window from `didEnterBackground`; the film
+    // must not stop underneath it.
+    _pictureInPicturePending = true;
+  }
+
+  @override
+  Future<bool> startPictureInPicture({Rect? sourceRect}) async {
+    // Set before the invoke, so the background pause (which can fire on the
+    // lifecycle listener while this round trip is in flight) sees the
+    // attempt and holds off: pausing now would stop the very playback the
+    // PiP window is about to show.
+    _pictureInPicturePending = true;
+    final started = await _invokeFor<bool>(
+      'startPictureInPicture',
+      sourceRect == null
+          ? null
+          : <String, Object?>{
+              'x': sourceRect.left,
+              'y': sourceRect.top,
+              'width': sourceRect.width,
+              'height': sourceRect.height,
+            },
+    );
+    if (started != true) {
+      // The native side refused outright, so there is no event coming to
+      // clear the flag - clear it here, and let the background policy have
+      // the pause it was holding off, if the app is away.
+      _pictureInPicturePending = false;
+      _applyDeferredBackgroundPause();
+    }
+    return started ?? false;
+  }
+
+  @override
+  Future<void> stopPictureInPicture() {
+    // Settles the attempt too, not just an open window: a pending attempt
+    // the screen cancelled (its watchdog, or the viewer coming straight
+    // back) must not hold the background pause off forever.
+    _pictureInPicturePending = false;
+    _applyDeferredBackgroundPause();
+    // Best effort: Android has no native stop (its PiP is an activity
+    // mode), and a player that has already gone away has, for this purpose,
+    // done what was asked. Failures are swallowed so a stop never surfaces
+    // as an error far from the call site.
+    return _invoke('stopPictureInPicture').catchError((Object _) {});
+  }
+
+  /// The background pause a PiP attempt held off, applied once the attempt is
+  /// over.
+  ///
+  /// Only while the app is actually away: in the foreground there is nothing
+  /// to pause for, and a PiP window the viewer closed by tapping it to come
+  /// back must not pause the film they are looking at. A pause that lands
+  /// just before the return is corrected by [_resumeFromBackground], which
+  /// resumes exactly what this paused.
+  void _applyDeferredBackgroundPause() {
+    final state = WidgetsBinding.instance.lifecycleState;
+    if (state != AppLifecycleState.paused &&
+        state != AppLifecycleState.hidden &&
+        state != AppLifecycleState.detached) {
+      return;
+    }
+    _pauseForBackground();
   }
 
   /// Drops every claim that would otherwise start playback on its own.
@@ -2129,6 +2287,35 @@ class _VlcPlayerController extends VlcPlayerController
       if (sequence < _lastSequence) return;
       _lastSequence = sequence;
     }
+    // A PiP-only event carries no snapshot: it says only whether the iOS
+    // picture-in-picture window opened or closed. Running it through
+    // [VlcPlayerValue.fromEvent] would read its absent keys as a cleared
+    // hold and a cleared error, so it owns its notifier instead — and a
+    // snapshot that happens to carry the key updates the notifier on its
+    // way through.
+    if (event is Map && event['pictureInPicture'] is bool) {
+      final inPip = event['pictureInPicture'] as bool;
+      // The attempt's answer, whatever it is: the window opened, or it
+      // failed to. A window that closed while the app is away leaves the
+      // background pause owing - the pause was held for the attempt, and
+      // the attempt is over - so the policy is applied if the app is still
+      // away (see [_applyDeferredBackgroundPause]).
+      _pictureInPicturePending = false;
+      _pictureInPicture.value = inPip;
+      // A failed start carries its reason (`pipError`) and whether a start
+      // would be accepted right now (`pipPossible`): the debug line the
+      // player shows when a start fails. A window that opened clears the
+      // failure.
+      final pipError = event['pipError'];
+      if (pipError is String) _lastPipError = pipError;
+      final pipPossible = event['pipPossible'];
+      if (pipPossible is bool) _lastPipPossible = pipPossible;
+      if (inPip) _lastPipError = null;
+      if (!inPip) _applyDeferredBackgroundPause();
+      if (!event.containsKey('state')) {
+        return;
+      }
+    }
     final previousValue = _pendingThrottledValue ?? value;
     final nextValue = _observeStall(
       _placeInLiveWindow(
@@ -2421,6 +2608,7 @@ class _VlcPlayerController extends VlcPlayerController
     _clearPendingSeek();
     _dropMergedSeek();
     _pendingSeekTarget.dispose();
+    _pictureInPicture.dispose();
     _playbackClock.dispose();
     if (viewId != null) {
       unawaited(_disposeNativeView(viewId));

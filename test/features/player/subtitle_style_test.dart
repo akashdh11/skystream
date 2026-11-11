@@ -8,6 +8,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:skystream/features/player/domain/subtitle_style.dart';
 import 'package:skystream/features/settings/presentation/player_settings_provider.dart';
+import 'package:vlc_player/vlc_player.dart';
 
 void main() {
   group('relativeSizeFor', () {
@@ -188,6 +189,97 @@ void main() {
       expect(
         subtitleLookFrom(plain, createdRelativeSize: 24).backgroundColor,
         const Color(0xFF000000),
+      );
+    });
+  });
+
+  group('subtitleLookAnchored', () {
+    // A 2:1 frame filling an 800x400 player: the picture is the screen, so
+    // the anchored look is the plain one, lifted by the edge margin alone.
+    const screen = Size(800, 400);
+    const video = Size(1600, 800);
+
+    VlcSubtitleLook anchored({
+      PlayerSettings settings = const PlayerSettings(),
+      Size area = screen,
+      Size frame = video,
+      VlcVideoFit fit = VlcVideoFit.contain,
+      double pinchScale = 1.0,
+    }) => subtitleLookAnchored(
+      settings,
+      createdRelativeSize: 24,
+      screen: area,
+      video: frame,
+      fit: fit,
+      pinchScale: pinchScale,
+    );
+
+    test('a picture that is the screen reads as the plain look', () {
+      final look = anchored();
+      expect(look.textScale, 100);
+      expect(look.raise, closeTo(0.06, 1e-9));
+    });
+
+    test('a 16:9 picture on a landscape phone sits low, not a bar above it', () {
+      // Anchoring the target to the bottom chrome's height would float
+      // the lines a full bar above the picture even with the controls
+      // down — a raise of 0.28 on this frame. The target is the
+      // picture's own bottom edge now, so the raise is the edge margin
+      // alone, the normal Netflix place.
+      final look = anchored(
+        area: const Size(932, 430),
+        frame: const Size(1920, 1080),
+      );
+      expect(look.textScale, 100);
+      expect(look.raise, closeTo(0.06, 1e-9));
+    });
+
+    test('cover undoes the picture\'s enlargement', () {
+      // A square frame covering the player is twice as tall on screen, so
+      // the text halves and the lines climb nearly a third of the frame to
+      // stay where they were.
+      final look = anchored(frame: const Size(800, 800), fit: VlcVideoFit.cover);
+      expect(look.textScale, 50);
+      expect(look.raise, closeTo(0.28, 1e-9));
+    });
+
+    test('a pinch in undoes the zoom the same way', () {
+      final look = anchored(pinchScale: 2.0);
+      expect(look.textScale, 50);
+      expect(look.raise, closeTo(0.28, 1e-9));
+    });
+
+    test('a pinch out keeps the lines at the picture\'s bottom margin', () {
+      // Half size, the picture's bottom is above the screen's: the lines
+      // keep the edge margin above the picture's own bottom, scaled with
+      // it, rather than dropping to the area's bottom.
+      final look = anchored(pinchScale: 0.5);
+      expect(look.textScale, 200);
+      expect(look.raise, closeTo(0.06, 1e-9));
+    });
+
+    test('the viewer\'s lift raises the anchor', () {
+      final look = anchored(
+        settings: const PlayerSettings(subtitleRaise: 0.2),
+      );
+      expect(look.textScale, 100);
+      expect(look.raise, closeTo(0.26, 1e-9));
+    });
+
+    test('stretch reads as the plain look at the same size', () {
+      final look = anchored(frame: const Size(800, 800), fit: VlcVideoFit.fill);
+      expect(look.textScale, 100);
+      expect(look.raise, closeTo(0.06, 1e-9));
+    });
+
+    test('an unknown size falls back to the plain look', () {
+      expect(
+        anchored(frame: Size.zero),
+        subtitleLookFrom(const PlayerSettings(), createdRelativeSize: 24),
+      );
+      expect(
+        anchored(area: Size.zero),
+        subtitleLookFrom(const PlayerSettings(), createdRelativeSize: 24),
       );
     });
   });

@@ -87,6 +87,7 @@ class VlcPlayerControls extends ConsumerStatefulWidget {
     this.onEnterPip,
     this.fit = VlcVideoFit.contain,
     this.onFitChanged,
+    this.videoScale,
     this.onRotate,
     this.rotationHeld = false,
     this.onToggleFullscreen,
@@ -157,6 +158,15 @@ class VlcPlayerControls extends ConsumerStatefulWidget {
   /// texture platforms its FittedBox is the only thing that can honour a fit,
   /// because the native setFit is a no-op there.
   final ValueChanged<VlcVideoFit>? onFitChanged;
+
+  /// The pinch zoom's value, owned by the screen.
+  ///
+  /// The gesture layer writes it while two fingers are down (see
+  /// [_onScaleUpdate]) and the screen's Transform over the video reads it,
+  /// so the picture follows the fingers without rebuilding this whole
+  /// widget on every update. Null where the screen does not offer a zoom
+  /// (tests), and then a pinch does nothing.
+  final ValueNotifier<double>? videoScale;
 
   /// Turns the handset the other way for the rest of this video. Non-null
   /// only where the player turns the device at all: a phone or a tablet.
@@ -241,6 +251,12 @@ class VlcPlayerControls extends ConsumerStatefulWidget {
   @override
   ConsumerState<VlcPlayerControls> createState() => _VlcPlayerControlsState();
 }
+
+/// Which way the one scale gesture is going: undecided, a horizontal scrub,
+/// or a vertical rail. The gesture layer is a single scale recognizer now
+/// (see [_VlcPlayerControlsState._onScaleUpdate]), so the axis is decided
+/// by the pan's own travel and stays won for the gesture.
+enum _PanAxis { none, horizontal, vertical }
 
 class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   static const Duration _fade = Duration(milliseconds: 200);
@@ -496,6 +512,43 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   double? _horizontalDragStartX;
   Duration? _horizontalDragStartPosition;
   Duration? _horizontalDragTarget;
+
+  /// One gesture's axis, decided by its own travel.
+  ///
+  /// The screen-wide gesture layer is a single scale recognizer now (see
+  /// [_onScaleUpdate]): it owns both the single-finger pan and the
+  /// two-finger pinch, so the two never race in the gesture arena the way
+  /// the old separate drag and scale recognizers did. A drag recognizer won
+  /// the first finger after 36 px of movement, before the second finger's
+  /// span could cross the scale slop, so most pinches never started and a
+  /// pinch mostly scrubbed instead. The axis is decided by the travel
+  /// since the gesture began - the wider one wins - and it stays won for
+  /// the gesture.
+  _PanAxis _panAxis = _PanAxis.none;
+
+  /// The point the current pan's travel is measured from, in global
+  /// coordinates: the first finger's down point, or where a pinch that
+  /// wound down to one finger restarted (see [_onScaleStart]).
+  ///
+  /// The scale recognizer spends the first 36 px crossing its own slop
+  /// before it starts, and the old drag recognizers replayed that travel
+  /// when the arena granted them (their `_checkDrag`): measuring from the
+  /// down point keeps the scrub's origin and the rail's first travel the
+  /// same as they were, so the deciding update's own travel is applied
+  /// rather than dropped, and a short drag still moves the level.
+  Offset? _panAnchor;
+
+  /// The same point in this detector's coordinates, which is what decides
+  /// the rail's half: brightness on the left, volume on the right.
+  double? _panAnchorLocalX;
+
+  /// Whether two fingers are down and zooming, so a single-finger update
+  /// cannot be read as a pan while a pinch is in flight.
+  bool _pinching = false;
+
+  /// The zoom the current pinch multiplies from, so a new gesture continues
+  /// where the last one left off instead of jumping back to 1.0.
+  double _pinchStartScale = 1.0;
 
   /// Where the next relative seek counts from while the engine has not yet
   /// published the last one. Without it a second press before the engine's
@@ -1091,11 +1144,18 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   }
 
   /// Starts a brightness or volume drag based on user gesture configuration.
-  Future<void> _railDragStart(DragStartDetails d) async {
+  /// Starts a vertical rail: brightness on the left half, volume on the
+  /// right. [localX] is the finger's x in this detector's coordinates, which
+  /// is what decides the half.
+  ///
+  /// Called by the scale gesture layer (see [_onScaleUpdate]) once the pan's
+  /// axis is decided, with the same start that a drag recognizer used to
+  /// hand over.
+  Future<void> _beginRail(double localX) async {
     if (_isDesktop) return; // no touch rails
     final width = context.size?.width ?? 0;
     if (width <= 0) return;
-    final isRight = d.localPosition.dx >= width / 2;
+    final isRight = localX >= width / 2;
     final settings =
         ref.read(playerSettingsProvider).asData?.value ??
         const PlayerSettings();
@@ -1138,7 +1198,13 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     }
   }
 
-  void _onHorizontalDragStart(DragStartDetails d, PlayerSettings settings) {
+  /// Starts a horizontal swipe-seek at global x [startX]: the position the
+  /// swipe counts from, and the x its travel is measured against.
+  ///
+  /// Called by the scale gesture layer (see [_onScaleUpdate]) once the pan's
+  /// axis is decided, with the finger's x at that moment - the same place
+  /// a drag recognizer used to hand over at its own start.
+  void _beginSwipeSeek(double startX, PlayerSettings settings) {
     // An unseekable input gets no start position, so the updates show no
     // toast and the end issues no seekTo that libVLC would silently drop.
     if (widget.isLive ||
@@ -1147,7 +1213,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
         !widget.controller.value.isSeekable) {
       return;
     }
-    _horizontalDragStartX = d.globalPosition.dx;
+    _horizontalDragStartX = startX;
     final value = widget.controller.value;
     // Over a held picture, from where the reopen is going (see [_seekBy]).
     _horizontalDragStartPosition = value.isPictureHeld
@@ -1157,7 +1223,10 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     _updateChoosingPlace();
   }
 
-  void _onHorizontalDragUpdate(DragUpdateDetails d, PlayerSettings settings) {
+  /// Moves the swipe-seek's target to global x [globalX], measured against
+  /// the start [_beginSwipeSeek] recorded. The position is not sought yet -
+  /// the end does that - so a swipe that becomes a pinch commits nothing.
+  void _updateSwipeSeek(double globalX, PlayerSettings settings) {
     final startX = _horizontalDragStartX;
     final startPos = _horizontalDragStartPosition;
     if (startX == null || startPos == null || !settings.swipeSeekEnabled) {
@@ -1165,7 +1234,7 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     }
     final width = MediaQuery.sizeOf(context).width;
     if (width <= 0) return;
-    final deltaFraction = (d.globalPosition.dx - startX) / width;
+    final deltaFraction = (globalX - startX) / width;
     final duration = widget.controller.value.duration;
     final seekDelta = Duration(milliseconds: (deltaFraction * 90000).round());
     var target = startPos + seekDelta;
@@ -1180,7 +1249,8 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     );
   }
 
-  void _onHorizontalDragEnd(DragEndDetails d) {
+  /// Ends a swipe-seek: seeks to the target its updates arrived at.
+  void _endSwipeSeek() {
     final target = _horizontalDragTarget;
     _horizontalDragStartX = null;
     _horizontalDragStartPosition = null;
@@ -1193,6 +1263,182 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
     }
   }
 
+  /// Drops a swipe-seek without seeking: a second finger turned the gesture
+  /// into a pinch, or a new gesture superseded a stale one the framework
+  /// never ended. The target is discarded, so nothing jumps.
+  void _cancelSwipeSeek() {
+    _horizontalDragStartX = null;
+    _horizontalDragStartPosition = null;
+    _horizontalDragTarget = null;
+    _updateChoosingPlace();
+  }
+
+  /// Lands the pan's anchor (see [_panAnchor]): a [Listener] reports the
+  /// pointer's down immediately, before any arena resolution. The tap
+  /// recognizer's `onTapDown` cannot do this - it only fires once the tap
+  /// has won the arena, and a pan's tap never does. The anchor is only
+  /// taken while no pan or pinch is in flight, so a second finger landing
+  /// mid-gesture cannot move it.
+  void _onPointerDown(PointerDownEvent event) {
+    if (_panAxis != _PanAxis.none || _pinching) return;
+    _panAnchor = event.position;
+    _panAnchorLocalX = event.localPosition.dx;
+  }
+
+  /// The one scale gesture: pan with one finger, pinch with two.
+  ///
+  /// Why one recognizer, and not the old pair: the scale recognizer used to
+  /// live under the video, below this detector's drag recognizers, and the
+  /// two raced in the gesture arena for the same first finger. A drag
+  /// recognizer won it after 36 px of movement, before the second finger's
+  /// span could cross the scale slop, so most pinches never started - the
+  /// gesture became a scrub or a rail instead. One recognizer cannot race
+  /// itself: while it tracks one finger its focal movement is the pan, and
+  /// the moment a second finger lands its span is the pinch. The tap, the
+  /// double-tap seek and the long-press boost stay on separate recognizers
+  /// in the same detector - a tap moves nowhere and a hold moves nowhere,
+  /// so neither can steal a pinch that moves.
+  ///
+  /// Two edges of the framework to know about: a second finger landing
+  /// mid-pan ends the pan's scale phase (the recognizer reconfigures and
+  /// starts again with two pointers), so the end handler must cancel
+  /// rather than commit when more than one pointer is still down; and a
+  /// long press that has already fired (both fingers held still for half
+  /// a second) wins the arena first, so a pinch after that does not start
+  /// - starting to spread within the half second is what the gesture is.
+  void _onScaleStart(ScaleStartDetails d) {
+    // A stale pan from an end the framework never delivered - an
+    // interrupted pointer - is cleared here, so the next gesture does not
+    // inherit a scrub target or a rail.
+    _cancelSwipeSeek();
+    _railDragEnd();
+    _panAxis = _PanAxis.none;
+    if (d.pointerCount >= 2) {
+      _pinching = true;
+      _pinchStartScale = widget.videoScale?.value ?? 1.0;
+      // A pinch is a deliberate two-finger gesture, not a hold: the speed
+      // boost a long press started goes away with it.
+      _endSpeedBoost();
+      return;
+    }
+    // One finger. A pinch that wound down to one finger restarts here as a
+    // pan, from where the finger is now - not from where it went down,
+    // which the pinch already spent.
+    final bool wasPinching = _pinching;
+    _pinching = false;
+    if (wasPinching || _panAnchor == null) {
+      _panAnchor = d.focalPoint;
+      _panAnchorLocalX = d.localFocalPoint.dx;
+    }
+    // Otherwise the anchor is the down point onTapDown recorded, which is
+    // what the first update measures the pan's travel from.
+  }
+
+  void _onScaleUpdate(ScaleUpdateDetails d, PlayerSettings settings) {
+    if (d.pointerCount >= 2) {
+      // A second finger landed mid-pan: the pan is cancelled, not
+      // committed - its target seek never issues. A rail already applies
+      // live, as before, so ending it is only hiding it on its clock.
+      if (!_pinching) {
+        _pinching = true;
+        _pinchStartScale = widget.videoScale?.value ?? 1.0;
+        _cancelSwipeSeek();
+        _railDragEnd();
+        _endSpeedBoost();
+      }
+      final notifier = widget.videoScale;
+      if (notifier == null) return;
+      // details.scale is the fingers' distance relative to the gesture's
+      // start - under 1.0 while pinching in - so this falls as well as
+      // rises: from 1.0 an inward pinch shrinks the picture toward 0.5,
+      // from 2.0 it comes back down through 1.0 toward 0.5. clamp()
+      // returns num; toDouble() keeps the value a double.
+      final double scale =
+          (_pinchStartScale * d.scale).clamp(0.5, 3.0).toDouble();
+      if (scale != notifier.value) notifier.value = scale;
+      return;
+    }
+    if (_pinching || d.pointerCount != 1) return;
+    if (_panAxis == _PanAxis.none) {
+      // The pan's travel is measured from the anchor - the down point -
+      // not from the scale recognizer's start: the recognizer spends the
+      // first 36 px crossing its own slop before it starts, and the old
+      // drag recognizers replayed that travel when the arena granted them.
+      // Measuring from the anchor keeps the scrub's origin and the rail's
+      // first travel the same, so the deciding update's own travel is
+      // applied rather than dropped, and a short drag still moves the
+      // level. The travel is derived from two points, never accumulated,
+      // so it can never be counted twice.
+      final Offset anchor = _panAnchor ?? d.focalPoint;
+      final Offset travel = d.focalPoint - anchor;
+      if (travel.distance < 10) return;
+      _panAxis = travel.dx.abs() >= travel.dy.abs()
+          ? _PanAxis.horizontal
+          : _PanAxis.vertical;
+      if (_panAxis == _PanAxis.horizontal) {
+        _beginSwipeSeek(anchor.dx, settings);
+        // The scrub re-derives its target from the origin on every update,
+        // so this applies the travel the scale recognizer spent reaching
+        // its start as well as this update's own.
+        _updateSwipeSeek(d.focalPoint.dx, settings);
+      } else {
+        unawaited(_beginRail(_panAnchorLocalX ?? d.localFocalPoint.dx));
+        // The rail is incremental: this update applies the whole travel
+        // since the down point in one go, and the updates that follow it
+        // each apply only their own.
+        _updateRail(travel.dy);
+      }
+      return;
+    }
+    if (_panAxis == _PanAxis.horizontal) {
+      _updateSwipeSeek(d.focalPoint.dx, settings);
+    } else {
+      _updateRail(d.focalPointDelta.dy);
+    }
+  }
+
+  void _onScaleEnd(ScaleEndDetails d) {
+    if (d.pointerCount >= 2) {
+      // More than one pointer is still down: the pan just ended because a
+      // second finger landed, and the gesture carries on as a pinch. Its
+      // scrub is cancelled, not committed - see [_cancelSwipeSeek].
+      _pinching = true;
+      _pinchStartScale = widget.videoScale?.value ?? 1.0;
+      _cancelSwipeSeek();
+      _railDragEnd();
+      _endSpeedBoost();
+      _panAxis = _PanAxis.none;
+      return;
+    }
+    if (_pinching) {
+      // The pinch wound down to one finger (or none): the scale sticks
+      // where it left it, re-clamped here so the settled value is always
+      // inside the range. One finger remaining carries on as a pan from
+      // here, so the axis is undecided again rather than committed.
+      final notifier = widget.videoScale;
+      if (notifier != null) {
+        final double settled = notifier.value.clamp(0.5, 3.0).toDouble();
+        if (settled != notifier.value) notifier.value = settled;
+      }
+      _pinching = false;
+      _panAxis = _PanAxis.none;
+      // The gesture is over (or winding down to a pan the restart
+      // re-anchors): the anchor must not outlive it.
+      _panAnchor = null;
+      _panAnchorLocalX = null;
+      return;
+    }
+    // The last pointer lifted: the pan commits.
+    if (_panAxis == _PanAxis.horizontal) {
+      _endSwipeSeek();
+    } else if (_panAxis == _PanAxis.vertical) {
+      _railDragEnd();
+    }
+    _panAxis = _PanAxis.none;
+    _panAnchor = null;
+    _panAnchorLocalX = null;
+  }
+
   static String _formatDuration(Duration d) {
     final h = d.inHours;
     final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -1201,13 +1447,16 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
   }
 
   /// A full screen height of travel covers the whole range.
-  void _railDragUpdate(DragUpdateDetails d) {
+  ///
+  /// [primaryDelta] is the finger's vertical travel since the last update —
+  /// what a vertical drag recognizer used to hand over as `primaryDelta`.
+  void _updateRail(double primaryDelta) {
     final isVolume = _dragIsVolume;
     if (isVolume == null) return;
     final height = context.size?.height ?? 0;
     if (height <= 0) return;
 
-    final travel = -d.primaryDelta! / height;
+    final travel = -primaryDelta / height;
     if (!_dragReady) {
       _dragPending += travel;
       return;
@@ -2083,32 +2332,34 @@ class _VlcPlayerControlsState extends ConsumerState<VlcPlayerControls> {
               onTap: _chrome.poke,
             )
           else
-            GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: _chrome.toggle,
+            // The Listener lands the pan's anchor (see [_onPointerDown]):
+            // it reports the pointer's down immediately, before any arena
+            // resolution, which no recognizer on this detector can do.
+            Listener(
+              onPointerDown: _onPointerDown,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: _chrome.toggle,
               // Desktop convention; on touch the same gesture seeks instead,
               // which is why the two are mutually exclusive.
               onDoubleTap: widget.onToggleFullscreen,
               onDoubleTapDown: (!_isDesktop && settings.doubleTapEnabled)
                   ? (d) => _doubleTapSeek(d.localPosition.dx)
                   : null,
-              onVerticalDragStart: (d) => unawaited(_railDragStart(d)),
-              onVerticalDragUpdate: _railDragUpdate,
-              onVerticalDragEnd: (_) => _railDragEnd(),
-              onVerticalDragCancel: _railDragEnd,
-              onHorizontalDragStart: (d) => _onHorizontalDragStart(d, settings),
-              onHorizontalDragUpdate: (d) =>
-                  _onHorizontalDragUpdate(d, settings),
-              onHorizontalDragEnd: _onHorizontalDragEnd,
-              onHorizontalDragCancel: () {
-                _horizontalDragStartX = null;
-                _horizontalDragStartPosition = null;
-                _horizontalDragTarget = null;
-                _updateChoosingPlace();
-              },
+              // One scale recognizer owns the pan and the pinch together
+              // (see [_onScaleUpdate]): the old separate drag recognizers
+              // raced the scale recognizer and won the first finger before
+              // a pinch could start, which is why most pinches never did
+              // anything. The tap, double-tap and long-press recognizers
+              // need no movement, so they coexist - a pinch is not a tap,
+              // and a double-tap is one finger twice, never a pinch.
+              onScaleStart: _onScaleStart,
+              onScaleUpdate: (d) => _onScaleUpdate(d, settings),
+              onScaleEnd: _onScaleEnd,
               onLongPressStart: (_) => _startSpeedBoost(),
               onLongPressEnd: (_) => _endSpeedBoost(),
               onLongPressCancel: _endSpeedBoost,
+              ),
             ),
           // Reads through even when the chrome is hidden. The stall flag is
           // the controller's position clock, the same on every platform.
