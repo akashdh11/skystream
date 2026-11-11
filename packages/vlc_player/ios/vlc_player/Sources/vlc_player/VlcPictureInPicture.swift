@@ -761,7 +761,8 @@ final class VlcPictureInPictureController: NSObject {
     }
     let wantedRate: Float = player.pipIsPlaying ? 1.0 : 0.0
     if lastClockRate != wantedRate {
-      CMTimebaseSetRate(timebase, rate: wantedRate)
+      // CMTimebaseSetRate takes a Float64, not a Float.
+      CMTimebaseSetRate(timebase, rate: Float64(wantedRate))
       lastClockRate = wantedRate
     }
   }

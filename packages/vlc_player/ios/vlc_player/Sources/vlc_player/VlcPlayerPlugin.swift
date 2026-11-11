@@ -784,7 +784,8 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
       return measured
     }
     if let length = mediaPlayer.media?.length, length.intValue > 0 {
-      return length.intValue
+      // VLCTime's intValue is Int32; the known length is an Int.
+      return Int(length.intValue)
     }
     if !pipSourceIsLive {
       let seconds = Double(mediaPlayer.time.intValue) / 1000.0
@@ -807,7 +808,8 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
 
   /// The current media time in milliseconds, for the PiP layer's clock.
   var mediaTimeMilliseconds: Int {
-    return mediaPlayer.time.intValue
+    // VLCTime's intValue is Int32; the media time is an Int.
+    return Int(mediaPlayer.time.intValue)
   }
 
   /// Seeks by [seconds], clamped to the media's known length, for the PiP
