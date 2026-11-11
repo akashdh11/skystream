@@ -216,4 +216,47 @@ void main() {
       await expectLater(controller.stopPictureInPicture(), completes);
     });
   });
+
+  group('setDurationCap', () {
+    test('forwards the measured HLS length to native for the PiP window',
+        () async {
+      // The bug this holds shut: the app measures an HLS film's true
+      // length off its own playlist (libVLC reports the longest
+      // rendition, subtitle tracks included) and caps the in-app
+      // timeline with it — but the PiP window never learned it, so it
+      // read the film as a live stream (LIVE badge, no seek, a progress
+      // line stuck at the start). The cap must reach the native side too.
+      final controller = await playing();
+      addTearDown(controller.dispose);
+      harness.calls.clear();
+
+      controller.setDurationCap(const Duration(minutes: 94, seconds: 17));
+      // The forward is fire-and-forget; let it land.
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final call = harness.calls.singleWhere(
+        (call) => call.method == 'setDurationCap',
+      );
+      expect(call.arguments, <String, Object?>{
+        'viewId': 1,
+        'milliseconds': 5657000,
+      });
+    });
+
+    test('clearing the cap clears it natively too', () async {
+      final controller = await playing();
+      addTearDown(controller.dispose);
+      controller.setDurationCap(const Duration(minutes: 94, seconds: 17));
+      harness.calls.clear();
+
+      controller.setDurationCap(null);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      final call = harness.calls.singleWhere(
+        (call) => call.method == 'setDurationCap',
+      );
+      expect(call.arguments, <String, Object?>{
+        'viewId': 1,
+        'milliseconds': null,
+      });
+    });
+  });
 }

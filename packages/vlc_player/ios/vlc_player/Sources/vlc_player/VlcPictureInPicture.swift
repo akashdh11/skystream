@@ -53,6 +53,10 @@ final class VlcPictureInPictureController: NSObject {
   private var formatHeight = 0
   /// Presentation times, when the layer has no timebase to read them from.
   private var frameIndex = 0
+  /// The rate the layer's clock was last set to, so `syncMediaClock`
+  /// only touches it when the transport actually changed. Reset when the
+  /// layer is torn down, so a rebuilt one is set again.
+  private var lastClockRate: Float?
   /// Whether a start is still waiting on `isPictureInPicturePossible`.
   private var wantsStart = false
   /// The app actually leaving (Home, the app switcher, the lock) — Control
@@ -578,6 +582,7 @@ final class VlcPictureInPictureController: NSObject {
     // it frames to present long before the tap.
     startFeed()
     _ = feedFrame()
+    syncMediaClock()
     os_log("PiP controller prepared", log: Self.pipLog, type: .debug)
     return true
   }
@@ -691,6 +696,14 @@ final class VlcPictureInPictureController: NSObject {
       attachmentMode: kCMAttachmentMode_ShouldPropagate)
     layer.enqueue(sampleBuffer)
     framesEnqueued += 1
+    // Keep the layer's clock locked to the media's, so the PiP window's
+    // playhead reads the film's position: the feed is the only thing that
+    // runs while the window is up. Once a second is enough — the clock
+    // and the film advance together at 1x between checks, and a seek
+    // re-anchors at once (see [VlcPlayerPlatformView.pipSkip]).
+    if framesEnqueued % 30 == 0 {
+      syncMediaClock()
+    }
     return true
   }
 
@@ -703,6 +716,54 @@ final class VlcPictureInPictureController: NSObject {
     // all the layer asks of a timestamp.
     frameIndex += 1
     return CMTime(value: Int64(frameIndex), timescale: 30)
+  }
+
+  /// Anchors the display layer's clock to the media's clock, so the PiP
+  /// window's playhead — and the system's live/VOD judgement — reads the
+  /// film's position, not the host's uptime.
+  ///
+  /// The layer's `controlTimebase` is a host-time clock: created at
+  /// `prepare` it reads host uptime (hundreds of thousands of seconds),
+  /// and the feed stamps every frame with that time. The system reads the
+  /// current position from those stamps against the time range, so a
+  /// "now" that lies far outside [0, duration] has no playhead — the
+  /// progress line sits at the start — and reads as a live edge: the
+  /// window shows LIVE and the step buttons do nothing, while the
+  /// in-app player, which reads position from libVLC, is fine. Anchoring
+  /// the timebase to the media time makes the stamps the film's position.
+  ///
+  /// Re-anchors only on a real jump (a seek, or drift past a second), so
+  /// normal playback — timebase and media advancing together at 1x — is
+  /// left alone. The rate follows the transport: frozen while paused, so
+  /// a paused frame's stamps stop moving and the playhead stays put.
+  /// Called from the feed (throttled to once a second) and after a play,
+  /// pause or skip. Main thread only: the layer and timebase are UIKit
+  /// objects, and every caller already is (the feed timer, the method
+  /// channel, the PiP delegate).
+  func syncMediaClock() {
+    guard Thread.isMainThread else {
+      DispatchQueue.main.async { [weak self] in self?.syncMediaClock() }
+      return
+    }
+    guard let layer = displayLayer,
+          let timebase = layer.controlTimebase,
+          let player else {
+      return
+    }
+    let mediaMs = player.mediaTimeMilliseconds
+    guard mediaMs >= 0 else { return }
+    let mediaSeconds = Double(mediaMs) / 1000.0
+    guard mediaSeconds.isFinite else { return }
+    let currentSeconds = CMTimebaseGetTime(timebase).seconds
+    if !currentSeconds.isFinite || abs(mediaSeconds - currentSeconds) > 1.0 {
+      CMTimebaseSetTime(
+        timebase, time: CMTime(value: Int64(mediaMs), timescale: 1000))
+    }
+    let wantedRate: Float = player.pipIsPlaying ? 1.0 : 0.0
+    if lastClockRate != wantedRate {
+      CMTimebaseSetRate(timebase, rate: wantedRate)
+      lastClockRate = wantedRate
+    }
   }
 
   /// Ends the feed, drops the layer and lets the PiP controller go.
@@ -734,6 +795,7 @@ final class VlcPictureInPictureController: NSObject {
     formatWidth = 0
     formatHeight = 0
     frameIndex = 0
+    lastClockRate = nil
     pipController = nil
   }
 

@@ -155,6 +155,8 @@ abstract class VlcPlayerController extends ValueNotifier<VlcPlayerValue> {
   ///
   /// The cap only ever shortens: a shorter report, or an unknown one, is
   /// published as it is. It applies at once and lasts until the next media.
+  /// The native side is told the same length, so its picture-in-picture
+  /// window draws the same timeline instead of reading the film as live.
   void setDurationCap(Duration? cap);
 
   /// Loads a playlist and selects [initialIndex].
@@ -1102,6 +1104,25 @@ class _VlcPlayerController extends VlcPlayerController
     if (pending != null) _pendingThrottledValue = _capDuration(pending);
     final capped = _capDuration(value);
     if (capped != value) value = capped;
+    // The PiP window's time range reads the same truth: a host that does
+    // not know the call still plays, only with a PiP window that cannot
+    // tell a VOD from live (see VlcPlayerPlatformView.setPipDurationCap).
+    _sendDurationCap(cap);
+  }
+
+  /// Forwards the measured length to the native side, best effort: a
+  /// backend that does not know the call still plays.
+  Future<void> _sendDurationCap(Duration? cap) async {
+    final viewId = _viewId;
+    if (viewId == null) return;
+    try {
+      await _invokeNative<void>('setDurationCap', <String, Object?>{
+        'viewId': viewId,
+        'milliseconds': cap?.inMilliseconds,
+      });
+    } catch (error) {
+      if (kDebugMode) debugPrint('vlc_player: setDurationCap failed: $error');
+    }
   }
 
   @override
@@ -2224,6 +2245,7 @@ class _VlcPlayerController extends VlcPlayerController
       'uri': source.uri.toString(),
       'autoPlay': autoPlay,
       if (keepPicture) 'keepPicture': true,
+      if (source.isLive) 'isLive': true,
       'httpHeaders': source.httpHeaders,
       if (mediaOptions.isNotEmpty) 'mediaOptions': mediaOptions,
       if (source.startPosition > Duration.zero)

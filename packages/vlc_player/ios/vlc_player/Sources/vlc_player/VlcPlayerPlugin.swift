@@ -145,6 +145,7 @@ public class VlcPlayerPlugin: NSObject, FlutterPlugin {
         startPosition: startPosition,
         keepPicture: arguments["keepPicture"] as? Bool ?? false,
         autoPlay: autoPlay,
+        isLive: arguments["isLive"] as? Bool ?? false,
         result: result
       )
     case "play":
@@ -169,6 +170,13 @@ public class VlcPlayerPlugin: NSObject, FlutterPlugin {
         return
       }
       player.seekToFraction(fraction)
+      result(nil)
+    case "setDurationCap":
+      // The host's measured length, in milliseconds; null (or absent)
+      // clears it. The PiP window's time range and skip clamp read it,
+      // so a VOD whose length libVLC misreports still draws a timeline.
+      player.setPipDurationCap(
+        milliseconds: Self.intValue(arguments["milliseconds"]))
       result(nil)
     case "setVolume":
       guard let volume = Self.intValue(arguments["volume"]) else {
@@ -564,6 +572,7 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     startPosition: Int,
     keepPicture: Bool,
     autoPlay: Bool,
+    isLive: Bool = false,
     result: @escaping FlutterResult
   ) {
     guard let url = URL(string: uri) else {
@@ -590,6 +599,8 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     mediaPlayer.media = media
     interruption = "none"
     pipPlaying = false
+    pipMeasuredDurationMs = nil
+    pipSourceIsLive = isLive
     sendSnapshot(force: true, stateOverride: "opening")
     if autoPlay {
       acquireAudioSession()
@@ -612,6 +623,7 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     mediaPlayer.play()
     pipPlaying = true
     preparePictureInPicture()
+    pictureInPicture?.syncMediaClock()
     sendSnapshot()
   }
 
@@ -622,6 +634,7 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     interruption = "none"
     mediaPlayer.pause()
     pipPlaying = false
+    pictureInPicture?.syncMediaClock()
     sendSnapshot()
   }
 
@@ -734,12 +747,78 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
   /// film floats") means.
   private var pipPlaying = false
 
+  /// The host's measured length for the current media, in milliseconds —
+  /// the duration the app measured off the video's own HLS playlist (see
+  /// `VlcPlayerController.setDurationCap`). libVLC reports an HLS master's
+  /// length as that of the longest playlist it has loaded, alternative
+  /// renditions included, so for the streams this app plays it is often
+  /// 0 / unknown (or wildly long, e.g. a subtitle track claiming 99,999 s).
+  /// The PiP window's time range and skip clamp use this first: it is the
+  /// truth the in-app timeline already shows. Nil when nothing has been
+  /// measured — a true live stream, or a local file whose length libVLC
+  /// knows — and cleared on a new source, like the Dart cap.
+  private var pipMeasuredDurationMs: Int?
+
+  /// Whether the current media is a live stream, as the source said when
+  /// it was set. A live stream never gets a duration derived from its
+  /// position (see [pipKnownDurationMs]): its window slides, so a derived
+  /// length would dress it up as a VOD.
+  private var pipSourceIsLive = false
+
   /// Whether the transport is playing, for the PiP window's play/pause.
   var pipIsPlaying: Bool {
     return pipPlaying
   }
 
-  /// Seeks by [seconds], clamped to the media, for the PiP window's step.
+  /// The media's known length, in milliseconds, for the PiP window: the
+  /// host's measured length first, libVLC's own second, and — for a VOD
+  /// whose length neither knows yet — a length derived from the place
+  /// libVLC has reached over the fraction it reports (`time / position`).
+  /// The derivation only runs once the film is past 5%, where the
+  /// fraction is steady enough to mean something, and never for a live
+  /// stream. 0 when nothing can be said: the range is then unbounded,
+  /// which is how the system shows LIVE, and that is right for a true
+  /// live stream.
+  private var pipKnownDurationMs: Int {
+    if let measured = pipMeasuredDurationMs, measured > 0 {
+      return measured
+    }
+    if let length = mediaPlayer.media?.length, length.intValue > 0 {
+      return length.intValue
+    }
+    if !pipSourceIsLive {
+      let seconds = Double(mediaPlayer.time.intValue) / 1000.0
+      let fraction = Double(mediaPlayer.position)
+      if seconds > 0, fraction > 0.05, fraction <= 1.0 {
+        let derived = seconds / fraction
+        if derived.isFinite, derived > 0 {
+          return Int(derived * 1000.0)
+        }
+      }
+    }
+    return 0
+  }
+
+  /// Stores the host's measured length for PiP, or clears it (nil). Called
+  /// from the `setDurationCap` channel method.
+  func setPipDurationCap(milliseconds: Int?) {
+    pipMeasuredDurationMs = milliseconds.flatMap { $0 > 0 ? $0 : nil }
+  }
+
+  /// The current media time in milliseconds, for the PiP layer's clock.
+  var mediaTimeMilliseconds: Int {
+    return mediaPlayer.time.intValue
+  }
+
+  /// Seeks by [seconds], clamped to the media's known length, for the PiP
+  /// window's step.
+  ///
+  /// The current place is libVLC's absolute time when it has one; the
+  /// position fraction over the known length when it does not (HLS time
+  /// can read 0 while the fraction still tracks the window). The clamp
+  /// uses the same known length the time range does — the host's measured
+  /// length first — so the step never lands past a length libVLC
+  /// over-reports.
   ///
   /// A seek restarts the input, and on some streams libVLC leaves the
   /// transport paused afterwards, so a playing film came back paused from a
@@ -747,12 +826,24 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
   /// playing, paused stays paused — so a skip never flips it.
   func pipSkip(by seconds: Double) {
     let wasPlaying = pipPlaying
-    let position = Double(mediaPlayer.time.intValue) / 1000.0 + seconds
-    let duration = Double(mediaPlayer.media?.length.intValue ?? 0) / 1000.0
-    let clamped = duration > 0
-      ? min(max(position, 0), duration)
-      : max(position, 0)
+    let known = Double(pipKnownDurationMs) / 1000.0
+    let timeSeconds = Double(mediaPlayer.time.intValue) / 1000.0
+    let now: Double
+    if timeSeconds > 0 {
+      now = timeSeconds
+    } else if known > 0 {
+      now = Double(mediaPlayer.position) * known
+    } else {
+      now = 0
+    }
+    let target = now + seconds
+    let clamped = known > 0
+      ? min(max(target, 0), known)
+      : max(target, 0)
     seekTo(milliseconds: Int(clamped * 1000))
+    // Re-anchor the PiP layer's clock at once, so the window's playhead
+    // follows the jump instead of waiting for the feed's drift check.
+    pictureInPicture?.syncMediaClock()
     if wasPlaying {
       // A no-op when the seek left playback running; the resume when it did
       // not. `play()` is idempotent, so this cannot start a film the viewer
@@ -761,17 +852,24 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     }
   }
 
-  /// The scrub range the PiP window draws, or open-ended when the media has
-  /// no length to draw from yet. An invalid range makes the system treat the
-  /// playback delegate as broken, so a stream with no length reports an
-  /// unbounded range instead — the safe default for live-style content.
+  /// The scrub range the PiP window draws, from the media's known length.
+  ///
+  /// The host's measured length first, libVLC's own second, a length
+  /// derived from the place over the fraction third (see
+  /// [pipKnownDurationMs]). An unbounded range when nothing can be said
+  /// is what the system shows as LIVE: right for a true live stream, and
+  /// the reason a VOD whose length libVLC misreports used to read as one
+  /// — the measured length is what keeps a VOD out of it. The range is
+  /// read live on every query, so once a length is known the window's
+  /// next report is bounded.
   func pipTimeRange() -> CMTimeRange {
-    guard let length = mediaPlayer.media?.length, length.intValue > 0 else {
+    let known = pipKnownDurationMs
+    guard known > 0 else {
       return CMTimeRange(start: .negativeInfinity, duration: .positiveInfinity)
     }
     return CMTimeRange(
       start: .zero,
-      duration: CMTime(value: Int64(length.intValue), timescale: 1000))
+      duration: CMTime(value: Int64(known), timescale: 1000))
   }
 
   func seekTo(milliseconds: Int) {
