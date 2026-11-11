@@ -39,22 +39,12 @@ class SideCarSubtitleView extends StatefulWidget {
     required this.controller,
     required this.subtitles,
     required this.settings,
-    this.picture,
     super.key,
   });
 
   final VlcPlayerController controller;
   final SideCarSubtitles subtitles;
   final PlayerSettings settings;
-
-  /// The picture's on-screen rect, in the same coordinates as the player
-  /// area this view is laid out over — null when it cannot be measured.
-  /// The lines sit at the same place the embedded track's do (see
-  /// [subtitleTargetY]): a small fixed margin above the picture's bottom
-  /// edge, never lifted over the bottom controls, so they never move when
-  /// the controls show or hide. Null falls back to the edge margin plus
-  /// the viewer's lift above the area's bottom.
-  final Rect? picture;
 
   @override
   State<SideCarSubtitleView> createState() => _SideCarSubtitleViewState();
@@ -149,25 +139,20 @@ class _SideCarSubtitleViewState extends State<SideCarSubtitleView> {
     final frame = subtitleFrameHeight(area);
     final margin = frame * kSubtitleEdgeMargin;
     final side = area.width * _kSideMargin;
-    // The viewer's lift, a share of the frame as libVLC's is of the picture.
-    // Bottom lines only: a line placed at the top or the middle stays there.
-    final rest = margin + widget.settings.subtitleRaise.clamp(0.0, 0.5) * frame;
 
     List<Widget> band(SubtitlePlacement placement) => [
       for (final cue in _shown)
         if (cue.placement == placement) _cue(cue, style, fontSize),
     ];
 
-    // The lines' bottom edge: the same target the embedded track is
+    // The lines' bottom edge: the same fixed target the embedded track is
     // anchored to — see [subtitleTargetY] — so a file and a track inside
-    // the video sit at the same place. When the picture cannot be measured
-    // the rest above; never the bottom chrome, so the lines never move
-    // when the controls show or hide.
-    final picture = widget.picture;
-    final bottomOffset = picture == null || picture.isEmpty
-        ? rest
-        : area.height -
-              subtitleTargetY(area, picture, widget.settings.subtitleRaise);
+    // the video sit at the same place. One fixed place, from the area
+    // alone: a pinch never moves the lines, and never the bottom chrome,
+    // so they never move when the controls show or hide. Bottom lines
+    // only: a line placed at the top or the middle stays there.
+    final bottomOffset =
+        area.height - subtitleTargetY(area, widget.settings.subtitleRaise);
 
     // Where two lines are due together the earlier one keeps its place and
     // the later one stacks away from the edge, as libass lays them out.

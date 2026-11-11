@@ -193,6 +193,25 @@ void main() {
     });
   });
 
+  group('subtitleTargetY', () {
+    test('is one fixed place above the area\'s bottom, whatever the picture', () {
+      // A 16:9 picture on a 932x430 landscape phone: the lines sit 6% of
+      // the frame above the area's bottom — the same low place for every
+      // fit and zoom. No picture in it: the same area always reads the
+      // same place.
+      expect(subtitleTargetY(const Size(932, 430), 0), closeTo(404.2, 0.01));
+      expect(subtitleTargetY(const Size(800, 400), 0), closeTo(376, 0.01));
+    });
+
+    test('the viewer\'s lift raises the fixed place', () {
+      // The lift is a share of the frame, on top of the edge margin.
+      expect(
+        subtitleTargetY(const Size(932, 430), 0.2),
+        closeTo(430 - 25.8 - 86, 0.01),
+      );
+    });
+  });
+
   group('subtitleLookAnchored', () {
     // A 2:1 frame filling an 800x400 player: the picture is the screen, so
     // the anchored look is the plain one, lifted by the edge margin alone.
@@ -221,11 +240,9 @@ void main() {
     });
 
     test('a 16:9 picture on a landscape phone sits low, not a bar above it', () {
-      // Anchoring the target to the bottom chrome's height would float
-      // the lines a full bar above the picture even with the controls
-      // down — a raise of 0.28 on this frame. The target is the
-      // picture's own bottom edge now, so the raise is the edge margin
-      // alone, the normal Netflix place.
+      // The target is the area's bottom edge now — a small fixed margin
+      // above it — so the raise is the edge margin alone, the normal
+      // Netflix place.
       final look = anchored(
         area: const Size(932, 430),
         frame: const Size(1920, 1080),
@@ -249,13 +266,36 @@ void main() {
       expect(look.raise, closeTo(0.28, 1e-9));
     });
 
-    test('a pinch out keeps the lines at the picture\'s bottom margin', () {
-      // Half size, the picture's bottom is above the screen's: the lines
-      // keep the edge margin above the picture's own bottom, scaled with
-      // it, rather than dropping to the area's bottom.
+    test('a pinch in or out lands the lines at the same place', () {
+      // The report: zooming in or out moved the subtitles with the
+      // picture. The target is the area's now, so the lines land at the
+      // same screen y at 1.0x, 1.5x and 2.5x — and read the same size.
+      const target = 400 - 400 * 0.06; // 376, the fixed place
+      const targetSize = 400 / 24; // subtitleFontSize at this area
+      for (final pinch in <double>[1.0, 1.5, 2.5]) {
+        final look = anchored(pinchScale: pinch);
+        // The picture on screen, as the look computes it: contain scales
+        // the 1600x800 frame to the 800x400 screen (0.5), then the pinch
+        // scales it about the screen's centre.
+        final displayScaleY = 0.5 * pinch;
+        final height = 800 * displayScaleY;
+        final bottom = 200 + height / 2;
+        final landed = bottom - look.raise * height;
+        expect(landed, closeTo(target, 1.0), reason: 'pinch $pinch');
+        final rendered = 800 / 24 * (look.textScale / 100) * displayScaleY;
+        expect(rendered, closeTo(targetSize, 0.5), reason: 'pinch $pinch');
+      }
+    });
+
+    test('a pinch out stops the lines at the picture\'s bottom edge', () {
+      // Half size, the picture's bottom is above the fixed target — and
+      // libVLC cannot draw below the frame, so the raise clamps at 0 and
+      // the lines sit at the picture's bottom edge until the picture
+      // covers the target again, rather than dropping to the area's
+      // bottom. The size still undoes the zoom.
       final look = anchored(pinchScale: 0.5);
       expect(look.textScale, 200);
-      expect(look.raise, closeTo(0.06, 1e-9));
+      expect(look.raise, 0.0);
     });
 
     test('the viewer\'s lift raises the anchor', () {

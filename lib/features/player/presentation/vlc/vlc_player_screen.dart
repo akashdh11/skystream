@@ -978,9 +978,15 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
 
   /// The pinch zoom's re-anchor, held back while the gesture runs: the
   /// scale reports at 60 fps, and a look per frame would cross the channel
-  /// sixty times a second for a subtitle that only settles when the
-  /// fingers lift.
+  /// sixty times a second. So the lines are re-anchored at most once every
+  /// 100 ms while the fingers move — enough for them to track the one
+  /// fixed place on screen instead of scaling with the video — and once
+  /// more when the picture settles.
   Timer? _subtitleReanchorTimer;
+
+  /// When the embedded subtitles were last re-anchored, for the throttle
+  /// in [_onVideoScaleChanged].
+  DateTime? _lastSubtitleReanchor;
 
   ProviderContainer? _container;
 
@@ -1177,11 +1183,11 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     _chrome = ChromeVisibilityController(
       isPlaying: () => _controller.value.isPlaying,
     );
-    // The embedded subtitle's anchor follows the picture: a pinch or a
-    // rotation moves the picture it is drawn into, so the look is
-    // recomputed with it — see [_reanchorSubtitles]. The chrome is not in
-    // it: the lines never move when the controls show or hide, so the
-    // chrome needs no listener here.
+    // The embedded subtitle lines sit at one fixed place on screen — the
+    // area's bottom margin, see [subtitleLookAnchored] — so a pinch must
+    // recompute the look, or the lines scale with the picture they are
+    // drawn into. The chrome is not in it: the lines never move when the
+    // controls show or hide, so the chrome needs no listener here.
     _videoScale.addListener(_onVideoScaleChanged);
     _watchdog = Timer.periodic(_kWatchdogTick, (_) {
       _checkFirstFrame();
@@ -1261,9 +1267,18 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     _restyleSubtitles(_playerSettings.value);
   }
 
-  /// A pinch reports at 60 fps while the fingers are down; the look is
-  /// recomputed once they have held still, when the picture settles.
+  /// A pinch reports at 60 fps while the fingers are down: the look is
+  /// recomputed as the picture moves, throttled to once every 100 ms, so
+  /// the embedded lines track the one fixed place on screen instead of
+  /// scaling with the video — and once more when the picture settles.
   void _onVideoScaleChanged() {
+    final now = DateTime.now();
+    if (_lastSubtitleReanchor == null ||
+        now.difference(_lastSubtitleReanchor!) >=
+            const Duration(milliseconds: 100)) {
+      _lastSubtitleReanchor = now;
+      _reanchorSubtitles();
+    }
     _subtitleReanchorTimer?.cancel();
     _subtitleReanchorTimer = Timer(
       const Duration(milliseconds: 150),
@@ -1271,8 +1286,8 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     );
   }
 
-  /// The look [settings] give libVLC's lines, anchored to the picture's
-  /// bottom edge on screen: see [subtitleLookAnchored]. The geometry is only
+  /// The look [settings] give libVLC's lines, anchored to one fixed place
+  /// on screen: see [subtitleLookAnchored]. The geometry is only
   /// known once a picture is up — before that, and wherever it cannot be
   /// measured, the unanchored look, which is what a player took before.
   VlcSubtitleLook _anchoredSubtitleLook(PlayerSettings settings) {
@@ -1291,14 +1306,13 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       return plain;
     }
     if (screen.isEmpty) return plain;
-    // Fixed target: the lines sit at one place — just above the picture's
-    // bottom edge — whether or not the chrome is currently up. Anchoring
-    // to the bottom controls' height floated them a full bar above the
-    // picture even with the bars down, which the viewer reported as the
-    // subtitle sitting too high; letting the target follow the chrome made
-    // them jump every time the bars showed or hid, which was the shaking.
-    // The chrome height is not in the target at all, so the lines never
-    // move and never sit high.
+    // Fixed target: the lines sit at one place — just above the area's
+    // bottom edge — whatever the picture does under them, which the
+    // viewer reported as the subtitle following the zoom. Anchoring to
+    // the picture's bottom edge followed it up on a pinch-out; letting
+    // the target follow the chrome made them jump every time the bars
+    // showed or hid, which was the shaking. The chrome height is not in
+    // the target at all, so the lines never move and never sit high.
     return subtitleLookAnchored(
       settings,
       createdRelativeSize: _createdRelativeSize,
@@ -6077,19 +6091,14 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
         final settings =
             ref.watch(playerSettingsProvider).asData?.value ??
             const PlayerSettings();
-        // The picture's on-screen rect, so a file's lines sit at the same
-        // place the embedded track's do — see [subtitleTargetY]. The chrome
-        // is not in it: the lines never move when the controls show or hide.
-        // Rebuilt on the pinch scale, so a pinch moves the lines with the
-        // picture they are drawn over.
-        return ValueListenableBuilder<double>(
-          valueListenable: _videoScale,
-          builder: (context, _, _) => SideCarSubtitleView(
-            controller: _controller,
-            subtitles: _sideCars,
-            settings: settings,
-            picture: _videoContentRect(),
-          ),
+        // The lines sit at one fixed place — the area's bottom margin,
+        // see [subtitleTargetY] — so a pinch never moves them, and the
+        // chrome is not in it: the lines never move when the controls
+        // show or hide.
+        return SideCarSubtitleView(
+          controller: _controller,
+          subtitles: _sideCars,
+          settings: settings,
         );
       },
     );
