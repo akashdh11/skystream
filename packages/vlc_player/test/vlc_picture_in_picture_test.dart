@@ -131,6 +131,39 @@ void main() {
     });
   });
 
+  group('a second PiP attempt after the first window closed', () {
+    test('starts again and holds the pause off', () async {
+      // The bug this holds shut: the native side tore the PiP controller
+      // down when the first window closed, so a second Home swipe rebuilt
+      // it too late and no window opened — works, fails, works, fails.
+      // The controller must go out to native again, and the pause must
+      // hold off for the second attempt exactly as it did for the first.
+      final controller = await attempting();
+      addTearDown(controller.dispose);
+      // The first window opened, then the viewer came back.
+      await harness.sendEvent(1, {'pictureInPicture': true});
+      await harness.sendEvent(1, {'pictureInPicture': false});
+      harness.calls.clear();
+
+      expect(await controller.startPictureInPicture(), isTrue);
+      expect(
+        methodsOn(harness),
+        <String>['startPictureInPicture'],
+        reason: 'the second attempt never reached the native side',
+      );
+
+      await setAppLifecycleState(AppLifecycleState.paused);
+      expect(methodsOn(harness), <String>['startPictureInPicture']);
+
+      // And the second window failing to open lands the pause, as before.
+      await harness.sendEvent(1, {'pictureInPicture': false});
+      expect(
+        methodsOn(harness),
+        <String>['startPictureInPicture', 'pause'],
+      );
+    });
+  });
+
   group('startPictureInPicture source rect', () {
     test('sends the video picture rect to native', () async {
       final controller = await playing();

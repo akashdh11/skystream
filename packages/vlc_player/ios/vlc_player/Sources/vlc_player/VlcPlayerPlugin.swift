@@ -589,10 +589,12 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     events?.arm(withKeepPicture: keepPicture)
     mediaPlayer.media = media
     interruption = "none"
+    pipPlaying = false
     sendSnapshot(force: true, stateOverride: "opening")
     if autoPlay {
       acquireAudioSession()
       mediaPlayer.play()
+      pipPlaying = true
       // The PiP controller is built now, not on tap: the window can only
       // open once the layer has presented content, and the Home-swipe
       // auto-start needs a controller that already exists and is possible
@@ -608,6 +610,7 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     // explains what the player is doing.
     interruption = "none"
     mediaPlayer.play()
+    pipPlaying = true
     preparePictureInPicture()
     sendSnapshot()
   }
@@ -618,11 +621,13 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     // filled the gap.
     interruption = "none"
     mediaPlayer.pause()
+    pipPlaying = false
     sendSnapshot()
   }
 
   func stop() {
     interruption = "none"
+    pipPlaying = false
     events?.stop()
     mediaPlayer.stop()
     relinquishAudioSession()
@@ -715,19 +720,45 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     eventHandler.send(event)
   }
 
+  /// The transport's playing state, for the PiP window's play/pause button
+  /// and for the auto-PiP gate.
+  ///
+  /// Set by the explicit transport calls (`play`/`pause`/`stop`, a new source,
+  /// the media ending or erroring, an audio interruption) — NOT read off
+  /// `mediaPlayer.isPlaying`. libVLC's own flag flickers during HLS playback
+  /// and across a seek (the input restarts, and `.buffering` is reported
+  /// throughout healthy playback), so the PiP window's button flipped between
+  /// play and pause while the film kept playing. The transport state is the
+  /// one the viewer asked for — like AVPlayer's rate, which stays 1.0 while
+  /// rebuffering — and it is also what the auto-PiP gate ("only a playing
+  /// film floats") means.
+  private var pipPlaying = false
+
   /// Whether the transport is playing, for the PiP window's play/pause.
   var pipIsPlaying: Bool {
-    return mediaPlayer.isPlaying
+    return pipPlaying
   }
 
   /// Seeks by [seconds], clamped to the media, for the PiP window's step.
+  ///
+  /// A seek restarts the input, and on some streams libVLC leaves the
+  /// transport paused afterwards, so a playing film came back paused from a
+  /// skip. The state it had before the seek is restored — playing stays
+  /// playing, paused stays paused — so a skip never flips it.
   func pipSkip(by seconds: Double) {
+    let wasPlaying = pipPlaying
     let position = Double(mediaPlayer.time.intValue) / 1000.0 + seconds
     let duration = Double(mediaPlayer.media?.length.intValue ?? 0) / 1000.0
     let clamped = duration > 0
       ? min(max(position, 0), duration)
       : max(position, 0)
     seekTo(milliseconds: Int(clamped * 1000))
+    if wasPlaying {
+      // A no-op when the seek left playback running; the resume when it did
+      // not. `play()` is idempotent, so this cannot start a film the viewer
+      // had paused.
+      play()
+    }
   }
 
   /// The scrub range the PiP window draws, or open-ended when the media has
@@ -1127,6 +1158,7 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
     if mediaPlayer.isPlaying {
       interruption = reason
       mediaPlayer.pause()
+      pipPlaying = false
       sendSnapshot(stateOverride: "paused")
       return
     }
@@ -1170,9 +1202,11 @@ final class VlcPlayerPlatformView: NSObject, VLCMediaPlayerDelegate {
       // Not .stopped as well: replacing the media on a running player passes
       // through it, and this callback lands after setSource has already
       // claimed the session for the next item.
+      pipPlaying = false
       relinquishAudioSession()
     }
     if mediaPlayer.state == .error {
+      pipPlaying = false
       sendSnapshot(
         errorCode: "playback_error",
         errorDescription: "VLC encountered an error while playing the media."

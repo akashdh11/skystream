@@ -736,6 +736,47 @@ final class VlcPictureInPictureController: NSObject {
     frameIndex = 0
     pipController = nil
   }
+
+  /// Resets the transient arm/start state after the window closes or a start
+  /// fails, WITHOUT dropping the prepared controller, layer, host view or
+  /// feed.
+  ///
+  /// `teardown()` on didStop is what made auto-PiP alternate: a window that
+  /// opened and then closed destroyed the eager controller, so the next Home
+  /// swipe rebuilt it fresh inside `willResignActive` and the cold layer
+  /// had not presented a frame by the time `didEnterBackground` fired — the
+  /// arm never became ready and the fallback gate was stranded by the
+  /// suspended run loop, so no window opened. A failed attempt, by contrast,
+  /// kept the controller (`cancelPendingStart`), so the layer was warm and
+  /// the next arm found it already possible — works, fails, works, fails.
+  /// Keeping the warm controller makes every Home swipe behave like the
+  /// first one: the layer is already presenting when the arm brings it to
+  /// the front.
+  ///
+  /// The host view goes back under Flutter's view, at the window's bounds —
+  /// exactly the eager state `prepare()` leaves — so it never draws over the
+  /// app UI. `teardown()` is still what `dispose()` and the start gate's
+  /// own timeout use: disposing, and a layer that never became possible at
+  /// all, genuinely need a rebuild.
+  private func resetAfterStop() {
+    armObs?.invalidate()
+    armObs = nil
+    backgroundArmed = false
+    backgroundReady = false
+    possibleObs?.invalidate()
+    possibleObs = nil
+    pipStartTimeout?.cancel()
+    pipStartTimeout = nil
+    wantsStart = false
+    framesEnqueued = 0
+    lastFeedFailure = nil
+    if let view = hostView, let window = view.window {
+      view.frame = window.bounds
+      displayLayer?.frame = view.bounds
+      window.insertSubview(view, at: 0)
+    }
+    os_log("PiP reset after stop: controller kept for the next attempt", log: Self.pipLog, type: .debug)
+  }
 }
 
 // MARK: - AVPictureInPictureControllerDelegate
@@ -752,7 +793,12 @@ extension VlcPictureInPictureController: AVPictureInPictureControllerDelegate {
     _ pictureInPictureController: AVPictureInPictureController
   ) {
     os_log("PiP window closed", log: Self.pipLog, type: .debug)
-    teardown()
+    // Keep the prepared controller: `teardown()` here is what made auto-PiP
+    // alternate (see [resetAfterStop]) — a window that opened and then
+    // closed destroyed the eager setup, so the next Home swipe rebuilt it
+    // fresh and the cold layer had not presented by the time the app
+    // backgrounded. Only the transient state is reset.
+    resetAfterStop()
     onStateChanged(false, nil)
   }
 
@@ -763,7 +809,9 @@ extension VlcPictureInPictureController: AVPictureInPictureControllerDelegate {
     os_log(
       "PiP failed to start: %{public}@",
       log: Self.pipLog, type: .error, error.localizedDescription)
-    teardown()
+    // Same as a close: the eager setup survives a failed start, so the
+    // next Home swipe arms from a warm controller instead of rebuilding.
+    resetAfterStop()
     // The error, in the system's words — Dart shows it on screen, so a
     // failed start has a reason the viewer can report.
     onStateChanged(false, error.localizedDescription)
