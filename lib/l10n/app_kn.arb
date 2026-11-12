@@ -659,5 +659,19 @@
   "devQoeLog": "QoE ಲಾಗ್",
   "devQoeLogSubtitle": "ಪ್ಲೇಬ್ಯಾಕ್ ಸಮಯಗಳನ್ನು ಆ್ಯಪ್ ಲಾಗ್‌ಗೆ ಬರೆಯುತ್ತದೆ",
   "playerGoLive": "ಲೈವ್‌ಗೆ ಹೋಗಿ",
-  "playerBehindLive": "ಲೈವ್‌ಗಿಂತ {time} ಹಿಂದೆ"
+  "playerBehindLive": "ಲೈವ್‌ಗಿಂತ {time} ಹಿಂದೆ",
+  "profileSyncTitle": "SkyStream ಸಿಂಕ್",
+  "profileSyncConnected": "{username} ಆಗಿ ಸಂಪರ್ಕಿತ ({host})",
+  "profileSyncSignedOut": "ಸೈನ್ ಇನ್ ಆಗಿಲ್ಲ. ಎಕ್ಸ್‌ಟೆನ್ಷನ್‌ಗಳು, ವೀಕ್ಷಣೆ ಇತಿಹಾಸ ಮತ್ತು ಸಂಚಿಕೆಗಳನ್ನು ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲಿ ಸಿಂಕ್ ಮಾಡಿ.",
+  "profileSyncServerUrl": "ಸರ್ವರ್ URL",
+  "profileSyncSignIn": "ಸೈನ್ ಇನ್",
+  "profileSyncSyncNow": "ಈಗ ಸಿಂಕ್ ಮಾಡಿ",
+  "profileSyncSyncing": "ಸಿಂಕ್ ಆಗುತ್ತಿದೆ…",
+  "profileSyncAuto": "ಸ್ವಯಂ ಸಿಂಕ್",
+  "profileSyncAutoSubtitle": "ವೀಕ್ಷಣೆ ಪ್ರಗತಿ ಮತ್ತು ಸಂಚಿಕೆ ಗುರುತುಗಳನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಕಳುಹಿಸಿ",
+  "profileSyncDisconnect": "ಸಂಪರ್ಕ ಕಡಿತ",
+  "profileSyncDisconnectBody": "ಈ ಸಾಧನದ ಸಿಂಕ್ ನಿಲ್ಲಿಸುವುದೇ? ಈಗಾಗಲೇ ಉಳಿಸಿದ ಇತಿಹಾಸ ಈ ಸಾಧನದಲ್ಲೂ ಸರ್ವರ್‌ನಲ್ಲೂ ಉಳಿಯುತ್ತದೆ.",
+  "profileSyncSynced": "ಸಿಂಕ್ ಮುಗಿದಿದೆ",
+  "profileSyncFailed": "ಸಿಂಕ್ ವಿಫಲವಾಗಿದೆ",
+  "profileSyncLastSynced": "ಕೊನೆಯ ಸಿಂಕ್ {time}"
 }

@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../core/domain/entity/multimedia_item.dart';
 import '../../../../core/storage/library_repository.dart';
+import '../../profile_sync/profile_sync_hooks.dart';
 
 import './library_state.dart';
 
@@ -29,12 +30,14 @@ class Library extends _$Library {
     final repository = ref.read(libraryRepositoryProvider);
     await repository.addToLibrary(item);
     refresh();
+    ref.read(profileSyncHooksProvider).onLocalChange?.call();
   }
 
   Future<void> removeItem(String url) async {
     final repository = ref.read(libraryRepositoryProvider);
     await repository.removeFromLibrary(url);
     refresh();
+    ref.read(profileSyncHooksProvider).onLocalChange?.call();
   }
 
   bool isBookmarked(String url) {

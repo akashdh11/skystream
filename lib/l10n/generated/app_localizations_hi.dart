@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -2427,5 +2426,54 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String playerBehindLive(String time) {
     return 'लाइव से $time पीछे';
+  }
+
+  @override
+  String get profileSyncTitle => 'SkyStream सिंक';
+
+  @override
+  String profileSyncConnected(String username, String host) {
+    return '$username के रूप में जुड़ा ($host)';
+  }
+
+  @override
+  String get profileSyncSignedOut =>
+      'साइन इन नहीं है। एक्सटेंशन, देखने का इतिहास और एपिसोड अपने सभी डिवाइसों पर सिंक करें।';
+
+  @override
+  String get profileSyncServerUrl => 'सर्वर URL';
+
+  @override
+  String get profileSyncSignIn => 'साइन इन';
+
+  @override
+  String get profileSyncSyncNow => 'अभी सिंक करें';
+
+  @override
+  String get profileSyncSyncing => 'सिंक हो रहा है…';
+
+  @override
+  String get profileSyncAuto => 'ऑटो-सिंक';
+
+  @override
+  String get profileSyncAutoSubtitle =>
+      'देखने की प्रगति और एपिसोड के निशान अपने आप भेजें';
+
+  @override
+  String get profileSyncDisconnect => 'डिस्कनेक्ट';
+
+  @override
+  String get profileSyncDisconnectBody =>
+      'इस डिवाइस का सिंक रोकें? जो इतिहास पहले से सहेजा है वह इस डिवाइस और सर्वर पर बना रहेगा।';
+
+  @override
+  String get profileSyncSynced => 'सिंक पूरा हुआ';
+
+  @override
+  String get profileSyncFailed => 'सिंक विफल रहा';
+
+  @override
+  String profileSyncLastSynced(String time) {
+    return 'आखिरी सिंक $time';
   }
 }

@@ -6,6 +6,7 @@ import '../config/tmdb_config.dart';
 import '../storage/storage_service.dart';
 import '../network/doh_service.dart';
 import '../logger/app_logger.dart';
+import '../../features/profile_sync/data/profile_sync_service.dart';
 
 part 'bootstrap_provider.g.dart';
 
@@ -49,6 +50,14 @@ class Bootstrap extends _$Bootstrap {
           talker.info('Bootstrap: Loaded user TMDB API key from Nuvio');
         }
       } catch (_) {}
+
+      // Starts profile sync once storage is open. A failed sign-in check must
+      // not keep the rest of the app from launching.
+      try {
+        ref.read(profileSyncProvider);
+      } catch (error, stack) {
+        talker.error('Bootstrap: profile sync failed to start', error, stack);
+      }
 
       talker.info('Bootstrap: Initialization complete');
     } catch (e, st) {

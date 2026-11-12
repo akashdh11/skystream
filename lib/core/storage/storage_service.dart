@@ -634,6 +634,34 @@ class StorageService {
     return items;
   }
 
+  /// Every history row, including `EP_` per-episode progress, for sync.
+  List<Map<String, dynamic>> getAllHistoryEntries() {
+    final entries = <Map<String, dynamic>>[];
+    for (var i = 0; i < _historyBox.length; i++) {
+      final key = _historyBox.keyAt(i);
+      final raw = _historyBox.get(key);
+      if (key is String && raw is Map) {
+        entries.add({'key': key, 'entry': Map<String, dynamic>.from(raw)});
+      }
+    }
+    return entries;
+  }
+
+  /// Writes merged history rows and drops the in-memory history cache.
+  Future<void> restoreHistoryEntries(List<Map<String, dynamic>> entries) async {
+    final batch = <String, Map<String, dynamic>>{};
+    for (final item in entries) {
+      final key = item['key'];
+      final entry = item['entry'];
+      if (key is String && entry is Map) {
+        batch[key] = Map<String, dynamic>.from(entry);
+      }
+    }
+    if (batch.isEmpty) return;
+    await _historyBox.putAll(batch);
+    _historyCacheDirty = true;
+  }
+
   int getPosition(String url) {
     // Check main entry first (movies use this)
     final key = _getKey(url);
@@ -842,7 +870,10 @@ class StorageService {
           await prefs.setString(entry.key, entry.value);
         }
         if (savedDisabledExtensions != null) {
-          await prefs.setStringList('disabled_extensions', savedDisabledExtensions);
+          await prefs.setStringList(
+            'disabled_extensions',
+            savedDisabledExtensions,
+          );
         }
         if (savedPinnedExtensions != null) {
           await prefs.setStringList('pinned_extensions', savedPinnedExtensions);

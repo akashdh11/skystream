@@ -2,6 +2,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../core/storage/history_repository.dart';
 import '../../../../core/domain/entity/multimedia_item.dart';
+import '../../profile_sync/profile_sync_hooks.dart';
 import '../../settings/presentation/general_settings_provider.dart';
 
 export '../../../../core/storage/history_repository.dart' show HistoryItem;
@@ -34,6 +35,7 @@ class WatchHistory extends _$WatchHistory {
     final repository = ref.read(historyRepositoryProvider);
     await repository.removeFromHistory(url);
     refresh();
+    _scheduleProfileSync();
   }
 
   Future<void> updateHistoryItemTimestampAndPosition(
@@ -48,6 +50,7 @@ class WatchHistory extends _$WatchHistory {
       position,
     );
     refresh();
+    _scheduleProfileSync();
   }
 
   Future<void> saveProgress(
@@ -82,5 +85,10 @@ class WatchHistory extends _$WatchHistory {
       episodePosterUrl: episodePosterUrl,
     );
     refresh();
+    _scheduleProfileSync();
+  }
+
+  void _scheduleProfileSync() {
+    ref.read(profileSyncHooksProvider).onLocalChange?.call();
   }
 }
