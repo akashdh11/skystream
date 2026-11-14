@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -2437,5 +2436,54 @@ class AppLocalizationsPa extends AppLocalizations {
   @override
   String playerBehindLive(String time) {
     return 'ਲਾਈਵ ਤੋਂ $time ਪਿੱਛੇ';
+  }
+
+  @override
+  String get profileSyncTitle => 'SkyStream sync';
+
+  @override
+  String profileSyncConnected(String username, String host) {
+    return 'Connected as $username ($host)';
+  }
+
+  @override
+  String get profileSyncSignedOut =>
+      'Not signed in. Sync extensions, watch history, and episodes across your devices.';
+
+  @override
+  String get profileSyncServerUrl => 'Server URL';
+
+  @override
+  String get profileSyncSignIn => 'Sign in';
+
+  @override
+  String get profileSyncSyncNow => 'Sync now';
+
+  @override
+  String get profileSyncSyncing => 'Syncing…';
+
+  @override
+  String get profileSyncAuto => 'Auto-sync';
+
+  @override
+  String get profileSyncAutoSubtitle =>
+      'Send watch progress and episode checkmarks automatically';
+
+  @override
+  String get profileSyncDisconnect => 'Disconnect';
+
+  @override
+  String get profileSyncDisconnectBody =>
+      'Stop syncing this device? Watch history already saved stays on this device and on the server.';
+
+  @override
+  String get profileSyncSynced => 'Sync finished';
+
+  @override
+  String get profileSyncFailed => 'Sync failed';
+
+  @override
+  String profileSyncLastSynced(String time) {
+    return 'Last sync $time';
   }
 }

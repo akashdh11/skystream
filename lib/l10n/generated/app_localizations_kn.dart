@@ -1,6 +1,5 @@
 // ignore: unused_import
 import 'package:intl/intl.dart' as intl;
-
 import 'app_localizations.dart';
 
 // ignore_for_file: type=lint
@@ -2440,5 +2439,54 @@ class AppLocalizationsKn extends AppLocalizations {
   @override
   String playerBehindLive(String time) {
     return 'ಲೈವ್‌ಗಿಂತ $time ಹಿಂದೆ';
+  }
+
+  @override
+  String get profileSyncTitle => 'SkyStream ಸಿಂಕ್';
+
+  @override
+  String profileSyncConnected(String username, String host) {
+    return '$username ಆಗಿ ಸಂಪರ್ಕಿತ ($host)';
+  }
+
+  @override
+  String get profileSyncSignedOut =>
+      'ಸೈನ್ ಇನ್ ಆಗಿಲ್ಲ. ಎಕ್ಸ್‌ಟೆನ್ಷನ್‌ಗಳು, ವೀಕ್ಷಣೆ ಇತಿಹಾಸ ಮತ್ತು ಸಂಚಿಕೆಗಳನ್ನು ನಿಮ್ಮ ಎಲ್ಲಾ ಸಾಧನಗಳಲ್ಲಿ ಸಿಂಕ್ ಮಾಡಿ.';
+
+  @override
+  String get profileSyncServerUrl => 'ಸರ್ವರ್ URL';
+
+  @override
+  String get profileSyncSignIn => 'ಸೈನ್ ಇನ್';
+
+  @override
+  String get profileSyncSyncNow => 'ಈಗ ಸಿಂಕ್ ಮಾಡಿ';
+
+  @override
+  String get profileSyncSyncing => 'ಸಿಂಕ್ ಆಗುತ್ತಿದೆ…';
+
+  @override
+  String get profileSyncAuto => 'ಸ್ವಯಂ ಸಿಂಕ್';
+
+  @override
+  String get profileSyncAutoSubtitle =>
+      'ವೀಕ್ಷಣೆ ಪ್ರಗತಿ ಮತ್ತು ಸಂಚಿಕೆ ಗುರುತುಗಳನ್ನು ಸ್ವಯಂಚಾಲಿತವಾಗಿ ಕಳುಹಿಸಿ';
+
+  @override
+  String get profileSyncDisconnect => 'ಸಂಪರ್ಕ ಕಡಿತ';
+
+  @override
+  String get profileSyncDisconnectBody =>
+      'ಈ ಸಾಧನದ ಸಿಂಕ್ ನಿಲ್ಲಿಸುವುದೇ? ಈಗಾಗಲೇ ಉಳಿಸಿದ ಇತಿಹಾಸ ಈ ಸಾಧನದಲ್ಲೂ ಸರ್ವರ್‌ನಲ್ಲೂ ಉಳಿಯುತ್ತದೆ.';
+
+  @override
+  String get profileSyncSynced => 'ಸಿಂಕ್ ಮುಗಿದಿದೆ';
+
+  @override
+  String get profileSyncFailed => 'ಸಿಂಕ್ ವಿಫಲವಾಗಿದೆ';
+
+  @override
+  String profileSyncLastSynced(String time) {
+    return 'ಕೊನೆಯ ಸಿಂಕ್ $time';
   }
 }

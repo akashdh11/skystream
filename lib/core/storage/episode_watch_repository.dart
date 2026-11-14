@@ -113,6 +113,22 @@ class EpisodeWatchRepository {
     await _persist(overrides);
   }
 
+  Map<String, bool> exportOverrides() {
+    return Map<String, bool>.from(_readOverrides());
+  }
+
+  Future<void> mergeOverrides(Map<String, bool> incoming) async {
+    if (incoming.isEmpty) return;
+    final current = Map<String, bool>.from(_readOverrides());
+    var changed = false;
+    for (final entry in incoming.entries) {
+      if (current[entry.key] == entry.value) continue;
+      current[entry.key] = entry.value;
+      changed = true;
+    }
+    if (changed) await _persist(current);
+  }
+
   Future<void> setManyWatched(
     String mainUrl,
     Iterable<Episode> episodes,

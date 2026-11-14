@@ -1877,5 +1877,44 @@
   "@devQoeLog": {"description": "Developer options: the switch that writes playback-quality (QoE) events to the app log. \"QoE\" stays as it is."},
   "@devQoeLogSubtitle": {"description": "Developer options: the line under the QoE log switch."},
   "@playerGoLive": {"description": "Player, live stream: the button that jumps back to the live edge."},
-  "@playerBehindLive": {"description": "Player, live stream: spoken label for how far behind the live edge playback is, such as \"0:42 behind live\".", "placeholders": {"time": {"type": "String", "example": "0:42"}}}
+  "@playerBehindLive": {"description": "Player, live stream: spoken label for how far behind the live edge playback is, such as \"0:42 behind live\".", "placeholders": {"time": {"type": "String", "example": "0:42"}}},
+  "profileSyncTitle": "SkyStream sync",
+  "@profileSyncTitle": {"description": "Settings group for the self-hosted profile sync server, and the title of its sign-in dialog."},
+  "profileSyncConnected": "Connected as {username} ({host})",
+  "@profileSyncConnected": {
+    "description": "Settings subtitle when this device is signed in to the profile sync server.",
+    "placeholders": {
+      "username": {"type": "String", "example": "matt"},
+      "host": {"type": "String", "example": "sync.example.com"}
+    }
+  },
+  "profileSyncSignedOut": "Not signed in. Sync extensions, watch history, and episodes across your devices.",
+  "@profileSyncSignedOut": {"description": "Settings subtitle when profile sync is not signed in."},
+  "profileSyncServerUrl": "Server URL",
+  "@profileSyncServerUrl": {"description": "Label of the profile sync server address field."},
+  "profileSyncSignIn": "Sign in",
+  "@profileSyncSignIn": {"description": "Button and row that open the profile sync sign-in dialog."},
+  "profileSyncSyncNow": "Sync now",
+  "@profileSyncSyncNow": {"description": "Settings row that pushes and pulls the profile immediately."},
+  "profileSyncSyncing": "Syncing…",
+  "@profileSyncSyncing": {"description": "Settings subtitle while a profile sync is in progress."},
+  "profileSyncAuto": "Auto-sync",
+  "@profileSyncAuto": {"description": "Switch that sends watch progress a few seconds after it changes."},
+  "profileSyncAutoSubtitle": "Send watch progress and episode checkmarks automatically",
+  "@profileSyncAutoSubtitle": {"description": "Line under the auto-sync switch."},
+  "profileSyncDisconnect": "Disconnect",
+  "@profileSyncDisconnect": {"description": "Settings row and confirm button that sign this device out of profile sync."},
+  "profileSyncDisconnectBody": "Stop syncing this device? Watch history already saved stays on this device and on the server.",
+  "@profileSyncDisconnectBody": {"description": "Body of the dialog that confirms disconnecting profile sync."},
+  "profileSyncSynced": "Sync finished",
+  "@profileSyncSynced": {"description": "Toast after profile sync succeeds."},
+  "profileSyncFailed": "Sync failed",
+  "@profileSyncFailed": {"description": "Toast when profile sync fails and the server gave no message."},
+  "profileSyncLastSynced": "Last sync {time}",
+  "@profileSyncLastSynced": {
+    "description": "Settings subtitle naming when this device last finished a profile sync.",
+    "placeholders": {
+      "time": {"type": "String", "example": "12 Nov, 14:40"}
+    }
+  }
 }
