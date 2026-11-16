@@ -86,6 +86,55 @@ void main() {
       expect(recorder.record(sample(5000, 10000)), isFalse);
     });
 
+    test('a long video is saved every 15 seconds, not every 5 percent', () {
+      final stub = _StubHistory();
+      final recorder = PlaybackProgressRecorder(
+        read: <T>(_) => stub as T,
+        item: MultimediaItem(
+          title: 'T',
+          url: 'https://example.com/t',
+          posterUrl: '',
+          contentType: MultimediaContentType.movie,
+        ),
+        episode: null,
+        videoUrl: 'https://example.com/t',
+        token: 1,
+      );
+
+      // 5% of an hour is 3 minutes. Fourteen seconds must not write.
+      expect(recorder.record(sample(14000, 3600000)), isFalse);
+      expect(stub.writes, 0);
+
+      expect(recorder.record(sample(15000, 3600000)), isTrue);
+      expect(stub.lastPosition, 15000);
+
+      expect(recorder.record(sample(29999, 3600000)), isFalse);
+      expect(recorder.record(sample(30000, 3600000)), isTrue);
+      expect(stub.writes, 2);
+    });
+
+    test('a short video still waits for 5 percent', () {
+      final stub = _StubHistory();
+      final recorder = PlaybackProgressRecorder(
+        read: <T>(_) => stub as T,
+        item: MultimediaItem(
+          title: 'T',
+          url: 'https://example.com/t',
+          posterUrl: '',
+          contentType: MultimediaContentType.movie,
+        ),
+        episode: null,
+        videoUrl: 'https://example.com/t',
+        token: 1,
+      );
+
+      // 5% of 40 seconds is 2 seconds, under the 15-second cap.
+      expect(recorder.record(sample(1999, 40000)), isFalse);
+      expect(stub.writes, 0);
+      expect(recorder.record(sample(2000, 40000)), isTrue);
+      expect(stub.lastPosition, 2000);
+    });
+
     test('never writes progress for a livestream', () {
       final recorder = recorderFor(MultimediaContentType.livestream);
       expect(recorder.record(sample(600000, 3600000)), isFalse);
