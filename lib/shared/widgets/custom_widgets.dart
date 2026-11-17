@@ -294,6 +294,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
       obscureText: widget.obscureText,
       keyboardType: widget.keyboardType,
       autocorrect: !isAddress,
+      // The default completion already moves to the next field, and
+      // onSubmitted below moves again. On a three-field form, Next then
+      // skips the middle field.
+      onEditingComplete: () => widget.controller?.clearComposing(),
       onSubmitted: (value) {
         // Call user callback first — it may navigate away or close a host
         // dialog, so bail out if we got unmounted before moving focus.

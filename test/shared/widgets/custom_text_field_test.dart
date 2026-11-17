@@ -42,6 +42,45 @@ void main() {
     return (button?.child as Text?)?.data;
   }
 
+  testWidgets('Next stops on the following field', (tester) async {
+    final first = TextEditingController();
+    final second = TextEditingController();
+    final third = TextEditingController();
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+    addTearDown(third.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              CustomTextField(
+                controller: first,
+                autofocus: true,
+                textInputAction: TextInputAction.next,
+                hintText: 'server',
+              ),
+              CustomTextField(
+                controller: second,
+                textInputAction: TextInputAction.next,
+                hintText: 'username',
+              ),
+              CustomTextField(controller: third, hintText: 'password'),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pump();
+
+    final focused = FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<TextField>();
+    expect(focused?.decoration?.hintText, 'username');
+  });
+
   testWidgets('with the keyboard put away, down and up leave the field', (
     tester,
   ) async {
