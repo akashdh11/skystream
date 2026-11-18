@@ -135,4 +135,188 @@ void main() {
     expect(decoded.stremioAddons, ['https://addon/manifest.json']);
     expect(decoded.replaceExtensions, isFalse);
   });
+
+  test('payload encodes activeProviderId, nuvioRepoSettings, stremioAddonStates, and tombstones via meta fallback', () {
+    const payload = ProfileSyncPayload(
+      updatedAt: 99,
+      skystreamPlugins: [
+        {'packageName': 'com.a', 'url': 'https://a.sky'},
+      ],
+      activeProviderId: 'com.a::sub1',
+      nuvioRepoSettings: {
+        'https://nuvio.repo/manifest.json': {
+          'disabled': ['s1'],
+          'enabled': ['s2'],
+        },
+      },
+      stremioAddonStates: {'https://addon/manifest.json': false},
+      deletedHistoryTimestamps: {'show': 88},
+      deletedLibraryUrls: ['https://removed'],
+    );
+
+    final json = payload.toJson();
+    // Emulate an older v1 server that strips unknown top-level keys and only
+    // keeps skystreamPlugins.
+    final v1ServerRoundTrip = {
+      'version': json['version'],
+      'updatedAt': json['updatedAt'],
+      'skystreamPlugins': json['skystreamPlugins'],
+    };
+
+    final decoded = ProfileSyncPayload.fromJson(v1ServerRoundTrip);
+    expect(decoded.skystreamPlugins, [
+      {'packageName': 'com.a', 'url': 'https://a.sky'},
+    ]);
+    expect(decoded.activeProviderId, 'com.a::sub1');
+    expect(decoded.nuvioRepoSettings['https://nuvio.repo/manifest.json'], {
+      'disabled': ['s1'],
+      'enabled': ['s2'],
+    });
+    expect(decoded.stremioAddonStates['https://addon/manifest.json'], isFalse);
+    expect(decoded.deletedHistoryTimestamps['show'], 88);
+    expect(decoded.deletedLibraryUrls, ['https://removed']);
+  });
+
+  test('mergeStringsThreeWay unions without baseline and propagates additions/removals with baseline', () {
+    final firstSync = mergeStringsThreeWay(
+      baseline: null,
+      local: ['localOnly'],
+      remote: ['remoteOnly'],
+    );
+    expect(firstSync.toAddLocally, ['remoteOnly']);
+    expect(firstSync.toRemoveLocally, isEmpty);
+    expect(firstSync.merged, ['remoteOnly', 'localOnly']);
+
+    final deviceARemoves = mergeStringsThreeWay(
+      baseline: ['a', 'b'],
+      local: ['b'],
+      remote: ['a', 'b', 'c'],
+    );
+    expect(deviceARemoves.toAddLocally, ['c']);
+    expect(deviceARemoves.toRemoveLocally, isEmpty);
+    expect(deviceARemoves.merged, ['b', 'c']);
+
+    final deviceBObservesRemoval = mergeStringsThreeWay(
+      baseline: ['a', 'b'],
+      local: ['a', 'b'],
+      remote: ['b', 'c'],
+    );
+    expect(deviceBObservesRemoval.toAddLocally, ['c']);
+    expect(deviceBObservesRemoval.toRemoveLocally, ['a']);
+    expect(deviceBObservesRemoval.merged, ['b', 'c']);
+  });
+
+  test('mergeMapsThreeWay propagates updates and removals by key', () {
+    final diff = mergeMapsThreeWay(
+      baseline: [
+        {'packageName': 'com.a', 'customBaseUrl': 'https://v1'},
+        {'packageName': 'com.b'},
+      ],
+      local: [
+        {'packageName': 'com.a', 'customBaseUrl': 'https://v1'},
+        {'packageName': 'com.b'},
+      ],
+      remote: [
+        {'packageName': 'com.a', 'customBaseUrl': 'https://v2'},
+        {'packageName': 'com.c', 'url': 'https://c.sky'},
+      ],
+      keyOf: (p) => p['packageName'],
+    );
+
+    expect(diff.toRemoveLocally, ['com.b']);
+    expect(diff.toAddLocally, [
+      {'packageName': 'com.a', 'customBaseUrl': 'https://v2'},
+      {'packageName': 'com.c', 'url': 'https://c.sky'},
+    ]);
+    expect(diff.merged, [
+      {'packageName': 'com.a', 'customBaseUrl': 'https://v2'},
+      {'packageName': 'com.c', 'url': 'https://c.sky'},
+    ]);
+  });
+
+  test('mergeHistoryThreeWay propagates deletions and revives on newer watch', () {
+    final deleted = mergeHistoryThreeWay(
+      baseline: [
+        {'key': 'show', 'entry': {'timestamp': 100, 'position': 50}},
+        {'key': 'keep', 'entry': {'timestamp': 100, 'position': 10}},
+      ],
+      local: [
+        {'key': 'keep', 'entry': {'timestamp': 100, 'position': 10}},
+      ],
+      remote: [
+        {'key': 'show', 'entry': {'timestamp': 100, 'position': 50}},
+        {'key': 'keep', 'entry': {'timestamp': 100, 'position': 10}},
+      ],
+      localDeletedTimestamps: const {},
+      remoteDeletedTimestamps: const {},
+      nowMillis: 200,
+    );
+
+    expect(deleted.merged.map((e) => e['key']), ['keep']);
+    expect(deleted.deletedTimestamps['show'], 200);
+
+    // Other device receives tombstone and removes local stale row.
+    final syncedToOther = mergeHistoryThreeWay(
+      baseline: [
+        {'key': 'show', 'entry': {'timestamp': 100, 'position': 50}},
+      ],
+      local: [
+        {'key': 'show', 'entry': {'timestamp': 100, 'position': 50}},
+      ],
+      remote: const [],
+      localDeletedTimestamps: const {},
+      remoteDeletedTimestamps: deleted.deletedTimestamps,
+      nowMillis: 250,
+    );
+    expect(syncedToOther.toDeleteLocally, ['show']);
+    expect(syncedToOther.merged, isEmpty);
+
+    // Watching again later (timestamp 300 > 200) revives the entry.
+    final revived = mergeHistoryThreeWay(
+      baseline: const [],
+      local: [
+        {'key': 'show', 'entry': {'timestamp': 300, 'position': 12}},
+      ],
+      remote: const [],
+      localDeletedTimestamps: const {},
+      remoteDeletedTimestamps: deleted.deletedTimestamps,
+      nowMillis: 310,
+    );
+    expect(revived.merged.map((e) => e['key']), ['show']);
+    expect(revived.deletedTimestamps.containsKey('show'), isFalse);
+  });
+
+  test('mergeLibraryThreeWay handles additions, removals, and re-bookmarking', () {
+    final removed = mergeLibraryThreeWay(
+      baseline: [
+        {'url': 'https://a', 'title': 'A'},
+        {'url': 'https://b', 'title': 'B'},
+      ],
+      local: [
+        {'url': 'https://a', 'title': 'A'},
+      ],
+      remote: [
+        {'url': 'https://a', 'title': 'A'},
+        {'url': 'https://b', 'title': 'B'},
+        {'url': 'https://c', 'title': 'C'},
+      ],
+    );
+    expect(removed.merged.map((e) => e['url']), ['https://a', 'https://c']);
+    expect(removed.toAddLocally.map((e) => e['url']), ['https://c']);
+
+    final reAdded = mergeLibraryThreeWay(
+      baseline: [
+        {'url': 'https://a', 'title': 'A'},
+      ],
+      local: [
+        {'url': 'https://a', 'title': 'A'},
+        {'url': 'https://b', 'title': 'B'},
+      ],
+      remote: [
+        {'url': 'https://a', 'title': 'A'},
+      ],
+      deletedUrls: const {'https://b'},
+    );
+    expect(reAdded.merged.map((e) => e['url']), ['https://a', 'https://b']);
+  });
 }

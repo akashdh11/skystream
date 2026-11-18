@@ -56,6 +56,7 @@ import 'shared/widgets/tv_logical_scale.dart';
 import 'core/widgets/m3_toast_overlay.dart';
 import 'features/settings/presentation/general_settings_provider.dart';
 import 'features/settings/presentation/full_screen_mode_provider.dart';
+import 'features/profile_sync/data/profile_sync_service.dart';
 import 'shared/focus/android_text_editing.dart';
 import 'features/player/presentation/player_platform_service.dart'
     show immersiveRouteActive;
@@ -236,11 +237,15 @@ class _MyAppState extends ConsumerState<MyApp> {
   StreamSubscription<ExtensionUpdateReport>? _cloudStreamNews;
   StreamSubscription<ExtensionNotice>? _cloudStreamNotices;
   StreamSubscription<WaitingScreen>? _cloudStreamWaiting;
+  AppLifecycleListener? _lifecycleListener;
 
   @override
   void initState() {
     super.initState();
     FocusManager.instance.addEarlyKeyEventHandler(_handleEarlyKeyEvent);
+    _lifecycleListener = AppLifecycleListener(
+      onResume: () => ref.read(profileSyncProvider.notifier).onAppResumed(),
+    );
     // Brings back the ten-foot layout if the last session was left in it.
     // Applied here rather than in `main` because it reads through a provider,
     // which needs the scope this widget sits inside.
@@ -250,6 +255,7 @@ class _MyAppState extends ConsumerState<MyApp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(downloadServiceProvider).init();
       unawaited(_loadInstalledExtensions());
+      ref.read(profileSyncProvider);
       // CloudStream providers are listed from what was installed; no engine starts here.
       // Repositories its plugins add (MegaRepo's) are announced like a collection's.
       _cloudStreamNews = ref.read(cloudStreamRepositoryProvider.notifier).watchNews().listen((report) {
@@ -271,6 +277,7 @@ class _MyAppState extends ConsumerState<MyApp> {
   @override
   void dispose() {
     FocusManager.instance.removeEarlyKeyEventHandler(_handleEarlyKeyEvent);
+    _lifecycleListener?.dispose();
     unawaited(_cloudStreamNews?.cancel());
     unawaited(_cloudStreamNotices?.cancel());
     unawaited(_cloudStreamWaiting?.cancel());

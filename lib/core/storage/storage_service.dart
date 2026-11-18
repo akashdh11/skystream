@@ -662,6 +662,14 @@ class StorageService {
     _historyCacheDirty = true;
   }
 
+  /// Removes deleted history rows by storage key and drops the history cache.
+  Future<void> deleteHistoryKeys(Iterable<String> keys) async {
+    final keyList = keys.toList(growable: false);
+    if (keyList.isEmpty) return;
+    await _historyBox.deleteAll(keyList);
+    _historyCacheDirty = true;
+  }
+
   int getPosition(String url) {
     // Check main entry first (movies use this)
     final key = _getKey(url);

@@ -15,6 +15,7 @@ import '../../../../core/extensions/providers.dart';
 import '../../../../core/extensions/services/repository_service.dart';
 import '../../../core/models/extension_update_report.dart';
 import '../../../core/storage/settings_repository.dart';
+import '../../profile_sync/profile_sync_hooks.dart';
 
 part 'extensions_controller.g.dart';
 
@@ -91,6 +92,15 @@ class ExtensionsController extends _$ExtensionsController {
 
   bool _initialized = false;
 
+  /// The in-flight [ensureInitialized], so a second caller waits for it instead
+  /// of reading [state] while [_init] has not finished.
+  Future<void>? _initializing;
+
+  /// Bumped when the installed list is being replaced from disk or by an
+  /// install. A disk read that started earlier must not write the empty list
+  /// it saw back over plugins a sync just installed.
+  int _pluginListEpoch = 0;
+
   /// Whether a repository the user saved did not load at launch: it may be
   /// the one an older install came from, or another claiming that one's id,
   /// so [_updateFor] matches no install by id until the next launch.
@@ -102,13 +112,20 @@ class ExtensionsController extends _$ExtensionsController {
   }
 
   /// Call once (e.g. from Extensions screen or app startup) to load plugins and repos.
-  Future<void> ensureInitialized() async {
-    if (_initialized) return;
+  Future<void> ensureInitialized() {
+    final pending = _initializing;
+    if (pending != null) return pending;
+    if (_initialized) return Future<void>.value();
     _initialized = true;
-    await _init();
+    final run = _init();
+    _initializing = run;
+    return run.whenComplete(() {
+      if (identical(_initializing, run)) _initializing = null;
+    });
   }
 
   Future<void> _init() async {
+    final epoch = ++_pluginListEpoch;
     state = ExtensionsLoading(
       installedPlugins: state.installedPlugins,
       repositories: state.repositories,
@@ -121,7 +138,7 @@ class ExtensionsController extends _$ExtensionsController {
       final repositoryService = ref.read(repositoryServiceProvider);
 
       // 1. Load Installed Plugins
-      final plugins = await storageService.listInstalledPlugins();
+      var plugins = await storageService.listInstalledPlugins();
       if (ref.read(settingsRepositoryProvider).getDevLoadAssets()) {
         final assetPlugins = await _loadAssetPlugins();
         plugins.addAll(assetPlugins);
@@ -151,8 +168,24 @@ class ExtensionsController extends _$ExtensionsController {
         available[entry.repo.url] = entry.plugins;
       }
 
+      // If another disk read or install ran while _init() awaited the network,
+      // re-read the installed plugins from disk so nothing installed meanwhile
+      // is overwritten with the stale pre-network snapshot.
+      if (epoch != _pluginListEpoch) {
+        final latestDisk = await storageService.listInstalledPlugins();
+        if (ref.read(settingsRepositoryProvider).getDevLoadAssets()) {
+          latestDisk.addAll(await _loadAssetPlugins());
+        }
+        final merged = <String, ExtensionPlugin>{
+          for (final p in latestDisk) p.packageName: p,
+          for (final p in state.installedPlugins) p.packageName: p,
+        };
+        plugins = merged.values.toList();
+      }
+
       if (!_savedRepositoryMissing) await _pinOlderInstalls(plugins, repos);
 
+      if (!ref.mounted) return;
       // 3. Set Final State Once
       state = ExtensionsSuccess(
         installedPlugins: plugins,
@@ -162,6 +195,7 @@ class ExtensionsController extends _$ExtensionsController {
         installingPlugins: state.installingPlugins,
       );
     } catch (e) {
+      if (!ref.mounted) return;
       state = ExtensionsError(
         e.toString(),
         installedPlugins: state.installedPlugins,
@@ -171,6 +205,24 @@ class ExtensionsController extends _$ExtensionsController {
         installingPlugins: state.installingPlugins,
       );
     }
+  }
+
+  void _notifySync() {
+    if (ref.mounted) {
+      ref.read(profileSyncHooksProvider).onLocalChange?.call();
+    }
+  }
+
+  /// All persisted repository and collection URLs, including any whose
+  /// manifests failed to load at launch.
+  Future<List<String>> persistedRepositoryUrls() async {
+    await ensureInitialized();
+    final prefs = await SharedPreferences.getInstance();
+    return <String>{
+      ..._savedRepoUrls(prefs),
+      ..._readUrlMap(prefs, collectionsKey).keys,
+      for (final repo in state.repositories) repo.url,
+    }.toList();
   }
 
   /// Gives each install from before installs kept their repository's address
@@ -232,6 +284,7 @@ class ExtensionsController extends _$ExtensionsController {
   }
 
   Future<void> loadInstalledPlugins() async {
+    final epoch = ++_pluginListEpoch;
     state = ExtensionsLoading(
       installedPlugins: state.installedPlugins,
       repositories: state.repositories,
@@ -258,6 +311,7 @@ class ExtensionsController extends _$ExtensionsController {
         }
       }
 
+      if (epoch != _pluginListEpoch) return;
       state = ExtensionsSuccess(
         installedPlugins: plugins,
         repositories: state.repositories,
@@ -266,6 +320,7 @@ class ExtensionsController extends _$ExtensionsController {
         installingPlugins: state.installingPlugins,
       );
     } catch (e) {
+      if (epoch != _pluginListEpoch) return;
       state = ExtensionsError(
         e.toString(),
         installedPlugins: state.installedPlugins,
@@ -611,8 +666,15 @@ class ExtensionsController extends _$ExtensionsController {
     return key(a) == key(b);
   }
 
-  Future<void> addRepository(String url, {Set<String>? visitedUrls}) =>
-      _addRepository(url, visitedUrls ?? <String>{}, background: false);
+  Future<void> addRepository(String url, {Set<String>? visitedUrls}) async {
+    await _addRepository(url, visitedUrls ?? <String>{}, background: false);
+    if (visitedUrls == null && state is! ExtensionsError) {
+      _notifySync();
+    }
+  }
+
+  Future<void> addRepositoryFromSync(String url) =>
+      _addRepository(url, <String>{}, background: true);
 
   /// [background] is for additions nobody asked for in the moment - the
   /// repositories a collection newly lists, found on launch: a failure is
@@ -770,6 +832,11 @@ class ExtensionsController extends _$ExtensionsController {
   /// Removes the repository at [url] and uninstalls the plugins installed
   /// from it, as the confirmation dialog tells the user it will.
   Future<void> removeRepository(String url) async {
+    await removeRepositoryFromSync(url);
+    _notifySync();
+  }
+
+  Future<void> removeRepositoryFromSync(String url) async {
     try {
       final removed = state.repositories.where((r) => r.url == url).firstOrNull;
       final currentRepos = List<ExtensionRepository>.from(state.repositories);
@@ -904,6 +971,10 @@ class ExtensionsController extends _$ExtensionsController {
     await installPlugins([plugin]);
   }
 
+  Future<void> installPluginFromSync(ExtensionPlugin plugin) async {
+    await _installPlugins([plugin], quiet: false, notifySync: false);
+  }
+
   /// Installs every update [checkForUpdates] recorded and returns the display
   /// names of the ones that went in.
   ///
@@ -934,7 +1005,15 @@ class ExtensionsController extends _$ExtensionsController {
   Future<void> installPlugins(
     List<ExtensionPlugin> plugins, {
     bool quiet = false,
+  }) => _installPlugins(plugins, quiet: quiet, notifySync: !quiet);
+
+  Future<void> _installPlugins(
+    List<ExtensionPlugin> plugins, {
+    required bool quiet,
+    required bool notifySync,
   }) async {
+    // An inventory read already in flight saw the list before this install.
+    ++_pluginListEpoch;
     final newInstalling = Set<String>.from(state.installingPlugins);
     for (final p in plugins) {
       newInstalling.add(p.packageName);
@@ -1022,6 +1101,7 @@ class ExtensionsController extends _$ExtensionsController {
         }
       }
       await loadInstalledPlugins();
+      if (notifySync) _notifySync();
     } catch (e) {
       final currentInstalling = Set<String>.from(state.installingPlugins);
       for (final p in plugins) {
@@ -1054,6 +1134,11 @@ class ExtensionsController extends _$ExtensionsController {
   }
 
   Future<void> uninstallPlugin(ExtensionPlugin plugin) async {
+    await uninstallPluginFromSync(plugin);
+    _notifySync();
+  }
+
+  Future<void> uninstallPluginFromSync(ExtensionPlugin plugin) async {
     final storageService = ref.read(pluginStorageServiceProvider);
     await storageService.deletePlugin(plugin);
     await loadInstalledPlugins();
