@@ -363,6 +363,10 @@ class PlaybackProgressRecorder {
   static const Duration _writeThresholdCap = Duration(seconds: 15);
 
   Duration _lastWritten = Duration.zero;
+  Future<void>? _pendingWrite;
+
+  /// A pause or exit waits for this write before requesting profile sync.
+  Future<void>? get pendingWrite => _pendingWrite;
 
   bool get isSeries =>
       item.contentType == MultimediaContentType.series ||
@@ -426,7 +430,7 @@ class PlaybackProgressRecorder {
     final provider = item.provider ?? 'Unknown';
     final toSave = item.copyWith(provider: provider);
 
-    read(watchHistoryProvider.notifier).saveProgress(
+    _pendingWrite = read(watchHistoryProvider.notifier).saveProgress(
       toSave,
       position.inMilliseconds,
       sample.duration.inMilliseconds,
@@ -446,7 +450,7 @@ class PlaybackProgressRecorder {
   void recordLivestream() {
     if (item.contentType != MultimediaContentType.livestream) return;
     final provider = item.provider ?? 'Unknown';
-    read(watchHistoryProvider.notifier).saveProgress(
+    _pendingWrite = read(watchHistoryProvider.notifier).saveProgress(
       item.copyWith(provider: provider),
       0,
       0,

@@ -46,6 +46,7 @@ import '../../domain/hls_video_length.dart';
 import '../../domain/hls_quality.dart' show qualityLadderOf;
 import '../../domain/live_window.dart';
 import '../../domain/media_options.dart';
+import '../../../profile_sync/profile_sync_hooks.dart';
 import '../../domain/playback_progress.dart';
 import '../../domain/buffered_ahead.dart';
 import '../../../../core/logger/app_logger.dart';
@@ -651,6 +652,8 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// Mirrors the engine's playing flag so the PiP window's middle button can be
   /// re-sent only when it actually flips.
   bool _wasPlaying = false;
+  bool _pausedForProfileSync = false;
+  bool _checkedProfileOnPlay = false;
 
   /// Edge detectors. `VlcPlayerValue` is level-triggered and the native error
   /// is sticky until the next setSource, so without these one dead source
@@ -4408,6 +4411,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     }
     final recovering = nudged || recovered;
     _setSawFrames(true);
+    if (!_checkedProfileOnPlay) {
+      _checkedProfileOnPlay = true;
+      _read(profileSyncHooksProvider).onPlaybackBoundary?.call(true);
+    }
     _resetStallClock();
     // A picture is up, so the video's tracks are as known as they will get:
     // the snapshot that brought it may be the last one for a while if
@@ -4583,6 +4590,14 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   /// The wakelock follows playback rather than the screen's lifetime, so a
   /// player parked on pause lets the display sleep.
   void _syncPlayingState(VlcPlayerValue value) {
+    if (value.state == VlcPlaybackState.playing) {
+      _pausedForProfileSync = false;
+    } else if (value.state == VlcPlaybackState.paused &&
+        !_pausedForProfileSync &&
+        _pictureUp) {
+      _pausedForProfileSync = true;
+      _flushProgress(sync: true);
+    }
     if (value.isPlaying == _wasPlaying) return;
     _wasPlaying = value.isPlaying;
     _platform.syncPipState(value.isPlaying, videoSize: value.videoSize);
@@ -4686,11 +4701,28 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
   }
 
   /// Writes the last known-good sample, bypassing the rate limit.
-  void _flushProgress() {
+  void _flushProgress({bool sync = false}) {
     final sample = _sample;
     final recorder = _recorder;
-    if (sample == null || recorder == null) return;
-    recorder.record(sample, lastStreamUrl: _lastStreamUrl, force: true);
+    if (sample != null && recorder != null) {
+      recorder.record(sample, lastStreamUrl: _lastStreamUrl, force: true);
+    }
+    if (!sync) return;
+    final onBoundary = _read(profileSyncHooksProvider).onPlaybackBoundary;
+    if (onBoundary == null) return;
+    final write = recorder?.pendingWrite;
+    if (write == null) {
+      onBoundary(false);
+    } else {
+      unawaited(
+        write.then(
+          (_) => onBoundary(false),
+          onError: (Object error) {
+            talker.error('Playback progress write failed', error);
+          },
+        ),
+      );
+    }
   }
 
   /// What the screen has to do about the app coming and going.
@@ -4722,9 +4754,10 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       // whether or not the activity got round to telling us.
       if (_inPip) setState(() => _inPip = false);
     }
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      // The process may not come back. This is the last guaranteed chance.
+    if (state == AppLifecycleState.hidden) {
+      _flushProgress(sync: true);
+    } else if (state == AppLifecycleState.inactive) {
+      // Keep the latest position if the OS suspends the process.
       _flushProgress();
     }
   }
@@ -4765,6 +4798,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
       _handBack();
       navigator.pop();
     } else {
+      _flushProgress(sync: true);
       unawaited(SystemNavigator.pop());
     }
   }
@@ -5245,7 +5279,7 @@ class _VlcPlayerScreenState extends ConsumerState<VlcPlayerScreen>
     // Order matters: dispose() stops the player, and a stopped libVLC reports
     // position zero. Write first, tear down second. finish() runs after the
     // local write and emits exactly one terminal tracking event.
-    _flushProgress();
+    _flushProgress(sync: true);
     _tracker?.finish();
     _disposed = true;
     _torrentPoll?.cancel();

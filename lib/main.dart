@@ -238,13 +238,22 @@ class _MyAppState extends ConsumerState<MyApp> {
   StreamSubscription<ExtensionNotice>? _cloudStreamNotices;
   StreamSubscription<WaitingScreen>? _cloudStreamWaiting;
   AppLifecycleListener? _lifecycleListener;
+  bool _profileWasHidden = false;
 
   @override
   void initState() {
     super.initState();
     FocusManager.instance.addEarlyKeyEventHandler(_handleEarlyKeyEvent);
     _lifecycleListener = AppLifecycleListener(
-      onResume: () => ref.read(profileSyncProvider.notifier).onAppResumed(),
+      onResume: () {
+        if (!_profileWasHidden) return;
+        _profileWasHidden = false;
+        _syncProfileAtAppBoundary(checkRemote: true);
+      },
+      onHide: () {
+        _profileWasHidden = true;
+        _syncProfileAtAppBoundary(checkRemote: false);
+      },
     );
     // Brings back the ten-foot layout if the last session was left in it.
     // Applied here rather than in `main` because it reads through a provider,
@@ -283,6 +292,16 @@ class _MyAppState extends ConsumerState<MyApp> {
     unawaited(_cloudStreamWaiting?.cancel());
     if (ExtensionPages.shared.dialogs == _showPageDialog) ExtensionPages.shared.dialogs = null;
     super.dispose();
+  }
+
+  void _syncProfileAtAppBoundary({required bool checkRemote}) {
+    // Playback saves its final position before requesting a sync.
+    if (!mounted || immersiveRouteActive.value) return;
+    unawaited(
+      ref
+          .read(profileSyncProvider.notifier)
+          .syncAtBoundary(checkRemote: checkRemote),
+    );
   }
 
   KeyEventResult _handleEarlyKeyEvent(KeyEvent event) {

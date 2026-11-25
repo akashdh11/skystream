@@ -29,13 +29,14 @@ class WatchHistory extends _$WatchHistory {
     final repository = ref.read(historyRepositoryProvider);
     await repository.clearAllHistory();
     refresh();
+    _markProfileChanged();
   }
 
   Future<void> removeFromHistory(String url) async {
     final repository = ref.read(historyRepositoryProvider);
     await repository.removeFromHistory(url);
     refresh();
-    _scheduleProfileSync();
+    _markProfileChanged();
   }
 
   Future<void> updateHistoryItemTimestampAndPosition(
@@ -50,7 +51,7 @@ class WatchHistory extends _$WatchHistory {
       position,
     );
     refresh();
-    _scheduleProfileSync();
+    _markProfileChanged();
   }
 
   Future<void> saveProgress(
@@ -85,10 +86,10 @@ class WatchHistory extends _$WatchHistory {
       episodePosterUrl: episodePosterUrl,
     );
     refresh();
-    _scheduleProfileSync();
+    _markProfileChanged();
   }
 
-  void _scheduleProfileSync() {
-    ref.read(profileSyncHooksProvider).onLocalChange?.call();
+  void _markProfileChanged() {
+    if (ref.mounted) ref.read(profileSyncHooksProvider).onLocalChange?.call();
   }
 }

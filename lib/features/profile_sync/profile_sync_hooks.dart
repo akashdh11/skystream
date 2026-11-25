@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// push without those providers importing the sync service.
 class ProfileSyncHooks {
   void Function()? onLocalChange;
+  void Function(bool checkRemote)? onPlaybackBoundary;
 }
 
 final profileSyncHooksProvider = Provider<ProfileSyncHooks>((ref) {

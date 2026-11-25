@@ -81,13 +81,38 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
   static const _kBaselineKey = 'profile_sync_baseline_v1';
   static const _kDeletedHistoryKey = 'profile_sync_deleted_history_v1';
   static const _kDeletedLibraryKey = 'profile_sync_deleted_library_v1';
-  static const Duration _pollInterval = Duration(seconds: 45);
+  static const _kPendingChangesKey = 'profile_sync_pending_v1';
+  static const _kRemoteRevisionKey = 'profile_sync_remote_revision_v1';
   static const int _tombstoneMaxAgeMs = 30 * 24 * 60 * 60 * 1000;
 
-  Timer? _debounceTimer;
-  Timer? _pollTimer;
   bool _applying = false;
+  bool _hasPendingChanges = false;
+  int _localChangeRevision = 0;
   int? _lastRemoteUpdatedAt;
+  String? _lastRemoteEtag;
+  Completer<void>? _activeOperation;
+  bool _manualSyncRequested = false;
+
+  Future<T?> _runExclusive<T>(
+    Future<T> Function() operation, {
+    bool wait = false,
+  }) async {
+    var active = _activeOperation;
+    while (active != null) {
+      if (!wait) return null;
+      await active.future;
+      active = _activeOperation;
+    }
+    if (!ref.mounted) return null;
+    final completed = Completer<void>();
+    _activeOperation = completed;
+    try {
+      return await operation();
+    } finally {
+      _activeOperation = null;
+      completed.complete();
+    }
+  }
 
   @override
   ProfileSyncState build() {
@@ -100,21 +125,24 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
         true;
     final lastSynced = storage.getPlayerSetting<int>(_kLastSyncedKey);
 
+    _hasPendingChanges = storage.getString(_kPendingChangesKey) != null;
+    _readRemoteRevision(storage);
+
     final hooks = ref.read(profileSyncHooksProvider);
-    hooks.onLocalChange = scheduleQuickSync;
+    hooks.onLocalChange = recordLocalChange;
+    hooks.onPlaybackBoundary = onPlaybackBoundary;
     ref.listen(episodeWatchRevisionProvider, (previous, next) {
-      if (previous == null) return;
-      scheduleQuickSync();
+      if (previous == null || _applying) return;
+      recordLocalChange();
     });
     ref.onDispose(() {
-      _debounceTimer?.cancel();
-      _pollTimer?.cancel();
-      if (hooks.onLocalChange == scheduleQuickSync) {
+      if (hooks.onLocalChange == recordLocalChange) {
         hooks.onLocalChange = null;
+        hooks.onPlaybackBoundary = null;
       }
     });
 
-    Future.microtask(_checkTokenAndInitialSync);
+    Future.microtask(_restoreSession);
 
     return ProfileSyncState(
       serverUrl: serverUrl,
@@ -124,53 +152,90 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
     );
   }
 
-  void _startPollTimer() {
-    _pollTimer?.cancel();
-    _pollTimer = Timer.periodic(
-      _pollInterval,
-      (_) => unawaited(pollRemoteChanges()),
-    );
+  Future<void> _restoreSession() async {
+    if (!ref.mounted || state.serverUrl.isEmpty) return;
+    await _runExclusive(() async {
+      final token = await ref.read(secureTokenStorageProvider).read(_kTokenKey);
+      if (!ref.mounted || token == null || token.isEmpty) return;
+      state = state.copyWith(isLoggedIn: true);
+    });
   }
 
-  Future<void> _checkTokenAndInitialSync() async {
-    if (state.serverUrl.isEmpty) return;
-    final token = await ref.read(secureTokenStorageProvider).read(_kTokenKey);
+  void onPlaybackBoundary(bool checkRemote) {
     if (!ref.mounted) return;
-    if (token == null || token.isEmpty) return;
-    state = state.copyWith(isLoggedIn: true);
-    if (state.autoSync) {
-      _startPollTimer();
-      unawaited(syncNow(installMissingExtensions: true));
-    }
+    unawaited(syncAtBoundary(checkRemote: checkRemote));
   }
 
-  void onAppResumed() {
-    if (!state.isLoggedIn || !state.autoSync) return;
-    unawaited(pollRemoteChanges(forceSyncIfNeverSynced: true));
-  }
+  Future<void> syncAtBoundary({required bool checkRemote}) async {
+    if (!state.autoSync || state.serverUrl.isEmpty) return;
+    if (!checkRemote && !_hasPendingChanges) return;
+    await _runExclusive(() async {
+      if (!state.isLoggedIn || !state.autoSync) return;
+      final pendingChanges = _hasPendingChanges;
+      if (!checkRemote && !pendingChanges) return;
+      try {
+        final token = await ref
+            .read(secureTokenStorageProvider)
+            .read(_kTokenKey);
+        if (!ref.mounted || token == null || token.isEmpty || !state.autoSync) {
+          return;
+        }
+        if (pendingChanges || _lastRemoteUpdatedAt == null) {
+          await _syncProfile(token, installMissingExtensions: true);
+          return;
+        }
 
-  Future<void> pollRemoteChanges({bool forceSyncIfNeverSynced = false}) async {
-    if (!state.isLoggedIn ||
-        !state.autoSync ||
-        state.isSyncing ||
-        state.serverUrl.isEmpty) {
-      return;
-    }
-    final token = await ref.read(secureTokenStorageProvider).read(_kTokenKey);
-    if (!ref.mounted || token == null || token.isEmpty) return;
-
-    try {
-      final remote = await _fetchRemoteProfile(token);
-      if (!ref.mounted) return;
-      final neverSynced = _lastRemoteUpdatedAt == null;
-      final serverChanged =
-          remote.updatedAt != 0 && remote.updatedAt != _lastRemoteUpdatedAt;
-      if (serverChanged ||
-          (neverSynced && (forceSyncIfNeverSynced || remote.updatedAt > 0))) {
-        await syncNow(installMissingExtensions: true);
+        final remote = await _fetchRemoteProfile(token, etag: _lastRemoteEtag);
+        if (!ref.mounted || remote == null || !state.autoSync) return;
+        final changed = _lastRemoteEtag != null && remote.etag != null
+            ? remote.etag != _lastRemoteEtag
+            : remote.profile.updatedAt != _lastRemoteUpdatedAt;
+        if (changed) {
+          await _syncProfile(
+            token,
+            installMissingExtensions: true,
+            remote: remote,
+          );
+        }
+      } catch (error) {
+        talker.debug('[ProfileSync] boundary sync skipped: $error');
       }
+    }, wait: true);
+  }
+
+  /// The local stores already contain the changed rows. Persist one marker for
+  /// the batch and let the next lifecycle event reconcile it with the baseline.
+  void recordLocalChange() {
+    if (state.serverUrl.isEmpty) return;
+    _localChangeRevision++;
+    if (_hasPendingChanges) return;
+    _hasPendingChanges = true;
+    unawaited(_persistPendingChanges());
+  }
+
+  Future<void> _persistPendingChanges() async {
+    try {
+      await ref
+          .read(storageServiceProvider)
+          .setString(_kPendingChangesKey, '1');
     } catch (error) {
-      talker.debug('[ProfileSync] poll skipped: $error');
+      talker.error('[ProfileSync] could not save pending changes', error);
+    }
+  }
+
+  void _readRemoteRevision(StorageService storage) {
+    _lastRemoteUpdatedAt = null;
+    _lastRemoteEtag = null;
+    final raw = storage.getString(_kRemoteRevisionKey);
+    if (raw == null) return;
+    try {
+      final revision = jsonDecode(raw);
+      if (revision is List && revision.length == 2 && revision[0] is int) {
+        _lastRemoteUpdatedAt = revision[0] as int;
+        _lastRemoteEtag = revision[1] is String ? revision[1] as String : null;
+      }
+    } on FormatException {
+      // An older or damaged setting is rebuilt on the next sync.
     }
   }
 
@@ -179,16 +244,27 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
     required String username,
     required String password,
   }) async {
+    return await _runExclusive(
+          () => _login(serverUrl, username, password),
+          wait: true,
+        ) ??
+        false;
+  }
+
+  Future<bool> _login(
+    String serverUrl,
+    String username,
+    String password,
+  ) async {
     final cleanUrl = serverUrl.trim().replaceAll(RegExp(r'/+$'), '');
     if (cleanUrl.isEmpty) {
-      state = state.copyWith(isSyncing: false, lastError: 'Server URL required.');
+      state = state.copyWith(
+        isSyncing: false,
+        lastError: 'Server URL required.',
+      );
       return false;
     }
-    state = state.copyWith(
-      serverUrl: cleanUrl,
-      isSyncing: true,
-      clearError: true,
-    );
+    state = state.copyWith(isSyncing: true, clearError: true);
     try {
       final response = await ref
           .read(dioClientProvider)
@@ -210,8 +286,9 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
       await storage.remove(_kDeletedHistoryKey);
       await storage.remove(_kDeletedLibraryKey);
       await ref.read(secureTokenStorageProvider).write(_kTokenKey, token);
+      await storage.remove(_kRemoteRevisionKey);
       _lastRemoteUpdatedAt = null;
-      _startPollTimer();
+      _lastRemoteEtag = null;
 
       state = state.copyWith(
         serverUrl: cleanUrl,
@@ -219,7 +296,7 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
         isLoggedIn: true,
         isSyncing: false,
       );
-      return await syncNow(installMissingExtensions: true);
+      return await _syncProfile(token, installMissingExtensions: true);
     } catch (error) {
       talker.error('[ProfileSync] Login failed', error);
       state = state.copyWith(isSyncing: false, lastError: _errorMessage(error));
@@ -228,15 +305,19 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
   }
 
   Future<void> logout() async {
-    _debounceTimer?.cancel();
-    _pollTimer?.cancel();
+    await _runExclusive(_logout, wait: true);
+  }
+
+  Future<void> _logout() async {
     _lastRemoteUpdatedAt = null;
+    _lastRemoteEtag = null;
     await ref.read(secureTokenStorageProvider).delete(_kTokenKey);
     final storage = ref.read(storageServiceProvider);
     await storage.remove(_kUsernameKey);
     await storage.remove(_kBaselineKey);
     await storage.remove(_kDeletedHistoryKey);
     await storage.remove(_kDeletedLibraryKey);
+    await storage.remove(_kRemoteRevisionKey);
     state = state.copyWith(
       isLoggedIn: false,
       clearUsername: true,
@@ -249,26 +330,7 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
         .read(storageServiceProvider)
         .setPlayerSetting(_kAutoSyncKey, enabled);
     state = state.copyWith(autoSync: enabled);
-    if (enabled && state.isLoggedIn) {
-      _startPollTimer();
-      unawaited(pollRemoteChanges(forceSyncIfNeverSynced: true));
-    } else if (!enabled) {
-      _pollTimer?.cancel();
-    }
-  }
-
-  /// Pushes a few seconds after playback, bookmark, or extension changes so a
-  /// burst does not open a request on every tick.
-  void scheduleQuickSync() {
-    if (_applying || !state.isLoggedIn || !state.autoSync) return;
-    _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(seconds: 3), () {
-      if (state.isSyncing) {
-        scheduleQuickSync();
-        return;
-      }
-      unawaited(syncNow(installMissingExtensions: true));
-    });
+    if (enabled) onPlaybackBoundary(true);
   }
 
   Future<ProfileSyncPayload> collectLocalProfile() async {
@@ -390,36 +452,73 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
     );
   }
 
-  Future<ProfileSyncPayload> _fetchRemoteProfile(String token) async {
+  Future<({ProfileSyncPayload profile, String? etag})?> _fetchRemoteProfile(
+    String token, {
+    String? etag,
+  }) async {
     try {
       final response = await ref
           .read(dioClientProvider)
           .get<Map<String, dynamic>>(
             '${state.serverUrl}/v1/profile',
-            options: Options(headers: {'Authorization': 'Bearer $token'}),
+            options: Options(
+              headers: {
+                'Authorization': 'Bearer $token',
+                'If-None-Match': ?etag,
+              },
+              validateStatus: (status) =>
+                  status == 304 ||
+                  (status != null && status >= 200 && status < 300),
+            ),
           );
-      final body = response.data;
-      if (body == null) return const ProfileSyncPayload(updatedAt: 0);
-      return ProfileSyncPayload.fromJson(body);
+      if (response.statusCode == 304) return null;
+      return (
+        profile: ProfileSyncPayload.fromJson(response.data ?? const {}),
+        etag: response.headers.value('etag'),
+      );
     } on DioException catch (error) {
       if (error.response?.statusCode == 404) {
-        return const ProfileSyncPayload(updatedAt: 0);
+        return (profile: const ProfileSyncPayload(updatedAt: 0), etag: null);
       }
       rethrow;
     }
   }
 
   Future<bool> syncNow({bool installMissingExtensions = true}) async {
-    if (!state.isLoggedIn || state.isSyncing || state.serverUrl.isEmpty) {
-      return false;
+    if (state.isSyncing || _manualSyncRequested) return false;
+    _manualSyncRequested = true;
+    try {
+      return await _runExclusive(() async {
+            if (!state.isLoggedIn || state.serverUrl.isEmpty) return false;
+            final token = await ref
+                .read(secureTokenStorageProvider)
+                .read(_kTokenKey);
+            if (!ref.mounted || token == null || token.isEmpty) return false;
+            return _syncProfile(
+              token,
+              installMissingExtensions: installMissingExtensions,
+            );
+          }, wait: true) ??
+          false;
+    } finally {
+      _manualSyncRequested = false;
     }
-    final token = await ref.read(secureTokenStorageProvider).read(_kTokenKey);
-    if (token == null || token.isEmpty) return false;
+  }
 
+  Future<bool> _syncProfile(
+    String token, {
+    required bool installMissingExtensions,
+    ({ProfileSyncPayload profile, String? etag})? remote,
+  }) async {
     state = state.copyWith(isSyncing: true, clearError: true);
     try {
+      final snapshot = remote ?? await _fetchRemoteProfile(token);
+      if (!ref.mounted) return false;
+      if (snapshot == null)
+        throw StateError('Profile response had no snapshot.');
+      final remoteBefore = snapshot.profile;
       final baseline = _readBaseline();
-      final remoteBefore = await _fetchRemoteProfile(token);
+      final localChangeRevision = _localChangeRevision;
       final localPayload = await collectLocalProfile();
       final nowMillis = DateTime.now().millisecondsSinceEpoch;
 
@@ -455,17 +554,20 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
         deletedUrls: combinedDeletedLibrary,
       );
 
-      final updatedDeletedLibrary = <String>{
-        ...combinedDeletedLibrary,
-        if (baseline != null)
-          for (final item in baseline.library)
-            if (item['url'] is String &&
-                !localPayload.library.any((l) => l['url'] == item['url']))
-              item['url'] as String,
-      };
+      var anyLibraryRemovedLocally = false;
+      if (baseline != null) {
+        final localUrls = {for (final item in localPayload.library) item['url']};
+        for (final item in baseline.library) {
+          final url = item['url'];
+          if (url is String && !localUrls.contains(url)) {
+            combinedDeletedLibrary.add(url);
+            anyLibraryRemovedLocally = true;
+          }
+        }
+      }
       for (final item in libraryDiff.merged) {
         final url = item['url'];
-        if (url is String) updatedDeletedLibrary.remove(url);
+        if (url is String) combinedDeletedLibrary.remove(url);
       }
 
       final skyReposDiff = mergeStringsThreeWay(
@@ -519,19 +621,17 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
         remote: remoteBefore.activeProviderId,
       );
 
-      final anyHistoryRemovedLocally = baseline != null &&
+      final localHistoryKeys = baseline == null
+          ? const <String?>{}
+          : localPayload.history.map(historyKey).toSet();
+      final anyHistoryRemovedLocally =
+          baseline != null &&
           baseline.history.any((item) {
             final key = historyKey(item);
-            return key != null &&
-                !localPayload.history.any((l) => historyKey(l) == key);
+            return key != null && !localHistoryKeys.contains(key);
           });
-      final anyLibraryRemovedLocally = baseline != null &&
-          baseline.library.any((item) {
-            final url = item['url'];
-            return url is String &&
-                !localPayload.library.any((l) => l['url'] == url);
-          });
-      final anyExtRemovedLocally = baseline != null &&
+      final anyExtRemovedLocally =
+          baseline != null &&
           (_hasLocalStringRemoval(
                 baseline.skystreamRepos,
                 localPayload.skystreamRepos,
@@ -548,7 +648,8 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
               _hasLocalMapRemoval(
                 baseline.cloudstreamPlugins,
                 localPayload.cloudstreamPlugins,
-                (p) => '${p['repositoryUrl'] ?? ''}::${p['internalName'] ?? ''}',
+                (p) =>
+                    '${p['repositoryUrl'] ?? ''}::${p['internalName'] ?? ''}',
               ) ||
               _hasLocalStringRemoval(
                 baseline.nuvioRepos,
@@ -576,12 +677,13 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
         stremioAddonStates: mergedStremioStates,
         deletedHistoryKeys: historyDiff.deletedTimestamps.keys.toList(),
         deletedHistoryTimestamps: historyDiff.deletedTimestamps,
-        deletedLibraryUrls: updatedDeletedLibrary.toList()..sort(),
+        deletedLibraryUrls: combinedDeletedLibrary.toList()..sort(),
         replaceHistory: anyHistoryRemovedLocally,
         replaceLibrary: anyLibraryRemovedLocally,
       );
 
       late final ProfileSyncPayload appliedRemote;
+      var appliedEtag = snapshot.etag;
       if (_payloadDiffersFromRemote(outbound, remoteBefore)) {
         final response = await ref
             .read(dioClientProvider)
@@ -591,6 +693,7 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
               options: Options(headers: {'Authorization': 'Bearer $token'}),
             );
         final body = response.data;
+        appliedEtag = response.headers.value('etag');
         appliedRemote = body != null
             ? ProfileSyncPayload.fromJson(body)
             : outbound;
@@ -599,7 +702,7 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
       }
 
       await _writeDeletedHistory(historyDiff.deletedTimestamps);
-      await _writeDeletedLibrary(updatedDeletedLibrary);
+      await _writeDeletedLibrary(combinedDeletedLibrary);
 
       await applyRemoteProfile(
         appliedRemote,
@@ -627,14 +730,31 @@ class ProfileSyncNotifier extends Notifier<ProfileSyncState> {
         baseline: baseline,
       );
 
-      final finalLocal = await collectLocalProfile();
-      await _writeBaseline(finalLocal);
+      if (_localChangeRevision == localChangeRevision) {
+        final finalLocal = await collectLocalProfile();
+        if (_localChangeRevision == localChangeRevision) {
+          await _writeBaseline(finalLocal);
+        }
+      }
+      final storage = ref.read(storageServiceProvider);
+      await storage.setString(
+        _kRemoteRevisionKey,
+        jsonEncode([appliedRemote.updatedAt, appliedEtag]),
+      );
       _lastRemoteUpdatedAt = appliedRemote.updatedAt;
+      _lastRemoteEtag = appliedEtag;
+      if (_hasPendingChanges && _localChangeRevision == localChangeRevision) {
+        _hasPendingChanges = false;
+        try {
+          await storage.remove(_kPendingChangesKey);
+        } catch (_) {
+          _hasPendingChanges = true;
+          rethrow;
+        }
+      }
 
       final syncedNow = DateTime.now().millisecondsSinceEpoch;
-      await ref
-          .read(storageServiceProvider)
-          .setPlayerSetting(_kLastSyncedKey, syncedNow);
+      await storage.setPlayerSetting(_kLastSyncedKey, syncedNow);
       if (!ref.mounted) return true;
       state = state.copyWith(isSyncing: false, lastSyncedAt: syncedNow);
       return true;
