@@ -337,6 +337,19 @@ void main() {
     await loading;
   });
 
+  test('profile sync joining the launch read does not start a second one', () async {
+    // build() schedules a read, and sync calls load() while that read is the
+    // one still running. A second read finishes after sync has added
+    // repositories and replaces them with the empty list it started with.
+    CloudStreamRepository.debugLoadsStarted = 0;
+    final container = boot();
+    container.read(cloudStreamRepositoryProvider);
+    final joined = container.read(cloudStreamRepositoryProvider.notifier).load();
+    await Future<void>.delayed(Duration.zero);
+    await joined;
+    expect(CloudStreamRepository.debugLoadsStarted, 1);
+  });
+
   test('repositories a plugin adds join the list, apart from ones the user removed', () async {
     final container = boot();
     final notifier = container.read(cloudStreamRepositoryProvider.notifier);

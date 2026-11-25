@@ -13,6 +13,7 @@ import 'providers.dart';
 import '../storage/settings_repository.dart';
 import '../storage/extension_repository.dart';
 import '../logger/app_logger.dart';
+import '../../features/profile_sync/profile_sync_hooks.dart';
 
 part 'extension_manager.g.dart';
 
@@ -330,6 +331,14 @@ class ExtensionManager extends _$ExtensionManager {
 
   /// Reloads a plugin, picking up preference changes (domain switch, provider toggles).
   Future<void> reloadPlugin(ExtensionPlugin plugin) async {
+    await reloadPluginFromSync(plugin);
+    if (ref.mounted) {
+      ref.read(profileSyncHooksProvider).onLocalChange?.call();
+    }
+  }
+
+  /// Reloads a plugin without triggering profile sync.
+  Future<void> reloadPluginFromSync(ExtensionPlugin plugin) async {
     if (_engine == null || _storageService == null) return;
     _clearPluginRuntime(plugin.packageName);
     _removeProvidersForPackage(plugin.packageName);
@@ -346,6 +355,9 @@ class ExtensionManager extends _$ExtensionManager {
   Future<void> updateCustomBaseUrl(String packageName, String? url) async {
     final settings = ref.read(settingsRepositoryProvider);
     await settings.setCustomBaseUrl(packageName, url);
+    if (ref.mounted) {
+      ref.read(profileSyncHooksProvider).onLocalChange?.call();
+    }
   }
 
   /// Returns true if the user has enabled this sub-provider (default: true).
@@ -785,7 +797,20 @@ class ActiveProvider extends _$ActiveProvider {
     }
   }
 
+  /// Re-evaluates the stored active provider id against currently loaded
+  /// providers (e.g., after profile sync installs plugins).
+  void reloadFromStorage() {
+    _loadFromStorage(ref.read(extensionManagerProvider));
+  }
+
   Future<void> set(SkyStreamProvider? provider) async {
+    await setFromSync(provider);
+    if (ref.mounted) {
+      ref.read(profileSyncHooksProvider).onLocalChange?.call();
+    }
+  }
+
+  Future<void> setFromSync(SkyStreamProvider? provider) async {
     state = provider;
     _targetProviderId = null;
     ref.read(providerResolutionLoadingProvider.notifier).set(false);

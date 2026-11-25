@@ -659,5 +659,19 @@
   "devQoeLog": "QoE लॉग",
   "devQoeLogSubtitle": "प्लेबैक के समय ऐप लॉग में लिखता है",
   "playerGoLive": "लाइव पर जाएँ",
-  "playerBehindLive": "लाइव से {time} पीछे"
+  "playerBehindLive": "लाइव से {time} पीछे",
+  "profileSyncTitle": "SkyStream सिंक",
+  "profileSyncConnected": "{username} के रूप में जुड़ा ({host})",
+  "profileSyncSignedOut": "साइन इन नहीं है। एक्सटेंशन, देखने का इतिहास और एपिसोड अपने सभी डिवाइसों पर सिंक करें।",
+  "profileSyncServerUrl": "सर्वर URL",
+  "profileSyncSignIn": "साइन इन",
+  "profileSyncSyncNow": "अभी सिंक करें",
+  "profileSyncSyncing": "सिंक हो रहा है…",
+  "profileSyncAuto": "ऑटो-सिंक",
+  "profileSyncAutoSubtitle": "देखने की प्रगति और एपिसोड के निशान अपने आप भेजें",
+  "profileSyncDisconnect": "डिस्कनेक्ट",
+  "profileSyncDisconnectBody": "इस डिवाइस का सिंक रोकें? जो इतिहास पहले से सहेजा है वह इस डिवाइस और सर्वर पर बना रहेगा।",
+  "profileSyncSynced": "सिंक पूरा हुआ",
+  "profileSyncFailed": "सिंक विफल रहा",
+  "profileSyncLastSynced": "आखिरी सिंक {time}"
 }

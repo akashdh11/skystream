@@ -60,10 +60,21 @@ class SyncManager {
 
     final ids = Map<String, String>.from(item.syncData ?? {});
 
+    // Simkl is only asked for ids when that account is signed in. A device
+    // that only uses the self-hosted profile sync never calls it.
+    final active = await getActiveServices();
+    SimklService? simkl;
+    for (final service in active) {
+      if (service is SimklService) {
+        simkl = service;
+        break;
+      }
+    }
+    if (simkl == null) return ids;
+
     // We primarily use Simkl for resolving cross-platform IDs because its API is the most comprehensive
     var resolvedRemotely = false;
     try {
-      final simkl = _services.whereType<SimklService>().first;
       final resolved = await simkl.syncIds(item);
       // Fills the gaps only: the title's own MAL and AniList ids name its
       // season, Simkl's (looked up by IMDb or TMDB id) the series.

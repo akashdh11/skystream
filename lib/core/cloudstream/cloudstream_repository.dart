@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:cs3_engine/cs3_engine.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,6 +14,7 @@ import '../extensions/providers.dart';
 import '../logger/app_logger.dart';
 import '../models/extension_update_report.dart';
 import '../network/dio_client_provider.dart';
+import '../../features/profile_sync/profile_sync_hooks.dart';
 import '../../features/settings/presentation/app_version_provider.dart';
 import 'cloudstream_engine.dart';
 import 'cloudstream_models.dart';
@@ -124,6 +126,17 @@ class CloudStreamRepository extends _$CloudStreamRepository {
   static const Duration _announceAfter = Duration(seconds: 10);
 
   Future<void> _loaded = Future<void>.value();
+
+  /// The read already running, so a second [load] (profile sync joins the one
+  /// [build] started) waits for it instead of starting another. Two reads of an
+  /// empty disk, and the later one assigning [state], wipe repositories and
+  /// plugins a sync added in between.
+  Future<void>? _loadInFlight;
+
+  /// How many times the disk was actually read. Overlapping [load] calls count
+  /// once.
+  @visibleForTesting
+  static int debugLoadsStarted = 0;
   final _repositoriesFile = _JsonFile('repositories.json');
   final _installedFile = _JsonFile('installed.json');
   final _news = StreamController<ExtensionUpdateReport>.broadcast();
@@ -163,7 +176,7 @@ class CloudStreamRepository extends _$CloudStreamRepository {
     // A saved active provider that is a CloudStream one must survive the launch until [load]
     // has published the providers.
     ref.read(extensionManagerProvider.notifier).expectExternalSource(_source);
-    _loaded = Future.microtask(load);
+    _loaded = load();
     final events = _host.events.listen(_onEngineEvent);
     final loads = _host.loads.listen(_noteLoad);
     ref.onDispose(() {
@@ -204,7 +217,25 @@ class CloudStreamRepository extends _$CloudStreamRepository {
   Dio get _dio => ref.read(dioClientProvider);
   CloudStreamEngineHost get _host => ref.read(cloudStreamEngineHostProvider);
 
-  Future<void> load() async {
+  void _notifySync() {
+    if (ref.mounted) {
+      ref.read(profileSyncHooksProvider).onLocalChange?.call();
+    }
+  }
+
+  Future<void> load() {
+    final current = _loadInFlight;
+    if (current != null) return current;
+    final run = _loadFromDisk();
+    _loadInFlight = run;
+    _loaded = run;
+    return run.whenComplete(() {
+      if (identical(_loadInFlight, run)) _loadInFlight = null;
+    });
+  }
+
+  Future<void> _loadFromDisk() async {
+    debugLoadsStarted++;
     var next = const CloudStreamState(isLoading: false);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -374,7 +405,49 @@ class CloudStreamRepository extends _$CloudStreamRepository {
     await _setRepositories([...state.repositories, repo]);
     // Added by hand: plugins that add repositories may offer it again.
     await _setRemoved(url, false);
+    _notifySync();
     return repo;
+  }
+
+  /// Adds repositories received from profile sync concurrently without
+  /// re-triggering sync.
+  Future<void> addRepositoriesFromSync(Iterable<String> rawUrls) async {
+    await _loaded;
+    final existingUrls = {for (final r in state.repositories) r.url};
+    final seen = <String>{};
+    final toFetch = <String>[];
+    for (final raw in rawUrls) {
+      if (raw.trim().isEmpty) continue;
+      try {
+        final url = await resolveUrl(raw);
+        if (existingUrls.contains(url) || !seen.add(url)) continue;
+        toFetch.add(url);
+      } catch (error) {
+        talker.warning('[ProfileSync] CloudStream repo $raw: $error');
+      }
+    }
+    if (toFetch.isEmpty) return;
+    Future<CsRepository?> fetchOne(String url) async {
+      try {
+        return await _fetchLimited(() => _fetchRepository(url));
+      } catch (error) {
+        talker.warning('[ProfileSync] CloudStream repo $url: $error');
+        return null;
+      }
+    }
+
+    final fetched = await Future.wait([for (final url in toFetch) fetchOne(url)]);
+    if (!ref.mounted) return;
+    final currentUrls = {for (final r in state.repositories) r.url};
+    final added = <CsRepository>[
+      for (final repo in fetched)
+        if (repo != null && currentUrls.add(repo.url)) repo,
+    ];
+    if (added.isEmpty) return;
+    await _setRepositories([...state.repositories, ...added]);
+    for (final repo in added) {
+      await _setRemoved(repo.url, false);
+    }
   }
 
   /// Fetches [url]'s repository again; returns why that failed, if it did. A failure keeps the
@@ -416,9 +489,14 @@ class CloudStreamRepository extends _$CloudStreamRepository {
   /// Removes the repository and uninstalls the plugins it provided. A plugin that adds
   /// repositories (MegaRepo's) does not bring it back.
   Future<void> removeRepository(String url) async {
+    await removeRepositoryFromSync(url);
+    _notifySync();
+  }
+
+  Future<void> removeRepositoryFromSync(String url) async {
     await _loaded;
     for (final plugin in state.installed.where((p) => p.info.repositoryUrl == url).toList()) {
-      await uninstall(plugin);
+      await uninstallFromSync(plugin);
     }
     await _setRepositories(state.repositories.where((r) => r.url != url).toList());
     await _setRemoved(url, true);
@@ -544,6 +622,12 @@ class CloudStreamRepository extends _$CloudStreamRepository {
   /// A utility plugin (see [_isUtility]) does its work once it has loaded: the repositories
   /// MegaRepo's adds join the list as they arrive, and are announced through [watchNews].
   Future<CsInstalledPlugin> install(CsPluginInfo plugin) async {
+    final installed = await installFromSync(plugin);
+    _notifySync();
+    return installed;
+  }
+
+  Future<CsInstalledPlugin> installFromSync(CsPluginInfo plugin) async {
     await _loaded;
     // Switched off, nothing loads, and an install would be left failed to load.
     if (!state.enabled) throw const CloudStreamSwitchedOff();
@@ -590,6 +674,11 @@ class CloudStreamRepository extends _$CloudStreamRepository {
   }
 
   Future<void> uninstall(CsInstalledPlugin plugin) async {
+    await uninstallFromSync(plugin);
+    _notifySync();
+  }
+
+  Future<void> uninstallFromSync(CsInstalledPlugin plugin) async {
     await _loaded;
     final key = keyOf(plugin.info);
     _setBusy(key, true);
@@ -869,6 +958,7 @@ class CloudStreamRepository extends _$CloudStreamRepository {
     if (_added.isEmpty || _news.isClosed) return;
     _news.add(ExtensionUpdateReport(newRepositories: {..._added}));
     _added.clear();
+    _notifySync();
   }
 
   /// The name of the installed plugin at [path] (the engine's spelling of it), for the toast.

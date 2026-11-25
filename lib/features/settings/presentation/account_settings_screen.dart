@@ -27,6 +27,7 @@ import '../../tracking/sign_in/tracker_sign_in.dart';
 import '../../../core/providers/device_info_provider.dart';
 import '../../../core/storage/settings_repository.dart';
 import '../../../core/services/notification_service.dart';
+import '../../profile_sync/presentation/profile_sync_section.dart';
 
 class AccountSettingsScreen extends ConsumerStatefulWidget {
   final bool isEmbedded;
@@ -125,6 +126,8 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
             ),
             children: [
               const SizedBox(height: LayoutConstants.spacingXs),
+              const ProfileSyncSection(),
+              const SizedBox(height: LayoutConstants.spacingLg),
               SettingsGroup(
                 title: l10n.accounts,
                 children: [
@@ -224,8 +227,9 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                                                     isCancelled = true;
                                                     isDialogShowing = false;
                                                     if (context.mounted) {
-                                                      FocusScope.of(context)
-                                                          .requestFocus();
+                                                      FocusScope.of(
+                                                        context,
+                                                      ).requestFocus();
                                                     }
                                                   }),
                                                 );
@@ -514,7 +518,8 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                     icon: Icons.fast_forward_rounded,
                     title: 'AnimeSkip',
                     isBeta: true,
-                    subtitle: 'Automatically fetch skip segments for Anime (requires AniList authentication)',
+                    subtitle:
+                        'Automatically fetch skip segments for Anime (requires AniList authentication)',
                     trailing: Switch(
                       value: settingsRepo.isAnimeSkipIntegrationEnabled(),
                       onChanged: (val) {

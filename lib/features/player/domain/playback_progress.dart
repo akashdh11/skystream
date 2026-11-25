@@ -160,7 +160,8 @@ ResumePoint? _resumeAt(double fraction, int durationMs) {
 /// How much remote progress is worth acting on.
 ///
 /// Five seconds of a two-hour film on another device is an accidental tap, not
-/// a place to resume from. Mirrors the local write threshold.
+/// a place to resume from. Local writes are more frequent than this; a brief
+/// play still should not pull resume to that device.
 const double _kMinSyncedFraction = 0.05;
 
 /// Resolves where to start, preferring whichever device wrote most recently.
@@ -354,10 +355,18 @@ class PlaybackProgressRecorder {
   final int token;
 
   /// Only write again once the position has moved this much of the whole, so a
-  /// per-tick listener does not hammer storage. Matches the old controller.
+  /// per-tick listener does not hammer storage.
   static const double _writeThresholdFraction = 0.05;
 
+  /// A long title's 5% is several minutes. Continue Watching and profile sync
+  /// also write once the playhead has moved this far, whichever comes first.
+  static const Duration _writeThresholdCap = Duration(seconds: 15);
+
   Duration _lastWritten = Duration.zero;
+  Future<void>? _pendingWrite;
+
+  /// A pause or exit waits for this write before requesting profile sync.
+  Future<void>? get pendingWrite => _pendingWrite;
 
   bool get isSeries =>
       item.contentType == MultimediaContentType.series ||
@@ -402,8 +411,10 @@ class PlaybackProgressRecorder {
 
     if (!force) {
       final moved = (sample.position - _lastWritten).abs();
-      final threshold =
+      final byFraction =
           sample.duration.inMilliseconds * _writeThresholdFraction;
+      final cap = _writeThresholdCap.inMilliseconds.toDouble();
+      final threshold = byFraction < cap ? byFraction : cap;
       if (moved.inMilliseconds < threshold) return false;
     }
 
@@ -419,7 +430,7 @@ class PlaybackProgressRecorder {
     final provider = item.provider ?? 'Unknown';
     final toSave = item.copyWith(provider: provider);
 
-    read(watchHistoryProvider.notifier).saveProgress(
+    _pendingWrite = read(watchHistoryProvider.notifier).saveProgress(
       toSave,
       position.inMilliseconds,
       sample.duration.inMilliseconds,
@@ -439,7 +450,7 @@ class PlaybackProgressRecorder {
   void recordLivestream() {
     if (item.contentType != MultimediaContentType.livestream) return;
     final provider = item.provider ?? 'Unknown';
-    read(watchHistoryProvider.notifier).saveProgress(
+    _pendingWrite = read(watchHistoryProvider.notifier).saveProgress(
       item.copyWith(provider: provider),
       0,
       0,

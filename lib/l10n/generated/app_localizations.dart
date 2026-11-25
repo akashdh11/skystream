@@ -4247,6 +4247,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{time} behind live'**
   String playerBehindLive(String time);
+
+  /// Settings group for the self-hosted profile sync server, and the title of its sign-in dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'SkyStream sync'**
+  String get profileSyncTitle;
+
+  /// Settings subtitle when this device is signed in to the profile sync server.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected as {username} ({host})'**
+  String profileSyncConnected(String username, String host);
+
+  /// Settings subtitle when profile sync is not signed in.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in. Sync extensions, watch history, and episodes across your devices.'**
+  String get profileSyncSignedOut;
+
+  /// Label of the profile sync server address field.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get profileSyncServerUrl;
+
+  /// Button and row that open the profile sync sign-in dialog.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in'**
+  String get profileSyncSignIn;
+
+  /// Settings row that pushes and pulls the profile immediately.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync now'**
+  String get profileSyncSyncNow;
+
+  /// Settings subtitle while a profile sync is in progress.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing…'**
+  String get profileSyncSyncing;
+
+  /// Switch that sends watch progress a few seconds after it changes.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-sync'**
+  String get profileSyncAuto;
+
+  /// Line under the auto-sync switch.
+  ///
+  /// In en, this message translates to:
+  /// **'Send watch progress and episode checkmarks automatically'**
+  String get profileSyncAutoSubtitle;
+
+  /// Settings row and confirm button that sign this device out of profile sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get profileSyncDisconnect;
+
+  /// Body of the dialog that confirms disconnecting profile sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop syncing this device? Watch history already saved stays on this device and on the server.'**
+  String get profileSyncDisconnectBody;
+
+  /// Toast after profile sync succeeds.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync finished'**
+  String get profileSyncSynced;
+
+  /// Toast when profile sync fails and the server gave no message.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync failed'**
+  String get profileSyncFailed;
+
+  /// Settings subtitle naming when this device last finished a profile sync.
+  ///
+  /// In en, this message translates to:
+  /// **'Last sync {time}'**
+  String profileSyncLastSynced(String time);
 }
 
 class _AppLocalizationsDelegate
