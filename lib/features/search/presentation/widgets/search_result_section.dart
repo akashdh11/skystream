@@ -144,6 +144,7 @@ class _SearchResultSectionState extends ConsumerState<SearchResultSection> {
                         delay: Duration(milliseconds: rIndex * 50),
                         child: MultimediaCard(
                           key: ValueKey(item.url),
+                          imageHeaders: item.headers,
                           imageUrl: AppImageFallbacks.poster(
                             item.posterUrl,
                             label: item.title,

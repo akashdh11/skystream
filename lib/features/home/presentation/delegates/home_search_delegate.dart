@@ -459,6 +459,7 @@ class _HomeSearchResultsState extends ConsumerState<_HomeSearchResults> {
 
         return MultimediaCard(
           key: ValueKey(item.url),
+          imageHeaders: item.headers,
           focusNode: index == 0 ? widget.firstItemFocusNode : null,
           imageUrl: AppImageFallbacks.poster(item.posterUrl, label: item.title),
           title: item.title,

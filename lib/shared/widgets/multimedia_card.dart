@@ -16,6 +16,10 @@ class MultimediaCard extends ConsumerWidget {
   final bool isPortrait;
   final FocusNode? focusNode;
 
+  /// Headers the poster request needs (e.g. a CloudStream plugin's `posterHeaders` such as a
+  /// Referer). Without them hosts that check the Referer answer 403 and the card stays blank.
+  final Map<String, String>? imageHeaders;
+
   const MultimediaCard({
     super.key,
     required this.imageUrl,
@@ -24,6 +28,7 @@ class MultimediaCard extends ConsumerWidget {
     required this.heroTag,
     this.isPortrait = true,
     this.focusNode,
+    this.imageHeaders,
   });
 
   @override
@@ -62,6 +67,7 @@ class MultimediaCard extends ConsumerWidget {
             borderRadius: BorderRadius.circular(12),
             child: CachedNetworkImage(
               imageUrl: imageUrl ?? '',
+              httpHeaders: imageHeaders,
               fit: BoxFit.cover,
               width: double.infinity,
               // Without this the source decodes whole: a `w780` TV/desktop
