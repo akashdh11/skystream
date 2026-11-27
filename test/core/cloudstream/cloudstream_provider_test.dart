@@ -99,6 +99,70 @@ void main() {
     });
   });
 
+  group('home rows', () {
+    late _MainPageEngine engine;
+
+    CloudStreamProvider provider({List<String> sections = const ['Latest', 'Popular'], bool hasMainPage = true}) =>
+        CloudStreamProvider(
+          plugin: const CsInstalledPlugin(
+            info: CsPluginInfo(internalName: 'Paged', name: 'Paged', url: '', repositoryUrl: ''),
+            filePath: '/plugins/Paged.cs3',
+          ),
+          pluginKey: 'repo/Paged',
+          info: CsProviderInfo(name: 'Paged', hasMainPage: hasMainPage, sections: sections),
+          host: _EngineHost(engine),
+        );
+
+    setUp(() => engine = _MainPageEngine());
+
+    test("page N of a row is its section's page N, with the extension's hasNext", () async {
+      final paged = provider();
+      final home = await paged.getHome();
+      expect(home.keys, ['Latest', 'Popular']);
+      expect(home['Latest']!.map((i) => i.url), ['/Latest/1']);
+
+      final second = await paged.getHomeSection('Latest', 2);
+      expect(second!.items.map((i) => i.url), ['/Latest/2']);
+      expect(second.items.single.provider, isNull, reason: "home items carry no provider, as home's own");
+      expect(second.hasNext, isTrue);
+      expect(engine.asked.last, (section: 'Latest', page: 2));
+
+      final last = await paged.getHomeSection('Latest', 3);
+      expect(last!.hasNext, isFalse);
+    });
+
+    test("a row whose first page was its last isn't asked for a second", () async {
+      final paged = provider();
+      await paged.getHome();
+      final asked = engine.asked.length;
+      final second = await paged.getHomeSection('Popular', 2);
+      expect(second!.items, isEmpty);
+      expect(second.hasNext, isFalse);
+      expect(engine.asked.length, asked);
+    });
+
+    test('a row titled apart from its section is asked for by its section', () async {
+      engine.titles = {'Latest': 'Latest dramas'};
+      final paged = provider();
+      expect((await paged.getHome()).keys, contains('Latest dramas'));
+      final second = await paged.getHomeSection('Latest dramas', 2);
+      expect(engine.asked.last, (section: 'Latest', page: 2));
+      expect(second!.items.map((i) => i.url), ['/Latest/2']);
+    });
+
+    test("a section's failure is the page's error", () async {
+      final paged = provider();
+      await paged.getHome();
+      engine.failing = true;
+      await expectLater(paged.getHomeSection('Latest', 2), throwsA(isA<Exception>()));
+    });
+
+    test('no home page, no pages', () async {
+      expect(await provider(hasMainPage: false).getHomeSection('Latest', 2), isNull);
+      expect(engine.asked, isEmpty);
+    });
+  });
+
   group('an HLS link with no quality of its own', () {
     CloudStreamProvider provider(Map<String, dynamic> answer) => CloudStreamProvider(
       plugin: const CsInstalledPlugin(
@@ -319,4 +383,56 @@ class _AnsweringHost extends CloudStreamEngineHost {
     String mainUrl = '',
     String? pluginUrl,
   }) async => answer as T;
+}
+
+/// A host that runs each call on [running].
+class _EngineHost extends CloudStreamEngineHost {
+  _EngineHost(this.running);
+
+  final Cs3Engine running;
+
+  @override
+  Future<T> run<T>(
+    String path,
+    Future<T> Function(Cs3Engine engine) call, {
+    String kind = 'call',
+    String? provider,
+    String mainUrl = '',
+    String? pluginUrl,
+  }) => call(running);
+}
+
+/// An extension whose Latest has three pages and Popular one, a title each.
+class _MainPageEngine implements Cs3Engine {
+  final asked = <({String? section, int page})>[];
+
+  /// The titles sections' lists go by, where not their own.
+  Map<String, String> titles = const {};
+
+  bool failing = false;
+
+  @override
+  Future<Map<String, dynamic>> mainPage(String provider, {int page = 1, String? section, String? plugin}) async {
+    asked.add((section: section, page: page));
+    final pages = {'Latest': 3, 'Popular': 1};
+    return {
+      'sections': [
+        for (final name in pages.keys)
+          if (section == null || section == name)
+            if (failing)
+              {'name': titles[name] ?? name, 'error': 'offline'}
+            else
+              {
+                'name': titles[name] ?? name,
+                'items': [
+                  {'name': '$name $page', 'url': '/$name/$page', 'type': 'Movie'},
+                ],
+                'hasNext': page < pages[name]!,
+              },
+      ],
+    };
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

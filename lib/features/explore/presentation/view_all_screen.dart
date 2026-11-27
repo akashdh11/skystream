@@ -10,6 +10,7 @@ import '../../../../core/utils/responsive_breakpoints.dart';
 import '../../../../shared/widgets/multimedia_card.dart';
 import '../../../../shared/widgets/shimmer_placeholder.dart';
 import '../../../../core/domain/entity/multimedia_item.dart';
+import '../../../../core/extensions/base_provider.dart';
 import '../../../../core/utils/image_utils.dart';
 import 'controllers/view_all_controller.dart';
 
@@ -24,8 +25,9 @@ enum ViewAllCategory {
   trending,
   trendingTV,
 
-  /// Provider-sourced content from the home screen.
-  /// No TMDB pagination — shows only the initial list.
+  /// Provider-sourced content from the home screen. No TMDB pagination: it
+  /// pages through [ViewAllScreen.loadPage] when given one, and shows only the
+  /// initial list otherwise.
   providerContent,
 }
 
@@ -38,12 +40,17 @@ class ViewAllScreen extends ConsumerStatefulWidget {
   /// DetailsRoute instead of TmdbDetailsRoute).
   final void Function(MultimediaItem item)? onTap;
 
+  /// Page N of a provider's home row (the initial list is page 1), for
+  /// [ViewAllCategory.providerContent]; null answers mean it has no pages.
+  final Future<HomeSectionPage?> Function(int page)? loadPage;
+
   const ViewAllScreen({
     super.key,
     required this.title,
     required this.initialMediaList,
     required this.category,
     this.onTap,
+    this.loadPage,
   });
 
   @override
@@ -64,7 +71,7 @@ class _ViewAllScreenState extends ConsumerState<ViewAllScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref
           .read(viewAllControllerProvider(widget.category).notifier)
-          .init(widget.initialMediaList);
+          .init(widget.initialMediaList, loadPage: widget.loadPage);
       _checkInitialFill();
     });
   }

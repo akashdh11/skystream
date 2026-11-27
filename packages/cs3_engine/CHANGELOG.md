@@ -1,5 +1,7 @@
 ## Unreleased
 
+- **mainPage says whether a section has another page:** each section carries its answer's
+  `hasNext`, so the app can ask for the `page` after it, one section at a time.
 - **A site counts as letting only the browser through on proof only:** a clearance the browser
   earned in that solve (or moments before) meeting the check again. Behind `CloudflareKiller`, a 403
   with none of a check's marks counts only when one of the site's pages gets past it. A 503 with

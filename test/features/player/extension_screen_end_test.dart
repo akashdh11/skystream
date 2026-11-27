@@ -47,6 +47,9 @@ class _Game implements SkyStreamProvider {
   @override
   Future<Map<String, List<MultimediaItem>>> getHome() async => const {};
   @override
+  Future<HomeSectionPage?> getHomeSection(String section, int page) async =>
+      null;
+  @override
   Future<MultimediaItem> getDetails(String url) async => throw UnimplementedError();
 }
 

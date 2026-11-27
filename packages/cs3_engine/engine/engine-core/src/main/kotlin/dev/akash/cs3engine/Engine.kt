@@ -54,6 +54,8 @@ import java.util.concurrent.TimeoutException
  * openPopups{path} (the extension's kept pop-ups as a screen, as its Support button opens them).
  * setLanguage{language} (the app's language: extensions' resources loaded from then on use it).
  * loadPlugin's and reloadPlugin's answers carry hasSettings.
+ * mainPage's answer: sections [{name, items, hasNext}] (hasNext: the extension has a page after [page]), or
+ * [{name, error}] for a section that failed.
  * loadPlugin's url is where the extension was downloaded from; extensions can look it up.
  * Provider calls also take plugin? (the extension's path) to tell same-named providers apart.
  * loadLinks's answer: links, subtitles, completed, error, and fullScreen: true when it ended with a full-screen window of
@@ -426,8 +428,13 @@ class Engine(
                 val response = pluginCall(MAIN_PAGE_TIMEOUT_MS) {
                     api.getMainPage(page, MainPageRequest(data.name, data.data, data.horizontalImages))
                 }
+                // hasNext is the response's, so each of its lists carries it: the app pages one section at a time.
                 response?.items?.forEach { list ->
-                    sections += mapOf("name" to list.name, "items" to list.list.map(Mappers::searchItem))
+                    sections += mapOf(
+                        "name" to list.name,
+                        "items" to list.list.map(Mappers::searchItem),
+                        "hasNext" to response.hasNext,
+                    )
                 }
             } catch (e: Exception) {
                 sections += mapOf("name" to data.name, "error" to (Json.rootCause(e).message ?: e.toString()))

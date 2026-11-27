@@ -22,6 +22,7 @@ import '../../features/details/presentation/details_screen.dart';
 import '../../features/details/presentation/tmdb_movie_details_screen.dart';
 import '../../features/explore/presentation/view_all_screen.dart';
 import '../domain/entity/multimedia_item.dart';
+import '../extensions/base_provider.dart';
 import 'package:skystream/shared/widgets/app_scaffold.dart';
 import '../../core/storage/settings_repository.dart';
 import 'package:talker_flutter/talker_flutter.dart';
@@ -234,11 +235,15 @@ class ViewAllRouteExtra {
     required this.initialMediaList,
     required this.category,
     this.onTap,
+    this.loadPage,
   });
   final String title;
   final List<MultimediaItem> initialMediaList;
   final ViewAllCategory category;
   final void Function(MultimediaItem item)? onTap;
+
+  /// See [ViewAllScreen.loadPage].
+  final Future<HomeSectionPage?> Function(int page)? loadPage;
 }
 
 // --- Route Extra Codec ---
@@ -286,7 +291,8 @@ class _RouteExtraEncoder extends Converter<Object?, Object?> {
         'initialMediaList':
             input.initialMediaList.map((e) => e.toJson()).toList(),
         'category': input.category.name,
-        // onTap is a callback — cannot be serialized; will be null on restore.
+        // onTap and loadPage are callbacks — cannot be serialized; will be
+        // null on restore.
       };
     }
     return input;
@@ -404,6 +410,7 @@ class ViewAllRoute extends GoRouteData with $ViewAllRoute {
       initialMediaList: $extra.initialMediaList,
       category: $extra.category,
       onTap: $extra.onTap,
+      loadPage: $extra.loadPage,
     );
   }
 }
