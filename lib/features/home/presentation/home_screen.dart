@@ -28,6 +28,7 @@ import '../../../core/extensions/models/extension_plugin.dart';
 import '../../../l10n/generated/app_localizations.dart';
 
 import 'package:skystream/core/extensions/extension_manager.dart';
+import 'package:skystream/core/domain/entity/multimedia_item.dart';
 import 'package:skystream/core/extensions/base_provider.dart';
 import 'package:skystream/core/router/app_router.dart';
 
@@ -414,14 +415,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         .toList();
                     if (index >= filteredEntries.length) return null;
                     final entry = filteredEntries[index];
+                    void openDetails(MultimediaItem item) {
+                      DetailsRoute($extra: DetailsRouteExtra(item: item))
+                          .push<void>(context);
+                    }
+
                     return MediaHorizontalList(
                       title: entry.key,
                       mediaList: entry.value,
                       category: ViewAllCategory.providerContent,
                       showViewAll: true,
-                      onTap: (item) {
-                        DetailsRoute($extra: DetailsRouteExtra(item: item))
-                            .push<void>(context);
+                      onTap: openDetails,
+                      // The row's full list pages through its provider, when
+                      // the provider can.
+                      onViewAll: () {
+                        final provider = ref.read(activeProviderProvider);
+                        ViewAllRoute(
+                          $extra: ViewAllRouteExtra(
+                            title: entry.key,
+                            initialMediaList: entry.value,
+                            category: ViewAllCategory.providerContent,
+                            onTap: openDetails,
+                            loadPage: provider == null
+                                ? null
+                                : (page) =>
+                                      provider.getHomeSection(entry.key, page),
+                          ),
+                        ).push<void>(context);
                       },
                       heroTagPrefix: 'home',
                     );

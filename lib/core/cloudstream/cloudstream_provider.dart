@@ -48,6 +48,10 @@ class CloudStreamProvider extends SkyStreamProvider {
   /// Home page sections fetched at once; each is a network call in the plugin.
   static const int _homeConcurrency = 4;
 
+  /// Each home row, by its title, from the last [getHome]: the section it was asked for with (null:
+  /// all at once), and whether the extension said a page follows the first.
+  final Map<String, ({String? request, bool hasNext})> _homeRows = {};
+
   @override
   String get packageName => idFor(pluginKey, info.name);
 
@@ -112,15 +116,14 @@ class CloudStreamProvider extends SkyStreamProvider {
             (e) => e.mainPage(name, section: names[index], plugin: _pluginPath),
             kind: 'mainPage',
           );
-          pages[index] = {
-            for (final section in _list(result['sections']))
-              if (section['error'] == null && _list(section['items']).isNotEmpty)
-                // Home items carry no provider, like SkyStream plugins' (the carousel would print the
-                // id); details falls back to the active provider, whose home this is.
-                (section['name'] as String? ?? name): [
-                  for (final item in _list(section['items'])) _item(item, stampProvider: false),
-                ],
-          };
+          final rows = <String, List<MultimediaItem>>{};
+          for (final section in _list(result['sections'])) {
+            if (section['error'] != null || _list(section['items']).isEmpty) continue;
+            final title = section['name'] as String? ?? name;
+            rows[title] = _homeItems(section);
+            _homeRows[title] = (request: names[index], hasNext: section['hasNext'] == true);
+          }
+          pages[index] = rows;
         } catch (error) {
           failure = error;
           talker.warning('[CloudStream] $name home section ${names[index]} failed: $error');
@@ -134,6 +137,40 @@ class CloudStreamProvider extends SkyStreamProvider {
     if (home.isEmpty && failure != null) throw failure!;
     return home;
   }
+
+  @override
+  Future<HomeSectionPage?> getHomeSection(String section, int page) async {
+    if (!info.hasMainPage) return null;
+    final row = _homeRows[section];
+    // Its first page was its last: nothing to ask the extension for.
+    if (row != null && !row.hasNext && page > 1) return const HomeSectionPage(items: [], hasNext: false);
+    // The row's own request: a row's title can differ from the section that asked for it.
+    final request = row != null ? row.request : (info.sections.contains(section) ? section : null);
+    try {
+      final result = await _call(
+        (e) => e.mainPage(name, page: page, section: request, plugin: _pluginPath),
+        kind: 'mainPage',
+      );
+      final sections = _list(result['sections']);
+      // The row by its title; a request with one list answers for its row whatever it calls it.
+      final match =
+          sections.where((s) => (s['name'] as String? ?? name) == section).firstOrNull ??
+          (request != null && sections.length == 1 ? sections.single : null);
+      if (match == null) return const HomeSectionPage(items: [], hasNext: false);
+      final error = match['error'];
+      if (error != null) throw Exception(error);
+      return HomeSectionPage(items: _homeItems(match), hasNext: match['hasNext'] == true);
+    } catch (error) {
+      talker.warning('[CloudStream] $name home section $section page $page failed: $error');
+      rethrow;
+    }
+  }
+
+  /// A home section's items. They carry no provider, like SkyStream plugins' (the carousel would
+  /// print the id); details falls back to the active provider, whose home this is.
+  List<MultimediaItem> _homeItems(Map<String, dynamic> section) => [
+    for (final item in _list(section['items'])) _item(item, stampProvider: false),
+  ];
 
   @override
   Future<MultimediaItem> getDetails(String url) async {

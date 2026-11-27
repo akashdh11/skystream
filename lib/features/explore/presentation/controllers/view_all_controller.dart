@@ -1,6 +1,8 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../core/domain/entity/multimedia_item.dart';
+import '../../../../core/extensions/base_provider.dart';
+import '../../../../core/logger/app_logger.dart';
 import '../../data/explore_tmdb_provider.dart';
 import '../../data/explore_language_provider.dart';
 import '../../data/explore_filter_provider.dart';
@@ -42,17 +44,32 @@ class ViewAllState {
 
 @riverpod
 class ViewAllController extends _$ViewAllController {
+  /// Page N of a provider's home row, for [ViewAllCategory.providerContent];
+  /// see [SkyStreamProvider.getHomeSection].
+  Future<HomeSectionPage?> Function(int page)? _loadPage;
+
+  /// The URLs listed so far: a provider's pages can overlap.
+  final Set<String> _seen = {};
+
   @override
   ViewAllState build(ViewAllCategory category) {
     ref.watch(languageProvider);
     ref.watch(exploreFilterProvider);
+    _seen.clear();
     return ViewAllState(category: category);
   }
 
-  void init(List<MultimediaItem> initialItems) {
+  /// [loadPage] pages provider content; without it, provider content shows
+  /// only [initialItems].
+  void init(
+    List<MultimediaItem> initialItems, {
+    Future<HomeSectionPage?> Function(int page)? loadPage,
+  }) {
     if (state.items.isEmpty && state.page == 1) {
-      // Provider content has no TMDB pagination — show only the initial items.
-      final noMore = category == ViewAllCategory.providerContent;
+      _loadPage = loadPage;
+      _seen.addAll(initialItems.map((item) => item.url));
+      final noMore =
+          category == ViewAllCategory.providerContent && loadPage == null;
       state = state.copyWith(items: List.from(initialItems), hasMore: !noMore);
     }
   }
@@ -153,8 +170,25 @@ class ViewAllController extends _$ViewAllController {
           );
           break;
         case ViewAllCategory.providerContent:
-          // Provider content is fully loaded at init — no pagination.
-          state = state.copyWith(hasMore: false, isLoading: false);
+          final page = await _loadPage?.call(nextPage);
+          if (!ref.mounted) return;
+          if (page == null) {
+            // This provider can't page its home rows.
+            state = state.copyWith(hasMore: false, isLoading: false);
+            return;
+          }
+          final fresh = [
+            for (final item in page.items)
+              if (_seen.add(item.url)) item,
+          ];
+          state = state.copyWith(
+            items: [...state.items, ...fresh],
+            page: nextPage,
+            isLoading: false,
+            // A page with nothing new ends it too: a provider that ignores the
+            // page number would repeat its first page forever.
+            hasMore: page.hasNext && fresh.isNotEmpty,
+          );
           return;
       }
 
@@ -168,6 +202,13 @@ class ViewAllController extends _$ViewAllController {
         );
       }
     } catch (e) {
+      if (!ref.mounted) return;
+      if (category == ViewAllCategory.providerContent) {
+        // Not asked again on every scroll; opening the list again retries.
+        talker.warning('View all: loading page ${state.page + 1} failed: $e');
+        state = state.copyWith(isLoading: false, hasMore: false);
+        return;
+      }
       state = state.copyWith(isLoading: false);
     }
   }

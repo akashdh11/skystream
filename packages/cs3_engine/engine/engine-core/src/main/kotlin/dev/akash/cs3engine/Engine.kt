@@ -54,6 +54,8 @@ import java.util.concurrent.TimeoutException
  * openPopups{path} (the extension's kept pop-ups as a screen, as its Support button opens them).
  * setLanguage{language} (the app's language: extensions' resources loaded from then on use it).
  * loadPlugin's and reloadPlugin's answers carry hasSettings.
+ * mainPage's answer: sections [{name, items, hasNext}] (hasNext: the extension has a page after [page]), or
+ * [{name, error}] for a section that failed.
  * loadPlugin's url is where the extension was downloaded from; extensions can look it up.
  * Provider calls also take plugin? (the extension's path) to tell same-named providers apart.
  * loadLinks's answer: links, subtitles, completed, error, and fullScreen: true when it ended with a full-screen window of
@@ -146,6 +148,9 @@ class Engine(
         NewPipeDownloader.install()
         // CloudStream's app names its id keys at startup too; extensions' addMalId and the like write under them.
         Mappers.nameSyncKeys()
+        // Tells extensions that home rows page here (mainPage honours `page` and returns `hasNext`
+        // per section), so they can drop their own workarounds for hosts that don't.
+        System.setProperty(HOME_PAGING_PROPERTY, "true")
         // Bot checks: the app's browser clears them, and its clearances go with every request on
         // CloudStream's shared clients.
         HostHooks.webView = RemoteWebViewHost
@@ -426,8 +431,13 @@ class Engine(
                 val response = pluginCall(MAIN_PAGE_TIMEOUT_MS) {
                     api.getMainPage(page, MainPageRequest(data.name, data.data, data.horizontalImages))
                 }
+                // hasNext is the response's, so each of its lists carries it: the app pages one section at a time.
                 response?.items?.forEach { list ->
-                    sections += mapOf("name" to list.name, "items" to list.list.map(Mappers::searchItem))
+                    sections += mapOf(
+                        "name" to list.name,
+                        "items" to list.list.map(Mappers::searchItem),
+                        "hasNext" to response.hasNext,
+                    )
                 }
             } catch (e: Exception) {
                 sections += mapOf("name" to data.name, "error" to (Json.rootCause(e).message ?: e.toString()))
@@ -511,6 +521,8 @@ class Engine(
 
     companion object {
         const val VERSION = "0.3.0"
+        /** System property set to "true" while this engine runs: home rows support paging. */
+        const val HOME_PAGING_PROPERTY = "cs3engine.homePaging"
         private const val CALL_TIMEOUT_MS = 60_000L
         private const val MAIN_PAGE_TIMEOUT_MS = 30_000L
         private const val LOAD_TIMEOUT_MS = 120_000L

@@ -30,10 +30,24 @@ abstract class SkyStreamProvider {
   Future<List<MultimediaItem>> search(String query, {CancelToken? cancelToken});
   // Returns categorized content (Section Name -> Items)
   Future<Map<String, List<MultimediaItem>>> getHome();
+
+  /// Page [page] (1-based) of the home row titled [section], one of
+  /// [getHome]'s keys, for the row's full list. Null when this provider can't
+  /// page its home rows: the list then shows only what home has.
+  Future<HomeSectionPage?> getHomeSection(String section, int page) async =>
+      null;
   Future<MultimediaItem> getDetails(String url);
 
   // Returns list of video streams (urls)
   Future<List<StreamResult>> loadStreams(String url);
+}
+
+/// One page of a home row: its items, and whether a page follows.
+class HomeSectionPage {
+  const HomeSectionPage({required this.items, required this.hasNext});
+
+  final List<MultimediaItem> items;
+  final bool hasNext;
 }
 
 /// A provider's own full-screen screen (a game an extension opens on Play) took the person's Play and left nothing to
