@@ -148,6 +148,9 @@ class Engine(
         NewPipeDownloader.install()
         // CloudStream's app names its id keys at startup too; extensions' addMalId and the like write under them.
         Mappers.nameSyncKeys()
+        // Tells extensions that home rows page here (mainPage honours `page` and returns `hasNext`
+        // per section), so they can drop their own workarounds for hosts that don't.
+        System.setProperty(HOME_PAGING_PROPERTY, "true")
         // Bot checks: the app's browser clears them, and its clearances go with every request on
         // CloudStream's shared clients.
         HostHooks.webView = RemoteWebViewHost
@@ -518,6 +521,8 @@ class Engine(
 
     companion object {
         const val VERSION = "0.3.0"
+        /** System property set to "true" while this engine runs: home rows support paging. */
+        const val HOME_PAGING_PROPERTY = "cs3engine.homePaging"
         private const val CALL_TIMEOUT_MS = 60_000L
         private const val MAIN_PAGE_TIMEOUT_MS = 30_000L
         private const val LOAD_TIMEOUT_MS = 120_000L
