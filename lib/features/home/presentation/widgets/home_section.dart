@@ -77,6 +77,7 @@ class _HomeSectionState extends ConsumerState<HomeSection> {
                       padding: EdgeInsets.only(right: spacing),
                       child: MultimediaCard(
                         key: ValueKey(item.url),
+                        imageHeaders: item.headers,
                         imageUrl:
                             AppImageFallbacks.poster(
                               item.posterUrl,
