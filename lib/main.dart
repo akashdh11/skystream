@@ -49,6 +49,7 @@ import 'core/network/clearance/clearance.dart';
 import 'core/network/clearance/clearance_bridge.dart';
 import 'core/network/clearance/clearance_images.dart';
 import 'core/config/tmdb_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/providers/device_info_provider.dart';
 import 'shared/focus/app_focus.dart';
 import 'shared/widgets/loading_indicator.dart';
@@ -165,6 +166,21 @@ class _AppRootState extends State<AppRoot> {
 
       // The developer option's QoE switch, kept across launches.
       QoeLog.writeToAppLog = _storageService.getDevQoeLog();
+
+      // TMDB keys the user saved (Settings, Nuvio plugins) into TmdbConfig's
+      // static cache, before the first screen asks TMDB for anything. Without
+      // this a saved key only worked until the app was restarted.
+      final savedTmdbKey = _storageService.getString('tmdb_api_key');
+      if (savedTmdbKey != null && savedTmdbKey.trim().isNotEmpty) {
+        TmdbConfig.setUserApiKey(savedTmdbKey);
+      }
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final savedNuvioKey = prefs.getString('nuvio_tmdb_api_key');
+        if (savedNuvioKey != null && savedNuvioKey.trim().isNotEmpty) {
+          TmdbConfig.setNuvioApiKey(savedNuvioKey);
+        }
+      } catch (_) {}
 
       if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
         final alwaysOnTop = _storageService.isAlwaysOnTop();
