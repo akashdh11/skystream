@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/tmdb_config.dart';
+import '../../settings/presentation/general_settings_provider.dart';
 import '../../settings/presentation/widgets/settings_dialogs.dart';
 import '../../../shared/widgets/cards_wrapper.dart';
 import '../../../shared/widgets/no_scrollbar_behavior.dart';
@@ -102,6 +103,18 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+
+    // A key saved in Settings (or from this screen's "TMDB API Key" button)
+    // must reload Explore at once. TmdbConfig.apiKey is static, so watching
+    // the setting is what rebuilds this screen, and the rows that ran
+    // without a key are fetched again.
+    ref.listen<String>(
+      generalSettingsProvider.select((s) => s.tmdbApiKey),
+      (previous, next) {
+        if (previous != next) _refreshAll();
+      },
+    );
+    ref.watch(generalSettingsProvider.select((s) => s.tmdbApiKey));
 
     final profile = ref.watch(deviceProfileProvider).asData?.value;
     // Use profile?.isLargeScreen so this matches AppScaffold's sidebar
